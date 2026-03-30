@@ -7,7 +7,7 @@
   "scripts": {
     "start": "ELECTRON_RUN_AS_NODE='' electron .",
     "dev": "electron .",
-    "postinstall": "mv node_modules/electron/dist/Electron.app \"node_modules/electron/dist/WhisperFlow Studio.app\" 2>/dev/null; printf 'WhisperFlow Studio.app/Contents/MacOS/Electron' > node_modules/electron/path.txt && /usr/libexec/PlistBuddy -c \"Set :CFBundleDisplayName WhisperFlow Studio\" \"node_modules/electron/dist/WhisperFlow Studio.app/Contents/Info.plist\" && /usr/libexec/PlistBuddy -c \"Set :CFBundleName WhisperFlow Studio\" \"node_modules/electron/dist/WhisperFlow Studio.app/Contents/Info.plist\" && node scripts/patch-icon.js",
+    "postinstall": "node scripts/postinstall.js",
     "build:mac": "electron-builder --mac",
     "build:win": "electron-builder --win",
     "build:linux": "electron-builder --linux"

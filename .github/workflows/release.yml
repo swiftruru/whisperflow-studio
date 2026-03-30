@@ -1,0 +1,52 @@
+name: Build & Release
+
+# Triggers automatically when a GitHub Release is created (via "gh release create" or GitHub UI)
+on:
+  release:
+    types: [created]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            build_cmd: build:mac
+            artifact_glob: "dist/*.dmg"
+          - os: windows-latest
+            build_cmd: build:win
+            artifact_glob: "dist/*.exe"
+          - os: ubuntu-latest
+            build_cmd: build:linux
+            artifact_glob: "dist/*.AppImage"
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run ${{ matrix.build_cmd }}
+
+      - name: Upload release assets
+        shell: bash
+        run: |
+          for f in ${{ matrix.artifact_glob }}; do
+            [ -f "$f" ] && gh release upload "${{ github.ref_name }}" "$f" --clobber
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

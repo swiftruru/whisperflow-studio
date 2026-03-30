@@ -13,7 +13,7 @@ mac:
   category: public.app-category.utilities
 win:
   target: nsis
-  icon: assets/icon.ico
+  icon: assets/icon.png
 linux:
   target: AppImage
   icon: assets/icon.png
