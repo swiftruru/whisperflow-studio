@@ -5,8 +5,12 @@ directories:
 files:
   - src/**
   - preload/**
-  - bridge/**
   - assets/**
+extraResources:
+  - from: python
+    to: python
+  - from: bridge
+    to: bridge
 mac:
   target: dmg
   icon: assets/icon.icns

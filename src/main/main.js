@@ -7,10 +7,18 @@ const path = require('path');
 const fs = require('fs');
 const { registerHandlers } = require('./ipc-handlers');
 
-// ── Portable Settings ─────────────────────────────────────────────────────────
-// settings.json lives in the electron-app root directory so it moves with the app.
-const ELECTRON_APP_ROOT = path.resolve(__dirname, '..', '..');
-const LOCAL_SETTINGS_PATH = path.join(ELECTRON_APP_ROOT, 'settings.json');
+// ── Path Resolution ───────────────────────────────────────────────────────────
+// In development:  ELECTRON_APP_ROOT = <project>/
+// In packaged app: ELECTRON_APP_ROOT = <app>.app/Contents/Resources/
+//   (python/ and bridge/ are placed there via extraResources in electron-builder.yml)
+const ELECTRON_APP_ROOT = app.isPackaged
+  ? process.resourcesPath
+  : path.resolve(__dirname, '..', '..');
+
+// settings.json: portable in dev (lives with the project), userData in packaged build.
+const LOCAL_SETTINGS_PATH = app.isPackaged
+  ? path.join(app.getPath('userData'), 'settings.json')
+  : path.join(path.resolve(__dirname, '..', '..'), 'settings.json');
 
 function readLocalSettings() {
   try {
