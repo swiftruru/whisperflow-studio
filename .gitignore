@@ -1,6 +1,5 @@
 node_modules/
 dist/
-package-lock.json
 settings.json
 python/config/config.json
 __pycache__/
