@@ -1,6 +1,6 @@
 'use strict';
 
-const { ipcMain, dialog, Notification, shell } = require('electron');
+const { ipcMain, dialog, Notification, shell, app } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { readConfig, writeConfig, getProfileList, copyProfileToActive } = require('./config-manager');
@@ -108,7 +108,6 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
   ipcMain.handle('appsettings:write', (_event, data) => saveLocalSettings(data));
 
   // ── Transcription History ─────────────────────────────────────────────────
-  const { app } = require('electron');
   const HISTORY_PATH = path.join(app.getPath('userData'), 'history.json');
 
   ipcMain.handle('history:read', () => {
