@@ -1,0 +1,7 @@
+node_modules/
+dist/
+package-lock.json
+settings.json
+__pycache__/
+*.pyc
+test.mjs

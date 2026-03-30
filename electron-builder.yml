@@ -1,0 +1,19 @@
+appId: com.ruru.whisperflow-studio
+productName: WhisperFlow Studio
+directories:
+  output: dist
+files:
+  - src/**
+  - preload/**
+  - bridge/**
+  - assets/**
+mac:
+  target: dmg
+  icon: assets/icon.icns
+  category: public.app-category.utilities
+win:
+  target: nsis
+  icon: assets/icon.ico
+linux:
+  target: AppImage
+  icon: assets/icon.png

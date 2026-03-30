@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';" />
+  <title>WhisperFlow Studio</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ── Title Bar ─────────────────────────────────────────────────────── -->
+  <header class="titlebar">
+    <div class="titlebar-traffic"></div>
+    <div class="titlebar-logo">
+      <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 12h2.5M19.5 12H22M6 8.5c0 0 1.5 3.5 3 3.5s3-7 3-7 1.5 7 3 7 3-3.5 3-3.5"/>
+      </svg>
+      <span class="titlebar-title">WhisperFlow Studio</span>
+    </div>
+    <div class="titlebar-right">
+      <button class="btn-theme-toggle" id="btn-theme-toggle" title="Toggle theme">
+        <svg id="theme-icon-moon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"/>
+        </svg>
+        <svg id="theme-icon-sun" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" hidden>
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <line x1="12" y1="21" x2="12" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <line x1="1" y1="12" x2="3" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <line x1="21" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <span class="status-dot" id="status-dot"></span>
+      <span class="status-label" id="status-badge">Idle</span>
+    </div>
+  </header>
+
+  <!-- ── App Shell ─────────────────────────────────────────────────────── -->
+  <div class="app-shell">
+
+    <!-- ── Left Panel ──────────────────────────────────────────────────── -->
+    <aside class="left-panel">
+
+      <!-- Tab Nav -->
+      <nav class="tab-nav" role="tablist">
+        <button class="tab-btn active" data-tab="main" role="tab">Main</button>
+        <button class="tab-btn" data-tab="settings" role="tab">Settings</button>
+        <div class="tab-indicator" id="tab-indicator"></div>
+      </nav>
+
+      <!-- ── Tab: Main ─────────────────────────────────────────────────── -->
+      <div class="tab-pane active" id="tab-main">
+
+        <!-- Profile switcher (hidden when only default profile exists) -->
+        <div id="profile-switcher-container" class="profile-switcher" hidden></div>
+
+        <!-- Directory card -->
+        <div class="card dir-card">
+          <div class="card-label">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M1.5 3A1.5 1.5 0 000 4.5v8A1.5 1.5 0 001.5 14h13a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H7.621a1.5 1.5 0 01-1.06-.44L5.439 2.94A1.5 1.5 0 004.379 2.5H1.5z"/>
+            </svg>
+            Media Directory
+          </div>
+          <div class="dir-path-box" id="dir-path-box">
+            <span class="dir-path-text" id="dir-path-text">Not configured</span>
+          </div>
+          <button class="btn-browse" id="btn-browse-dir">Browse…</button>
+        </div>
+
+        <!-- Step guide (hidden when directory is set) -->
+        <div class="step-guide" id="step-guide">
+          <div class="step-guide-item">
+            <span class="step-num">1</span>
+            <span>選擇媒體資料夾</span>
+          </div>
+          <div class="step-guide-item">
+            <span class="step-num">2</span>
+            <span>點擊 Scan 掃描缺字幕檔案</span>
+          </div>
+          <div class="step-guide-item">
+            <span class="step-num">3</span>
+            <span>點擊 Run 開始轉錄</span>
+          </div>
+        </div>
+
+        <!-- Found file card (hidden until scan runs) -->
+        <div class="card found-card" id="found-card" hidden>
+          <div class="card-label">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M9.293 0H4a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4.707A1 1 0 0013.707 4L10 .293A1 1 0 009.293 0zM9.5 3.5v-2l3 3h-2a1 1 0 01-1-1z"/>
+            </svg>
+            Next to Transcribe
+          </div>
+          <div class="found-filename" id="found-filename"></div>
+          <div class="found-filepath" id="found-filepath"></div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="action-stack">
+
+          <button class="btn-scan" id="btn-scan">
+            <svg class="btn-scan-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 9V5a2 2 0 012-2h4M15 3h4a2 2 0 012 2v4M21 15v4a2 2 0 01-2 2h-4M9 21H5a2 2 0 01-2-2v-4"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            Scan for Missing Subtitles
+          </button>
+
+          <button class="btn-primary" id="btn-run-cli">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15">
+              <rect x="2" y="10" width="2.5" height="4" rx="1.25"/>
+              <rect x="6.5" y="7" width="2.5" height="10" rx="1.25"/>
+              <rect x="11" y="4" width="2.5" height="16" rx="1.25"/>
+              <rect x="15.5" y="7" width="2.5" height="10" rx="1.25"/>
+              <rect x="20" y="10" width="2.5" height="4" rx="1.25"/>
+            </svg>
+            Run Transcription
+          </button>
+
+          <label class="auto-loop-toggle">
+            <input type="checkbox" id="chk-auto-loop" />
+            <span>自動循環模式</span>
+          </label>
+
+<button class="btn-stop" id="btn-stop" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="13" height="13">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+            Stop
+          </button>
+
+        </div>
+      </div><!-- /tab-main -->
+
+      <!-- ── Tab: Settings ──────────────────────────────────────────────── -->
+      <div class="tab-pane" id="tab-settings">
+        <div class="settings-toolbar">
+          <span class="settings-toolbar-label">Config Settings</span>
+          <button class="btn-save" id="btn-save-settings">Save</button>
+        </div>
+        <div id="settings-content">
+          <p class="loading-msg">Loading config…</p>
+        </div>
+      </div>
+
+    </aside><!-- /left-panel -->
+
+    <!-- ── Right Panel: Console ───────────────────────────────────────── -->
+    <section class="right-panel">
+      <div class="console-search" id="console-search" hidden>
+        <input type="text" id="console-search-input" placeholder="搜尋…" autocomplete="off" spellcheck="false" />
+        <span class="console-search-count" id="console-search-count"></span>
+        <button class="tool-btn" id="btn-search-close" title="Close">✕</button>
+      </div>
+      <div class="console-header">
+        <div class="console-filters">
+          <button class="filter-btn active" data-filter="">All</button>
+          <button class="filter-btn" data-filter="error">Error</button>
+          <button class="filter-btn" data-filter="warn">Warn</button>
+          <button class="filter-btn" data-filter="ok">OK</button>
+        </div>
+        <div class="console-tools">
+          <button class="tool-btn" id="btn-scroll-lock" title="Auto-scroll">&#x21D3;</button>
+          <button class="tool-btn" id="btn-copy-log" title="Copy">Copy</button>
+          <button class="tool-btn" id="btn-save-log" title="Save Log">Save Log</button>
+          <button class="tool-btn" id="btn-clear-log" title="Clear">Clear</button>
+        </div>
+      </div>
+      <div class="console-output" id="console-output">
+        <span class="log-line info">[WhisperFlow Studio] Ready. Select a media directory and click Scan.</span>
+      </div>
+    </section>
+
+  </div><!-- /app-shell -->
+
+  <div id="toast-container" class="toast-container"></div>
+  <script type="module" src="index.js"></script>
+</body>
+</html>
