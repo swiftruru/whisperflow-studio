@@ -24,14 +24,35 @@ function writeLocalSettings(data) {
   fs.writeFileSync(LOCAL_SETTINGS_PATH, JSON.stringify(data, null, 2), 'utf-8');
 }
 
+// ── Window State ──────────────────────────────────────────────────────────────
+const WINDOW_STATE_PATH = path.join(app.getPath('userData'), 'window-state.json');
+
+function readWindowState() {
+  try {
+    return JSON.parse(fs.readFileSync(WINDOW_STATE_PATH, 'utf-8'));
+  } catch (_) {
+    return { width: 1100, height: 720 };
+  }
+}
+
+function saveWindowState(win) {
+  if (win.isMaximized() || win.isMinimized()) return;
+  const bounds = win.getBounds();
+  fs.writeFileSync(WINDOW_STATE_PATH, JSON.stringify(bounds), 'utf-8');
+}
+
 // ── Window ────────────────────────────────────────────────────────────────────
 let mainWindow;
 let isRunning = false;
 
 function createWindow() {
+  const state = readWindowState();
+
   mainWindow = new BrowserWindow({
-    width: 1100,
-    height: 720,
+    width:  state.width  || 1100,
+    height: state.height || 720,
+    x: state.x,
+    y: state.y,
     minWidth: 800,
     minHeight: 560,
     title: 'WhisperFlow Studio',
@@ -42,6 +63,15 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
+
+  // Debounce save to avoid excessive writes during resize drag
+  let _saveTimer = null;
+  const debouncedSave = () => {
+    clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(() => saveWindowState(mainWindow), 400);
+  };
+  mainWindow.on('resize', debouncedSave);
+  mainWindow.on('move',   debouncedSave);
 
   mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
 

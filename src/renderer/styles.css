@@ -163,8 +163,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--surface1);
@@ -173,7 +173,7 @@ body {
   transition: color 0.15s, border-color 0.15s, background 0.15s;
   -webkit-app-region: no-drag;
   flex-shrink: 0;
-  padding: 0;
+  padding: 6px;
 }
 
 .btn-theme-toggle:hover {
@@ -364,6 +364,18 @@ body {
 .found-card.animate-in { animation: cardFadeIn 0.25s var(--easing) both; }
 .found-card .card-label { color: var(--green); }
 
+.missing-count-badge {
+  margin-left: auto;
+  padding: 1px 7px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--green) 18%, transparent);
+  color: var(--green);
+  border: 1px solid color-mix(in srgb, var(--green) 30%, transparent);
+  white-space: nowrap;
+}
+
 .found-filename {
   font-family: var(--font-mono);
   font-size: 12px;
@@ -377,6 +389,28 @@ body {
   font-size: 10px;
   color: var(--overlay1);
   word-break: break-all;
+}
+
+.btn-reveal {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 99px;
+  border: 1px solid color-mix(in srgb, var(--green) 35%, transparent);
+  background: color-mix(in srgb, var(--green) 6%, var(--surface0));
+  color: var(--green);
+  font-size: 11px;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.btn-reveal:hover {
+  background: color-mix(in srgb, var(--green) 12%, var(--surface0));
+  border-color: color-mix(in srgb, var(--green) 60%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--green) 18%, transparent);
 }
 
 /* ── Browse button ───────────────────────────────────────────────────────────── */
@@ -398,6 +432,45 @@ body {
   border-color: color-mix(in srgb, var(--yellow) 45%, transparent);
   color: var(--amber);
   background: color-mix(in srgb, var(--yellow) 6%, var(--surface1));
+}
+
+/* ── Recent directories ──────────────────────────────────────────────────────── */
+.recent-dirs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: -2px;
+}
+
+.recent-dir-item {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--subtext0);
+  background: transparent;
+  border: 1px solid transparent;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.recent-dir-item::before {
+  content: '↩';
+  margin-right: 6px;
+  font-size: 10px;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.recent-dir-item:hover {
+  background: color-mix(in srgb, var(--yellow) 10%, var(--surface1));
+  border-color: color-mix(in srgb, var(--yellow) 30%, transparent);
+  color: var(--text);
 }
 
 /* ── Action Stack ────────────────────────────────────────────────────────────── */
@@ -563,6 +636,96 @@ html:not([data-theme="light"]) .btn-primary {
   border-color: color-mix(in srgb, var(--red) 50%, transparent);
 }
 .btn-stop:disabled { cursor: default; }
+
+/* ── Transcription History ───────────────────────────────────────────────────── */
+.history-section {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+
+.history-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--subtext0);
+}
+
+.history-clear-btn {
+  all: unset;
+  cursor: pointer;
+  font-size: 10px;
+  color: var(--subtext0);
+  padding: 1px 6px;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.history-clear-btn:hover {
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 8%, transparent);
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.history-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface0);
+}
+
+.history-row.ok  { border-color: color-mix(in srgb, var(--green) 22%, transparent); }
+.history-row.fail { border-color: color-mix(in srgb, var(--red)   22%, transparent); }
+
+.history-icon {
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+  width: 14px;
+  text-align: center;
+}
+
+.history-row.ok   .history-icon { color: var(--green); }
+.history-row.fail .history-icon { color: var(--red); }
+
+.history-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+  flex: 1;
+}
+
+.history-name {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-time {
+  font-size: 10px;
+  color: var(--subtext0);
+}
 
 /* ── Settings Tab ────────────────────────────────────────────────────────────── */
 #tab-settings { overflow: hidden; }
@@ -823,6 +986,7 @@ select { appearance: auto; cursor: pointer; }
 }
 
 .log-line { display: block; }
+.log-line[hidden] { display: none; }
 .log-line.error  { color: var(--red); }
 .log-line.warn   { color: var(--yellow); }
 .log-line.ok     { color: var(--green); }
@@ -931,6 +1095,51 @@ select { appearance: auto; cursor: pointer; }
   color: #f0a0b8;
   flex-shrink: 0;
   box-shadow: 0 1px 6px rgba(245,212,90,0.4);
+}
+
+/* ── Shortcuts Modal ─────────────────────────────────────────────────────────── */
+.shortcuts-modal {
+  max-width: 360px;
+}
+
+.shortcuts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--subtext0);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.shortcut-row:last-child { border-bottom: none; }
+
+.shortcut-row span { flex: 1; }
+
+kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface1);
+  color: var(--text);
+  font-size: 11px;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 1px 0 var(--surface2);
+  flex-shrink: 0;
+  min-width: 48px;
 }
 
 /* ── Misc ────────────────────────────────────────────────────────────────────── */

@@ -1,6 +1,7 @@
 import { renderSettings, collectFormValues } from './components/settings-panel.js';
 import { openSearch } from './components/console-log.js';
 import { initProfileSwitcher } from './components/profile-switcher.js';
+import { initHistory } from './components/history.js';
 import './components/controls-bar.js';
 
 // ── Theme toggle ──────────────────────────────────────────────────────────────
@@ -87,10 +88,55 @@ function refreshFoundFileDisplay(config) {
   }
 }
 
+// ── Recent directories ────────────────────────────────────────────────────────
+const RECENT_DIRS_KEY = 'recentDirs';
+const RECENT_DIRS_MAX = 5;
+
+function getRecentDirs() {
+  try { return JSON.parse(localStorage.getItem(RECENT_DIRS_KEY)) || []; }
+  catch (_) { return []; }
+}
+
+function saveRecentDir(folder) {
+  const dirs = getRecentDirs().filter(d => d !== folder);
+  dirs.unshift(folder);
+  if (dirs.length > RECENT_DIRS_MAX) dirs.length = RECENT_DIRS_MAX;
+  localStorage.setItem(RECENT_DIRS_KEY, JSON.stringify(dirs));
+}
+
+function renderRecentDirs() {
+  const list = document.getElementById('recent-dirs-list');
+  if (!list) return;
+  const dirs = getRecentDirs();
+  if (dirs.length === 0) {
+    list.hidden = true;
+    return;
+  }
+  list.hidden = false;
+  list.innerHTML = '';
+  dirs.forEach(dir => {
+    const btn = document.createElement('button');
+    btn.className = 'recent-dir-item';
+    btn.title = dir;
+    // Show only last 2 path segments for readability
+    const parts = dir.replace(/\\/g, '/').split('/').filter(Boolean);
+    const label = parts.length > 1 ? `…/${parts.slice(-2).join('/')}` : dir;
+    btn.textContent = label;
+    btn.addEventListener('click', () => applyDirectory(dir));
+    list.appendChild(btn);
+  });
+}
+
+function initRecentDirs() {
+  renderRecentDirs();
+}
+
 // ── Shared: apply directory path ──────────────────────────────────────────────
 async function applyDirectory(folder) {
   if (!folder) return;
   updateDirDisplay(folder);
+  saveRecentDir(folder);
+  renderRecentDirs();
   // Persist to config.ini
   const config = await window.electronAPI.readConfig().catch(() => ({}));
   if (!config.SETTING) config.SETTING = {};
@@ -166,8 +212,19 @@ export function onScanComplete() {
 
 // ── Keyboard shortcuts ────────────────────────────────────────────────────────
 function initKeyboardShortcuts() {
+  const shortcutsModal = document.getElementById('shortcuts-modal');
+  document.getElementById('btn-shortcuts-close').addEventListener('click', () => {
+    shortcutsModal.hidden = true;
+  });
+  shortcutsModal.addEventListener('click', (e) => {
+    if (e.target === shortcutsModal) shortcutsModal.hidden = true;
+  });
+
   document.addEventListener('keydown', (e) => {
     const mod = e.metaKey || e.ctrlKey;
+    const tag = e.target.tagName;
+    const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
     if (mod && e.key === 's') {
       e.preventDefault();
       const settingsPane = document.getElementById('tab-settings');
@@ -183,6 +240,12 @@ function initKeyboardShortcuts() {
       e.preventDefault();
       openSearch();
     }
+    if (e.key === '?' && !isTyping && !mod) {
+      shortcutsModal.hidden = false;
+    }
+    if (e.key === 'Escape') {
+      shortcutsModal.hidden = true;
+    }
   });
 }
 
@@ -193,9 +256,11 @@ async function init() {
   initBrowseDir();
   initDragDrop();
   initKeyboardShortcuts();
+  initRecentDirs();
   await renderSettings();
   await refreshDirDisplay();
   await initProfileSwitcher();
+  await initHistory();
 }
 
 init();

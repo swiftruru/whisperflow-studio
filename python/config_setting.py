@@ -55,7 +55,7 @@ class ConfigSettingScript:
 
         return [], total_directories, total_files, missing_video_directory
 
-    def update_config(self, missing_subtitle_name="", missing_video_directory=""):
+    def update_config(self, missing_subtitle_name="", missing_video_directory="", missing_count=0):
         """Updates the configuration file with the missing subtitle name and video directory."""
         with open(self.config_file_name, 'r', encoding='utf-8') as f:
             config = json.load(f)
@@ -64,6 +64,7 @@ class ConfigSettingScript:
         config['SETTING'][self.media_root_path_key] = self.media_root_path
         config['SETTING'][self.media_path_key] = missing_video_directory
         config['SETTING'][self.media_name_key] = missing_subtitle_name
+        config['SETTING']['missing_count'] = missing_count
 
         with open(self.config_file_name, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
@@ -80,7 +81,7 @@ class ConfigSettingScript:
         missing_videos, total_directories, total_files, missing_video_directory = self.find_missing_subtitles()
 
         if missing_videos:
-            self.update_config(missing_videos[0], missing_video_directory)
+            self.update_config(missing_videos[0], missing_video_directory, len(missing_videos))
             print(f'\nUpdated {Colors.YELLOW(self.media_name_key)} in config.json: "{Colors.YELLOW(missing_videos[0])}"')
             print(f'Updated {Colors.YELLOW(self.media_path_key)} '
                   f'in config.json: "{Colors.YELLOW(missing_video_directory)}"')
@@ -88,7 +89,7 @@ class ConfigSettingScript:
             return
 
         print("\nCongratulations! All videos have corresponding subtitle files.")
-        self.update_config()
+        self.update_config(missing_count=0)
         self.show_summary(total_directories, total_files)
 
 

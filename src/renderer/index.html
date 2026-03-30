@@ -20,10 +20,10 @@
     </div>
     <div class="titlebar-right">
       <button class="btn-theme-toggle" id="btn-theme-toggle" title="Toggle theme">
-        <svg id="theme-icon-moon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+        <svg id="theme-icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
           <path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"/>
         </svg>
-        <svg id="theme-icon-sun" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" hidden>
+        <svg id="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" hidden>
           <circle cx="12" cy="12" r="5"/>
           <line x1="12" y1="1" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           <line x1="12" y1="21" x2="12" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -73,6 +73,9 @@
           <button class="btn-browse" id="btn-browse-dir">Browse…</button>
         </div>
 
+        <!-- Recent directories -->
+        <div class="recent-dirs-list" id="recent-dirs-list" hidden></div>
+
         <!-- Step guide (hidden when directory is set) -->
         <div class="step-guide" id="step-guide">
           <div class="step-guide-item">
@@ -96,9 +99,19 @@
               <path d="M9.293 0H4a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4.707A1 1 0 0013.707 4L10 .293A1 1 0 009.293 0zM9.5 3.5v-2l3 3h-2a1 1 0 01-1-1z"/>
             </svg>
             Next to Transcribe
+            <span class="missing-count-badge" id="missing-count-badge" hidden></span>
           </div>
           <div class="found-filename" id="found-filename"></div>
           <div class="found-filepath" id="found-filepath"></div>
+          <button class="btn-reveal" id="btn-reveal-in-finder">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="12" height="12">
+              <path d="M3 7c0-1.1.9-2 2-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+              <line x1="12" y1="11" x2="12" y2="16"/>
+              <line x1="9.5" y1="13.5" x2="12" y2="11"/>
+              <line x1="14.5" y1="13.5" x2="12" y2="11"/>
+            </svg>
+            在 Finder 中顯示
+          </button>
         </div>
 
         <!-- Action buttons -->
@@ -137,6 +150,16 @@
           </button>
 
         </div>
+
+        <!-- Transcription history (hidden until first entry) -->
+        <div class="history-section" id="history-section" hidden>
+          <div class="history-header">
+            <span class="history-title">最近轉錄</span>
+            <button class="history-clear-btn" id="btn-clear-history">清除</button>
+          </div>
+          <div class="history-list" id="history-list"></div>
+        </div>
+
       </div><!-- /tab-main -->
 
       <!-- ── Tab: Settings ──────────────────────────────────────────────── -->
@@ -181,6 +204,30 @@
   </div><!-- /app-shell -->
 
   <div id="toast-container" class="toast-container"></div>
+
+  <!-- Keyboard shortcuts modal -->
+  <div class="modal-overlay" id="shortcuts-modal" hidden>
+    <div class="modal shortcuts-modal">
+      <div class="modal-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
+          <rect x="2" y="6" width="20" height="13" rx="3"/>
+          <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M10 14h4"/>
+        </svg>
+      </div>
+      <h2>鍵盤快捷鍵</h2>
+      <div class="shortcuts-list">
+        <div class="shortcut-row"><kbd>⌘ S</kbd><span>儲存設定（Settings tab）</span></div>
+        <div class="shortcut-row"><kbd>⌘ K</kbd><span>清除 Console</span></div>
+        <div class="shortcut-row"><kbd>⌘ F</kbd><span>搜尋 Console</span></div>
+        <div class="shortcut-row"><kbd>Esc</kbd><span>關閉搜尋</span></div>
+        <div class="shortcut-row"><kbd>?</kbd><span>顯示此說明</span></div>
+      </div>
+      <div class="modal-actions" style="margin-top:20px;">
+        <button class="btn-primary" id="btn-shortcuts-close">關閉</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="index.js"></script>
 </body>
 </html>

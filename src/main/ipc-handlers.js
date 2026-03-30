@@ -1,6 +1,6 @@
 'use strict';
 
-const { ipcMain, dialog, Notification } = require('electron');
+const { ipcMain, dialog, Notification, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { readConfig, writeConfig, getProfileList, copyProfileToActive } = require('./config-manager');
@@ -87,6 +87,10 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
     return result.canceled ? null : result.filePaths[0];
   });
 
+  ipcMain.handle('shell:show-in-folder', (_event, filePath) => {
+    shell.showItemInFolder(filePath);
+  });
+
   ipcMain.handle('fs:save-log', async (_event, text) => {
     const result = await dialog.showSaveDialog(mainWindow, {
       title: 'Save Console Log',
@@ -102,6 +106,20 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
 
   ipcMain.handle('appsettings:read', () => getLocalSettings());
   ipcMain.handle('appsettings:write', (_event, data) => saveLocalSettings(data));
+
+  // ── Transcription History ─────────────────────────────────────────────────
+  const { app } = require('electron');
+  const HISTORY_PATH = path.join(app.getPath('userData'), 'history.json');
+
+  ipcMain.handle('history:read', () => {
+    try { return JSON.parse(fs.readFileSync(HISTORY_PATH, 'utf-8')); }
+    catch (_) { return []; }
+  });
+
+  ipcMain.handle('history:write', (_event, entries) => {
+    fs.writeFileSync(HISTORY_PATH, JSON.stringify(entries, null, 2), 'utf-8');
+    return true;
+  });
 
   // ── Process Runners ───────────────────────────────────────────────────────
 

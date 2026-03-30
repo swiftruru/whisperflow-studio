@@ -17,8 +17,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   browseFolder:    ()           => ipcRenderer.invoke('fs:browse-folder'),
   browseFile:      ()           => ipcRenderer.invoke('fs:browse-file'),
   saveLog:         (text)       => ipcRenderer.invoke('fs:save-log', text),
+  showInFolder:    (filePath)   => ipcRenderer.invoke('shell:show-in-folder', filePath),
   // Electron 32+: replaces file.path which is deprecated in contextIsolation mode
   getPathForFile:  (file)       => webUtils.getPathForFile(file),
+
+  // ── History ───────────────────────────────────────────────────────────────
+  readHistory:     ()             => ipcRenderer.invoke('history:read'),
+  writeHistory:    (entries)      => ipcRenderer.invoke('history:write', entries),
 
   // ── Process Control ───────────────────────────────────────────────────────
   setRunning:    (val)          => ipcRenderer.send('app:set-running', val),

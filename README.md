@@ -31,7 +31,11 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 
 ### UX
 - **Auto-loop mode** — Scan → Transcribe → Scan cycles automatically until all files are done
-- **Next to Transcribe card** — shows the found file name and path after each scan
+- **Next to Transcribe card** — shows the found file name, path, and **total pending count badge** after each scan
+- **Transcription history** — last 10 transcribed files (✓ success / ✗ fail) displayed in the main panel; persisted across sessions
+- **Recent directories** — last 5 used directories shown below the directory card for one-click re-selection
+- **Reveal in Finder** — open the scanned file's parent folder directly from the UI
+- **Window memory** — window size and position are restored on next launch
 - **Step guide** — onboarding hints shown when no directory is selected
 - **Dirty state indicator** — Save button highlights when settings have unsaved changes
 - **Settings section collapse** — each settings group is collapsible; state persisted across sessions
@@ -58,6 +62,7 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 | `Cmd+K` | Clear console |
 | `Cmd+F` | Open console search |
 | `Escape` | Close console search |
+| `?` | Show keyboard shortcuts panel |
 
 ---
 
