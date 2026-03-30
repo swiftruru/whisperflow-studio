@@ -30,6 +30,7 @@ function runScript(poetryPath, scriptPath, args, cwd, onData, onError, onClose) 
         ...process.env,
         PYTHONUNBUFFERED: '1',      // force Python to flush stdout immediately
         PYTHONIOENCODING: 'utf-8',  // handle CJK filenames
+        WHISPERFLOW_POETRY_PATH: poetryPath, // pass resolved path for sub-processes
       },
     }
   );

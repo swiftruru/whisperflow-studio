@@ -41,10 +41,14 @@ class HeadlessWhisperScript(WhisperFasterScript):
         print(f'[WhisperFlow] Started at: {start_time.strftime("%Y-%m-%d %H:%M:%S")}\n')
         sys.stdout.flush()
 
+        # Use the absolute poetry path injected by the Electron runner so the
+        # packaged app works even when ~/.local/bin is not in the GUI PATH.
+        poetry_bin = os.environ.get('WHISPERFLOW_POETRY_PATH') or 'poetry'
+
         # Build args as a proper list so the OS passes them verbatim —
         # no shell quoting needed, handles any special chars in paths/prompts.
         cmd = [
-            'poetry', 'run', 'python', 'cli.py',
+            poetry_bin, 'run', 'python', 'cli.py',
             '--whisper_implementation', wc.whisper_implementation,
             '--model',                   wc.model,
             '--fp16',                    wc.fp16_enabled,
