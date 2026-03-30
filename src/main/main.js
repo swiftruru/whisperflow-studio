@@ -7,6 +7,23 @@ const path = require('path');
 const fs = require('fs');
 const { registerHandlers } = require('./ipc-handlers');
 
+// ── Augment PATH for packaged app ─────────────────────────────────────────────
+// macOS GUI apps don't inherit the user's shell PATH. Prepend common install
+// locations so ffprobe, ffmpeg, poetry, and other tools are always findable,
+// regardless of how many subprocess layers deep they're called from.
+if (process.platform === 'darwin') {
+  const extra = [
+    '/opt/homebrew/bin',
+    '/opt/homebrew/sbin',
+    '/usr/local/bin',
+    '/usr/bin',
+    '/bin',
+  ];
+  const current = (process.env.PATH || '').split(path.delimiter);
+  const merged = [...new Set([...extra, ...current])].join(path.delimiter);
+  process.env.PATH = merged;
+}
+
 // ── Path Resolution ───────────────────────────────────────────────────────────
 // In development:  ELECTRON_APP_ROOT = <project>/
 // In packaged app: ELECTRON_APP_ROOT = <app>.app/Contents/Resources/

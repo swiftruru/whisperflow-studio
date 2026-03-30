@@ -27,18 +27,7 @@ function runScript(poetryPath, scriptPath, args, cwd, onData, onError, onClose) 
     {
       cwd,
       env: {
-        ...process.env,
-        // Augment PATH with common brew/system locations so ffprobe, ffmpeg,
-        // and other CLI tools are accessible when launched from the packaged app
-        // (which does not inherit the user's shell PATH on macOS/Linux).
-        PATH: [
-          process.env.PATH || '',
-          '/opt/homebrew/bin',
-          '/opt/homebrew/sbin',
-          '/usr/local/bin',
-          '/usr/bin',
-          '/bin',
-        ].join(require('path').delimiter),
+        ...process.env,  // includes the augmented PATH set in main.js
         PYTHONUNBUFFERED: '1',      // force Python to flush stdout immediately
         PYTHONIOENCODING: 'utf-8',  // handle CJK filenames
         WHISPERFLOW_POETRY_PATH: poetryPath, // pass resolved path for sub-processes
