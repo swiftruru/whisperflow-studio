@@ -1,5 +1,6 @@
 appId: com.ruru.whisperflow-studio
 productName: WhisperFlow Studio
+publish: null
 directories:
   output: dist
 files:
