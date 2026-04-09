@@ -581,6 +581,25 @@ body {
   color: var(--subtext0);
 }
 
+.queue-progress-timing,
+.queue-progress-message {
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.queue-progress-timing {
+  color: var(--subtext1);
+  font-family: var(--font-mono);
+}
+
+.queue-progress-message {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--yellow) 18%, transparent);
+  background: color-mix(in srgb, var(--yellow) 6%, var(--surface1));
+  color: var(--subtext1);
+}
+
 .queue-progress-bar {
   position: relative;
   height: 7px;
@@ -674,6 +693,8 @@ body {
 }
 
 .queue-item-meta,
+.queue-item-progress,
+.queue-item-stage-message,
 .queue-item-error {
   font-size: 10px;
   line-height: 1.4;
@@ -682,6 +703,15 @@ body {
 
 .queue-item-meta {
   color: var(--overlay1);
+}
+
+.queue-item-progress {
+  color: var(--subtext0);
+  font-family: var(--font-mono);
+}
+
+.queue-item-stage-message {
+  color: var(--subtext1);
 }
 
 .queue-item-error {

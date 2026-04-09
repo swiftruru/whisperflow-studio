@@ -165,6 +165,10 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
     mainWindow.webContents.send('log:data', text);
   }
 
+  function sendRunnerEvent(event) {
+    mainWindow.webContents.send('runner:event', event);
+  }
+
   function sendDone(code) {
     mainWindow.webContents.send('run:done', code);
   }
@@ -321,6 +325,10 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
           }
         }
         sendDone(code);
+      },
+      (event) => {
+        queueManager.handleRunnerEvent(event);
+        sendRunnerEvent(event);
       }
     );
   });

@@ -5,14 +5,34 @@ const subscribers = new Set();
 let initialized = false;
 let state = normalizeQueueState();
 
+function normalizeJob(job = null) {
+  if (!job) return null;
+
+  return {
+    ...job,
+    progress: Number.isFinite(Number(job?.progress)) ? Number(job.progress) : 0,
+    stageMessage: job?.stageMessage || '',
+    startedAt: job?.startedAt || null,
+    finishedAt: job?.finishedAt || null,
+    elapsedSeconds: job?.elapsedSeconds ?? null,
+    etaSeconds: job?.etaSeconds ?? null,
+    progressSource: job?.progressSource || null,
+  };
+}
+
 function normalizeQueueState(nextState = {}) {
   return {
     rootPath: nextState.rootPath || '',
     stage: nextState.stage || 'idle',
-    jobs: Array.isArray(nextState.jobs) ? nextState.jobs : [],
+    jobs: Array.isArray(nextState.jobs)
+      ? nextState.jobs.map((job) => normalizeJob(job))
+      : [],
     currentJobId: nextState.currentJobId || null,
-    currentJob: nextState.currentJob || null,
+    currentJob: normalizeJob(nextState.currentJob),
     lastFinishedJob: nextState.lastFinishedJob || null,
+    lastRunnerEvent: nextState.lastRunnerEvent || null,
+    batchElapsedSeconds: nextState.batchElapsedSeconds ?? null,
+    batchEtaSeconds: nextState.batchEtaSeconds ?? null,
     stats: {
       total: nextState.stats?.total || 0,
       pending: nextState.stats?.pending || 0,

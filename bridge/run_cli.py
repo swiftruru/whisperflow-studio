@@ -7,6 +7,7 @@ import os
 import sys
 import importlib.util
 import subprocess
+import json
 from datetime import datetime
 
 # python/ lives next to bridge/ inside whisperflow-studio/.
@@ -28,9 +29,59 @@ WhisperFasterScript = _mod.WhisperFasterScript
 class HeadlessWhisperScript(WhisperFasterScript):
     """Subclass that skips terminal animations and uses Popen for streaming output."""
 
+    event_prefix = '[WhisperFlowEvent]'
+
+    def _event_timestamp(self):
+        return datetime.utcnow().isoformat(timespec='seconds') + 'Z'
+
+    def _elapsed_seconds(self, start_time):
+        if not start_time:
+            return None
+        return max(0, int((datetime.now() - start_time).total_seconds()))
+
+    def emit_event(
+        self,
+        event_type,
+        stage=None,
+        message='',
+        progress=None,
+        elapsed_seconds=None,
+        eta_seconds=None,
+        extra=None,
+    ):
+        wc = self.whisper_config
+        payload = {
+            'type': event_type,
+            'stage': stage or '',
+            'message': message or '',
+            'progress': progress,
+            'elapsedSeconds': elapsed_seconds,
+            'etaSeconds': eta_seconds,
+            'filePath': os.path.join(wc.media_file_path or '', wc.media_file_name or ''),
+            'fileName': wc.media_file_name or '',
+            'timestamp': self._event_timestamp(),
+            'source': 'bridge',
+        }
+
+        if extra:
+            payload['meta'] = extra
+
+        print(f'{self.event_prefix} {json.dumps(payload, ensure_ascii=False)}')
+        sys.stdout.flush()
+
     def build_and_execute_command(self):
         wc = self.whisper_config
         os.chdir(wc.whisper_faster_tool_path)
+
+        command_start = datetime.now()
+
+        self.emit_event(
+            'stage',
+            stage='loading-model',
+            message='Preparing CLI command',
+            progress=20,
+            elapsed_seconds=self._elapsed_seconds(command_start),
+        )
 
         print(f'[WhisperFlow] Whisper tool: "{wc.whisper_faster_tool_path}"')
         print(f'[WhisperFlow] Target file:  "{wc.media_file_name}"')
@@ -73,7 +124,16 @@ class HeadlessWhisperScript(WhisperFasterScript):
             stderr=sys.stderr,
             cwd=wc.whisper_faster_tool_path,
         )
-        proc.wait()
+
+        self.emit_event(
+            'stage',
+            stage='transcribing',
+            message='CLI process started',
+            progress=45,
+            elapsed_seconds=self._elapsed_seconds(start_time),
+        )
+
+        return_code = proc.wait()
 
         end_time = datetime.now()
         formatted = self.format_duration(end_time - start_time)
@@ -81,10 +141,43 @@ class HeadlessWhisperScript(WhisperFasterScript):
         print(f'[WhisperFlow] Duration: {formatted}')
         sys.stdout.flush()
 
+        if return_code != 0:
+            self.emit_event(
+                'error',
+                stage='failed',
+                message=f'CLI process exited with code {return_code}',
+                progress=None,
+                elapsed_seconds=self._elapsed_seconds(start_time),
+                extra={'returnCode': return_code},
+            )
+            return
+
+        self.emit_event(
+            'stage',
+            stage='writing-subtitle',
+            message='CLI process finished, verifying subtitle output',
+            progress=90,
+            elapsed_seconds=self._elapsed_seconds(start_time),
+        )
+
         if self.has_subtitle(self.whisper_config.media_file_name, self.whisper_config.media_file_path):
             print(f'[WhisperFlow] Subtitles generated: "{self.whisper_config.media_file_name}"')
+            self.emit_event(
+                'completed',
+                stage='completed',
+                message='Subtitle files generated',
+                progress=100,
+                elapsed_seconds=self._elapsed_seconds(start_time),
+            )
         else:
             print('[WhisperFlow] Warning: subtitle file not found after transcription.')
+            self.emit_event(
+                'warning',
+                stage='writing-subtitle',
+                message='CLI finished but subtitle file was not found',
+                progress=95,
+                elapsed_seconds=self._elapsed_seconds(start_time),
+            )
         sys.stdout.flush()
 
     def check_directory_and_file(self):
@@ -92,7 +185,20 @@ class HeadlessWhisperScript(WhisperFasterScript):
         import os as _os
         wc = self.whisper_config
 
+        self.emit_event(
+            'stage',
+            stage='preparing',
+            message='Validating configuration and input file',
+            progress=10,
+        )
+
         if not _os.path.isdir(wc.whisper_faster_tool_path):
+            self.emit_event(
+                'error',
+                stage='failed',
+                message=f'Whisper tool directory does not exist: {wc.whisper_faster_tool_path}',
+                extra={'reason': 'invalid_tool_path'},
+            )
             print(f'[WhisperFlow] Error: Directory "{wc.whisper_faster_tool_path}" does not exist.')
             sys.exit(1)
 
@@ -100,15 +206,33 @@ class HeadlessWhisperScript(WhisperFasterScript):
         sys.stdout.flush()
 
         if not wc.media_file_name:
+            self.emit_event(
+                'warning',
+                stage='completed',
+                message='No media file specified for recognition',
+                progress=100,
+            )
             print('[WhisperFlow] No media file specified for recognition.')
             sys.exit(0)
 
         media_file = _os.path.join(wc.media_file_path, wc.media_file_name)
         if not _os.path.exists(media_file):
+            self.emit_event(
+                'error',
+                stage='failed',
+                message=f'Target file not found: {wc.media_file_name}',
+                extra={'reason': 'missing_media_file'},
+            )
             print(f'[WhisperFlow] Error: Target file "{wc.media_file_name}" not found.')
             sys.exit(1)
 
         if self.has_subtitle(wc.media_file_name, wc.media_file_path):
+            self.emit_event(
+                'warning',
+                stage='completed',
+                message=f'File already has subtitles: {wc.media_file_name}',
+                progress=100,
+            )
             print(f'[WhisperFlow] File "{wc.media_file_name}" already has subtitles. Skipping.')
             sys.exit(1)
 

@@ -4,6 +4,13 @@ const fs = require('fs');
 const path = require('path');
 const { readConfig, writeConfig } = require('./config-manager');
 const { readConfigMetadata } = require('./config-metadata');
+const {
+  calculateElapsedSeconds,
+  clampProgress,
+  computeBatchElapsedSeconds,
+  estimateEtaFromProgress,
+  sumBatchEtaSeconds,
+} = require('./runner-metrics');
 
 function cloneJson(value) {
   return JSON.parse(JSON.stringify(value));
@@ -15,11 +22,14 @@ function createEmptyState() {
     stage: 'idle',
     jobs: [],
     currentJobId: null,
+    batchElapsedSeconds: null,
+    batchEtaSeconds: null,
     scanSummary: {
       scannedDirectories: 0,
       scannedFiles: 0,
     },
     lastFinishedJob: null,
+    lastRunnerEvent: null,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -78,6 +88,27 @@ function computeStats(jobs = []) {
   });
 }
 
+function getStageProgress(stage) {
+  switch (stage) {
+    case 'preparing':
+      return 10;
+    case 'loading-model':
+      return 20;
+    case 'vad':
+      return 35;
+    case 'transcribing':
+      return 55;
+    case 'writing-subtitle':
+      return 90;
+    case 'completed':
+      return 100;
+    case 'failed':
+      return 0;
+    default:
+      return null;
+  }
+}
+
 function createQueueManager({
   configPath,
   configMetadataPath,
@@ -91,6 +122,18 @@ function createQueueManager({
 
   let nextJobId = 1;
   let state = createEmptyState();
+
+  function getActiveJob() {
+    return state.jobs.find((job) => job.status === 'running')
+      || state.jobs.find((job) => job.status === 'paused')
+      || state.jobs.find((job) => job.id === state.currentJobId)
+      || null;
+  }
+
+  function updateBatchTiming() {
+    state.batchElapsedSeconds = computeBatchElapsedSeconds(state.jobs);
+    state.batchEtaSeconds = sumBatchEtaSeconds(state.jobs);
+  }
 
   function getRunnableJob() {
     const runningJob = state.jobs.find((job) => job.status === 'running');
@@ -107,10 +150,7 @@ function createQueueManager({
   }
 
   function getCurrentJob() {
-    return state.jobs.find((job) => job.status === 'running')
-      || state.jobs.find((job) => job.status === 'paused')
-      || state.jobs.find((job) => job.id === state.currentJobId)
-      || getRunnableJob();
+    return getActiveJob() || getRunnableJob();
   }
 
   function buildSnapshot() {
@@ -118,12 +158,15 @@ function createQueueManager({
     return cloneJson({
       ...state,
       currentJob,
+      batchElapsedSeconds: state.batchElapsedSeconds,
+      batchEtaSeconds: state.batchEtaSeconds,
       stats: computeStats(state.jobs),
       updatedAt: new Date().toISOString(),
     });
   }
 
   function emitState() {
+    updateBatchTiming();
     state.updatedAt = new Date().toISOString();
     onStateChange(buildSnapshot());
   }
@@ -209,6 +252,12 @@ function createQueueManager({
           stage: 'idle',
           progress: 0,
           error: null,
+          stageMessage: '',
+          startedAt: null,
+          finishedAt: null,
+          elapsedSeconds: null,
+          etaSeconds: null,
+          progressSource: null,
         });
       }
     }
@@ -251,21 +300,89 @@ function createQueueManager({
     job.stage = 'preparing';
     job.progress = 5;
     job.error = null;
+    job.stageMessage = 'Queued job is preparing to start';
+    job.startedAt = new Date().toISOString();
+    job.finishedAt = null;
+    job.elapsedSeconds = 0;
+    job.etaSeconds = null;
+    job.progressSource = null;
+    state.lastRunnerEvent = null;
 
     syncActiveConfig();
     emitState();
     return cloneJson(job);
   }
 
-  function updateRunningJobStage(stage, progress = null) {
+  function updateRunningJobStage(stage, progress = null, stageMessage = '', progressSource = 'heuristic') {
     const job = state.jobs.find((item) => item.status === 'running' || item.status === 'paused');
     if (!job) return;
 
     job.stage = stage;
-    if (typeof progress === 'number') {
-      job.progress = progress;
-    }
+    job.progress = typeof progress === 'number' ? progress : (getStageProgress(stage) ?? job.progress);
+    if (stageMessage) job.stageMessage = stageMessage;
+    job.progressSource = progressSource;
     emitState();
+  }
+
+  function handleRunnerEvent(event = {}) {
+    state.lastRunnerEvent = cloneJson(event);
+
+    const job = state.jobs.find((item) => item.status === 'running' || item.status === 'paused')
+      || state.jobs.find((item) => item.id === state.currentJobId);
+
+    if (!job) {
+      emitState();
+      return buildSnapshot();
+    }
+
+    if (!job.startedAt) {
+      job.startedAt = event.timestamp || new Date().toISOString();
+    }
+
+    if (event.stage) {
+      job.stage = event.stage;
+    }
+
+    if (event.message) {
+      job.stageMessage = event.message;
+    }
+
+    const fallbackProgress = event.stage ? getStageProgress(event.stage) : null;
+    const nextProgress = clampProgress(event.progress, fallbackProgress);
+    if (nextProgress !== null) {
+      job.progress = nextProgress;
+    }
+
+    if (typeof event.elapsedSeconds === 'number') {
+      job.elapsedSeconds = Math.max(0, event.elapsedSeconds);
+    } else if (job.startedAt) {
+      const elapsed = Math.round((Date.now() - new Date(job.startedAt).getTime()) / 1000);
+      job.elapsedSeconds = Math.max(0, elapsed);
+    }
+
+    if (typeof event.etaSeconds === 'number') {
+      job.etaSeconds = Math.max(0, event.etaSeconds);
+    } else {
+      job.etaSeconds = estimateEtaFromProgress(job.elapsedSeconds, job.progress);
+    }
+
+    if (event.stage === 'completed') {
+      job.progress = 100;
+      job.etaSeconds = 0;
+    }
+
+    if (event.stage === 'failed') {
+      job.progress = 0;
+      job.etaSeconds = null;
+    }
+
+    job.progressSource = 'event';
+    if (job.status !== 'paused') {
+      state.stage = 'running';
+    }
+
+    emitState();
+    return buildSnapshot();
   }
 
   function pauseCurrentJob() {
@@ -299,35 +416,40 @@ function createQueueManager({
   }
 
   function handleRunnerOutput(text) {
+    const activeJob = state.jobs.find((item) => item.status === 'running' || item.status === 'paused');
+    if (activeJob?.progressSource === 'event') {
+      return;
+    }
+
     const normalized = String(text || '').toLowerCase();
 
     if (normalized.includes('reading config.json')) {
-      updateRunningJobStage('preparing', 10);
+      updateRunningJobStage('preparing', 10, 'Reading config.json', 'heuristic');
       return;
     }
 
     if (normalized.includes('starting cli transcription') || normalized.includes('starting transcription')) {
-      updateRunningJobStage('preparing', 20);
+      updateRunningJobStage('preparing', 20, 'Starting CLI transcription', 'heuristic');
       return;
     }
 
     if (normalized.includes('started at')) {
-      updateRunningJobStage('transcribing', 45);
+      updateRunningJobStage('transcribing', 45, 'Transcription started', 'heuristic');
       return;
     }
 
     if (normalized.includes('finished at') || normalized.includes('duration:')) {
-      updateRunningJobStage('finalizing', 90);
+      updateRunningJobStage('finalizing', 90, 'Finalizing subtitle output', 'heuristic');
       return;
     }
 
     if (normalized.includes('subtitles generated')) {
-      updateRunningJobStage('completed', 100);
+      updateRunningJobStage('completed', 100, 'Subtitle files generated', 'heuristic');
     }
   }
 
   function finishCurrentJob(code, errorMessage = '') {
-    const job = state.jobs.find((item) => item.status === 'running');
+    const job = state.jobs.find((item) => item.status === 'running' || item.status === 'paused');
     if (!job) return buildSnapshot();
 
     const success = code === 0;
@@ -335,6 +457,10 @@ function createQueueManager({
     job.stage = success ? 'completed' : 'failed';
     job.progress = success ? 100 : 0;
     job.error = success ? null : (errorMessage || `Process exited with code ${code}`);
+    job.finishedAt = new Date().toISOString();
+    job.elapsedSeconds = job.elapsedSeconds ?? calculateElapsedSeconds(job.startedAt, job.finishedAt);
+    job.etaSeconds = success ? 0 : null;
+    job.stageMessage = success ? 'Subtitle files generated' : 'Transcription failed';
 
     state.lastFinishedJob = {
       id: job.id,
@@ -344,6 +470,7 @@ function createQueueManager({
       success,
       code,
       error: job.error,
+      elapsedSeconds: job.elapsedSeconds,
     };
 
     const nextJob = setNextCurrentJob();
@@ -363,6 +490,10 @@ function createQueueManager({
     job.stage = 'failed';
     job.progress = 0;
     job.error = 'Stopped by user';
+    job.finishedAt = new Date().toISOString();
+    job.elapsedSeconds = job.elapsedSeconds ?? calculateElapsedSeconds(job.startedAt, job.finishedAt);
+    job.etaSeconds = null;
+    job.stageMessage = 'Stopped by user';
 
     state.lastFinishedJob = {
       id: job.id,
@@ -372,6 +503,7 @@ function createQueueManager({
       success: false,
       code: -2,
       error: job.error,
+      elapsedSeconds: job.elapsedSeconds,
     };
 
     const nextJob = setNextCurrentJob();
@@ -391,6 +523,10 @@ function createQueueManager({
     job.stage = 'skipped';
     job.progress = 0;
     job.error = null;
+    job.finishedAt = new Date().toISOString();
+    job.elapsedSeconds = job.elapsedSeconds ?? calculateElapsedSeconds(job.startedAt, job.finishedAt);
+    job.etaSeconds = null;
+    job.stageMessage = 'Skipped by user';
 
     state.lastFinishedJob = {
       id: job.id,
@@ -401,6 +537,7 @@ function createQueueManager({
       code: -3,
       error: null,
       skipped: true,
+      elapsedSeconds: job.elapsedSeconds,
     };
 
     const nextJob = setNextCurrentJob();
@@ -421,6 +558,12 @@ function createQueueManager({
       job.stage = 'idle';
       job.progress = 0;
       job.error = null;
+      job.stageMessage = '';
+      job.startedAt = null;
+      job.finishedAt = null;
+      job.elapsedSeconds = null;
+      job.etaSeconds = null;
+      job.progressSource = null;
     });
 
     const nextJob = setNextCurrentJob();
@@ -467,6 +610,7 @@ function createQueueManager({
     clearFinishedJobs,
     finishCurrentJob,
     getState,
+    handleRunnerEvent,
     handleRunnerOutput,
     pauseCurrentJob,
     retryFailedJobs,

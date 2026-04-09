@@ -12,6 +12,8 @@ const progressCard = document.getElementById('progress-card');
 const progressHeadline = document.getElementById('queue-progress-headline');
 const progressStats = document.getElementById('queue-progress-stats');
 const progressCurrent = document.getElementById('queue-progress-current');
+const progressTiming = document.getElementById('queue-progress-timing');
+const progressMessage = document.getElementById('queue-progress-message');
 const progressStage = document.getElementById('queue-stage-chip');
 const progressBarFill = document.getElementById('queue-progress-bar-fill');
 
@@ -35,7 +37,10 @@ function stageLabel(stage) {
     case 'completed': return 'Done';
     case 'error': return 'Error';
     case 'preparing': return 'Preparing';
+    case 'loading-model': return 'Loading Model';
+    case 'vad': return 'Running VAD';
     case 'transcribing': return 'Transcribing';
+    case 'writing-subtitle': return 'Writing Subtitle';
     case 'finalizing': return 'Finalizing';
     case 'failed': return 'Failed';
     case 'skipped': return 'Skipped';
@@ -77,6 +82,81 @@ function getBatchProgressPercent(state) {
   return Math.max(0, Math.min(100, rawValue));
 }
 
+function formatDuration(seconds) {
+  if (!Number.isFinite(Number(seconds)) || Number(seconds) < 0) return null;
+
+  const totalSeconds = Math.round(Number(seconds));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const remainingSeconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+  }
+
+  return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+}
+
+function buildProgressTiming(state) {
+  const parts = [];
+  const currentJob = state.currentJob;
+
+  if (currentJob?.elapsedSeconds != null) {
+    const elapsed = formatDuration(currentJob.elapsedSeconds);
+    if (elapsed) {
+      parts.push(`Current elapsed ${elapsed}`);
+    }
+  }
+
+  if (currentJob?.etaSeconds != null) {
+    const eta = formatDuration(currentJob.etaSeconds);
+    if (eta && currentJob.etaSeconds > 0) {
+      parts.push(`Current ETA ${eta}`);
+    }
+  }
+
+  if (state.batchElapsedSeconds != null) {
+    const batchElapsed = formatDuration(state.batchElapsedSeconds);
+    if (batchElapsed) {
+      parts.push(`Batch elapsed ${batchElapsed}`);
+    }
+  }
+
+  if (state.batchEtaSeconds != null) {
+    const batchEta = formatDuration(state.batchEtaSeconds);
+    if (batchEta && state.batchEtaSeconds > 0) {
+      parts.push(`Batch ETA ${batchEta}`);
+    }
+  }
+
+  return parts.join(' · ');
+}
+
+function buildJobProgressText(job) {
+  if (!job) return '';
+
+  const parts = [];
+  if (typeof job.progress === 'number' && job.progress > 0 && job.progress < 100) {
+    parts.push(`${Math.round(job.progress)}%`);
+  }
+
+  if (job.elapsedSeconds != null) {
+    const elapsed = formatDuration(job.elapsedSeconds);
+    if (elapsed) {
+      parts.push(`Elapsed ${elapsed}`);
+    }
+  }
+
+  if (job.etaSeconds != null && job.etaSeconds > 0) {
+    const eta = formatDuration(job.etaSeconds);
+    if (eta) {
+      parts.push(`ETA ${eta}`);
+    }
+  }
+
+  return parts.join(' · ');
+}
+
 function renderFoundCard(state) {
   const currentJob = state.currentJob;
   const remaining = state.stats.pending + state.stats.running + state.stats.paused + state.stats.failed;
@@ -111,6 +191,10 @@ function renderProgress(state) {
     progressStats.textContent =
       `Scanned ${state.scanSummary.scannedFiles} files in ${state.scanSummary.scannedDirectories} folders`;
     progressCurrent.textContent = '目前沒有待處理的轉錄佇列';
+    progressTiming.hidden = true;
+    progressTiming.textContent = '';
+    progressMessage.hidden = true;
+    progressMessage.textContent = '';
     return;
   }
 
@@ -133,6 +217,14 @@ function renderProgress(state) {
   progressCurrent.textContent = state.currentJob
     ? `${completion} · ${scanSummary}`
     : `${completion} · ${scanSummary}`;
+
+  const timingText = buildProgressTiming(state);
+  progressTiming.hidden = !timingText;
+  progressTiming.textContent = timingText;
+
+  const stageMessage = state.currentJob?.stageMessage || state.lastRunnerEvent?.message || '';
+  progressMessage.hidden = !stageMessage;
+  progressMessage.textContent = stageMessage;
 }
 
 function renderActions(state) {
@@ -176,6 +268,21 @@ function renderQueueList(state) {
 
     info.appendChild(name);
     info.appendChild(meta);
+
+    const progress = buildJobProgressText(job);
+    if (progress) {
+      const progressLine = document.createElement('div');
+      progressLine.className = 'queue-item-progress';
+      progressLine.textContent = progress;
+      info.appendChild(progressLine);
+    }
+
+    if (job.stageMessage) {
+      const stageMessage = document.createElement('div');
+      stageMessage.className = 'queue-item-stage-message';
+      stageMessage.textContent = job.stageMessage;
+      info.appendChild(stageMessage);
+    }
 
     const status = document.createElement('span');
     status.className = `queue-item-status ${job.status}`;

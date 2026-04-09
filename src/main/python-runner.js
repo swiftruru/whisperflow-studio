@@ -2,6 +2,7 @@
 
 const { spawn } = require('child_process');
 const stripAnsi = require('strip-ansi');
+const { parseRunnerEventLine } = require('./runner-event');
 
 let activeProcess = null;
 let activeState = 'idle';
@@ -40,6 +41,24 @@ function settleProcess(child, onClose, code) {
   onClose(code);
 }
 
+function createLineBuffer(onLine) {
+  let buffer = '';
+
+  return {
+    push(text) {
+      buffer += text;
+      const lines = buffer.split(/\r?\n/);
+      buffer = lines.pop() || '';
+      lines.forEach((line) => onLine(line));
+    },
+    flush() {
+      if (!buffer) return;
+      onLine(buffer);
+      buffer = '';
+    },
+  };
+}
+
 /**
  * Spawn a Python script and stream stdout/stderr back via callbacks.
  *
@@ -50,9 +69,10 @@ function settleProcess(child, onClose, code) {
  * @param {Function} onData     - called with each stdout text chunk (string)
  * @param {Function} onError    - called with each stderr text chunk (string)
  * @param {Function} onClose    - called with exit code (number) when process ends
+ * @param {Function|null} onEvent - called with structured runner event objects
  * @returns {ChildProcess}
  */
-function runScript(poetryPath, scriptPath, args, cwd, onData, onError, onClose) {
+function runScript(poetryPath, scriptPath, args, cwd, onData, onError, onClose, onEvent = null) {
   if (activeProcess) {
     stopProcess(-2);
   }
@@ -77,16 +97,27 @@ function runScript(poetryPath, scriptPath, args, cwd, onData, onError, onClose) 
 
   activeProcess = child;
 
+  const stdoutBuffer = createLineBuffer((line) => {
+    const parsedEvent = parseRunnerEventLine(line);
+    if (parsedEvent) {
+      if (typeof onEvent === 'function') onEvent(parsedEvent);
+      return;
+    }
+
+    onData(`${line}\n`);
+  });
+
   let settled = false;
   function finalize(code) {
     if (settled) return;
     settled = true;
+    stdoutBuffer.flush();
     settleProcess(child, onClose, code);
   }
 
   child.stdout.on('data', (chunk) => {
     const text = stripAnsi(chunk.toString('utf-8'));
-    if (text) onData(text);
+    if (text) stdoutBuffer.push(text);
   });
 
   child.stderr.on('data', (chunk) => {

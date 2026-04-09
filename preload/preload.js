@@ -46,6 +46,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onLogData:     (cb)           => ipcRenderer.on('log:data',  (_e, v) => cb(v)),
   onRunDone:     (cb)           => ipcRenderer.on('run:done',  (_e, v) => cb(v)),
   onRunError:    (cb)           => ipcRenderer.on('run:error', (_e, v) => cb(v)),
+  onRunnerEvent: (cb)           => ipcRenderer.on('runner:event', (_e, v) => cb(v)),
   onQueueStateUpdated: (cb)     => ipcRenderer.on('queue:state-updated', (_e, v) => cb(v)),
   removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),
 });
