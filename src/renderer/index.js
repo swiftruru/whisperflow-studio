@@ -3,6 +3,8 @@ import { openSearch } from './components/console-log.js';
 import { initProfileSwitcher } from './components/profile-switcher.js';
 import { initHistory } from './components/history.js';
 import { initPreflightPanel, refreshPreflight } from './components/preflight-panel.js';
+import { initQueueState } from './components/queue-state.js';
+import { initQueuePanel } from './components/queue-panel.js';
 import './components/controls-bar.js';
 
 // ── Theme toggle ──────────────────────────────────────────────────────────────
@@ -70,23 +72,12 @@ async function refreshDirDisplay() {
   const config = await window.electronAPI.readConfig().catch(() => null);
   const rootPath = config?.SETTING?.media_root_path || '';
   updateDirDisplay(rootPath);
-  refreshFoundFileDisplay(config);
+  refreshFoundFileDisplay();
 }
 
-function refreshFoundFileDisplay(config) {
+function refreshFoundFileDisplay() {
   const card  = document.getElementById('found-card');
-  const fname = document.getElementById('found-filename');
-  const fpath = document.getElementById('found-filepath');
-  const name  = config?.SETTING?.media_file_name || '';
-  const path  = config?.SETTING?.media_file_path || '';
-
-  if (name && name.trim()) {
-    fname.textContent = name.trim();
-    fpath.textContent = path.trim();
-    card.hidden = false;
-  } else {
-    card.hidden = true;
-  }
+  card.hidden = true;
 }
 
 // ── Recent directories ────────────────────────────────────────────────────────
@@ -264,6 +255,8 @@ async function init() {
   initKeyboardShortcuts();
   initRecentDirs();
   initPreflightPanel({ onApplyDirectory: applyDirectory });
+  await initQueueState();
+  initQueuePanel();
   const startupTasks = [
     refreshPreflight(),
     Promise.resolve().then(() => renderSettings()),

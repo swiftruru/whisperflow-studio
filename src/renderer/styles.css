@@ -522,6 +522,193 @@ body {
   box-shadow: 0 0 10px color-mix(in srgb, var(--green) 18%, transparent);
 }
 
+.progress-card {
+  gap: 8px;
+}
+
+.queue-stage-chip,
+.queue-total-badge {
+  margin-left: auto;
+  padding: 1px 8px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  background: var(--surface1);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--overlay1);
+}
+
+.queue-stage-chip[data-stage="running"] {
+  color: var(--green);
+  border-color: color-mix(in srgb, var(--green) 35%, transparent);
+  background: color-mix(in srgb, var(--green) 8%, transparent);
+}
+
+.queue-stage-chip[data-stage="ready"] {
+  color: var(--amber);
+  border-color: color-mix(in srgb, var(--yellow) 40%, transparent);
+  background: color-mix(in srgb, var(--yellow) 8%, transparent);
+}
+
+.queue-stage-chip[data-stage="completed"] {
+  color: var(--green);
+}
+
+.queue-stage-chip[data-stage="error"] {
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 35%, transparent);
+  background: color-mix(in srgb, var(--red) 8%, transparent);
+}
+
+.queue-progress-headline {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.queue-progress-stats,
+.queue-progress-current {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--subtext0);
+}
+
+.queue-progress-bar {
+  position: relative;
+  height: 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface1) 75%, var(--surface0));
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  overflow: hidden;
+}
+
+.queue-progress-bar-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--yellow), var(--green));
+  transition: width 0.18s ease;
+}
+
+.queue-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn-queue-action {
+  padding: 5px 10px;
+  font-size: 10px;
+}
+
+.queue-card {
+  gap: 8px;
+}
+
+.queue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.queue-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface1);
+}
+
+.queue-item.current {
+  border-color: color-mix(in srgb, var(--yellow) 45%, transparent);
+  background: color-mix(in srgb, var(--yellow) 6%, var(--surface1));
+}
+
+.queue-item.running {
+  border-color: color-mix(in srgb, var(--green) 30%, transparent);
+}
+
+.queue-item.failed {
+  border-color: color-mix(in srgb, var(--red) 28%, transparent);
+}
+
+.queue-item.done {
+  border-color: color-mix(in srgb, var(--green) 18%, transparent);
+}
+
+.queue-item.skipped {
+  border-color: color-mix(in srgb, var(--overlay0) 35%, transparent);
+}
+
+.queue-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.queue-item-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  word-break: break-all;
+}
+
+.queue-item-meta,
+.queue-item-error {
+  font-size: 10px;
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.queue-item-meta {
+  color: var(--overlay1);
+}
+
+.queue-item-error {
+  color: var(--red);
+}
+
+.queue-item-status {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 700;
+  border: 1px solid var(--border);
+  background: var(--surface0);
+  color: var(--overlay1);
+}
+
+.queue-item-status.running,
+.queue-item-status.done {
+  color: var(--green);
+  border-color: color-mix(in srgb, var(--green) 35%, transparent);
+}
+
+.queue-item-status.pending {
+  color: var(--amber);
+  border-color: color-mix(in srgb, var(--yellow) 40%, transparent);
+}
+
+.queue-item-status.failed {
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 35%, transparent);
+}
+
+.queue-item-status.skipped {
+  color: var(--overlay1);
+  border-color: color-mix(in srgb, var(--overlay0) 30%, transparent);
+}
+
 /* ── Browse button ───────────────────────────────────────────────────────────── */
 .btn-browse {
   align-self: flex-end;

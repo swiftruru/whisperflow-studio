@@ -130,6 +130,37 @@
           </button>
         </div>
 
+        <div class="card progress-card" id="progress-card" hidden>
+          <div class="card-label">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 1.5a6.5 6.5 0 106.5 6.5A6.508 6.508 0 008 1.5zm0 1.5a5 5 0 11-5 5 5.006 5.006 0 015-5zm-.75 1.5v3.81l2.74 1.64.76-1.23-2-1.2V4.5z"/>
+            </svg>
+            Batch Progress
+            <span class="queue-stage-chip" id="queue-stage-chip">Idle</span>
+          </div>
+          <div class="queue-progress-headline" id="queue-progress-headline"></div>
+          <div class="queue-progress-stats" id="queue-progress-stats"></div>
+          <div class="queue-progress-current" id="queue-progress-current"></div>
+          <div class="queue-progress-bar" id="queue-progress-bar" aria-hidden="true">
+            <span class="queue-progress-bar-fill" id="queue-progress-bar-fill"></span>
+          </div>
+          <div class="queue-actions" id="queue-actions">
+            <button class="btn-secondary btn-queue-action" id="btn-queue-retry-failed" hidden>Retry Failed</button>
+            <button class="btn-secondary btn-queue-action" id="btn-queue-clear-finished" hidden>Clear Finished</button>
+          </div>
+        </div>
+
+        <div class="card queue-card" id="queue-card" hidden>
+          <div class="card-label">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M2 3.75A1.75 1.75 0 013.75 2h8.5A1.75 1.75 0 0114 3.75v8.5A1.75 1.75 0 0112.25 14h-8.5A1.75 1.75 0 012 12.25zm2.25-.25a.75.75 0 000 1.5h7.5a.75.75 0 000-1.5zm0 3.5a.75.75 0 000 1.5h7.5a.75.75 0 000-1.5zm0 3.5a.75.75 0 000 1.5h4.5a.75.75 0 000-1.5z"/>
+            </svg>
+            Queue
+            <span class="queue-total-badge" id="queue-total-badge"></span>
+          </div>
+          <div class="queue-list" id="queue-list"></div>
+        </div>
+
         <!-- Action buttons -->
         <div class="action-stack">
 

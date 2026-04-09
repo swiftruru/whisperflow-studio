@@ -150,7 +150,12 @@ function collectFormValues() {
     if (el.type === 'checkbox') {
       result[section][key] = el.checked ? 'True' : 'False';
     } else {
-      result[section][key] = el.value;
+      const isAutoResolvedPoetryPath =
+        key === 'poetryPath'
+        && el.dataset.autoResolved === 'true'
+        && el.value.trim() === (el.dataset.autoResolvedValue || '').trim();
+
+      result[section][key] = isAutoResolvedPoetryPath ? '' : el.value;
     }
   }
 
@@ -186,8 +191,34 @@ function getValidationHint(input) {
   return input.closest('.field-control')?.querySelector('.field-hint');
 }
 
+function syncResolvedDisplayValue(input, result) {
+  if (input.dataset.key !== 'poetryPath' || input.type !== 'text') return;
+
+  const currentValue = input.value.trim();
+  if (currentValue) {
+    input.title = currentValue;
+    if (input.dataset.autoResolved === 'true' && currentValue !== (input.dataset.autoResolvedValue || '')) {
+      input.dataset.autoResolved = 'false';
+    }
+    return;
+  }
+
+  if (result?.status === 'ok' && result.detail) {
+    input.value = result.detail;
+    input.dataset.autoResolved = 'true';
+    input.dataset.autoResolvedValue = result.detail;
+    input.title = result.detail;
+    return;
+  }
+
+  input.dataset.autoResolved = 'false';
+  input.dataset.autoResolvedValue = '';
+  input.title = '';
+}
+
 function applyValidationState(input, result) {
   const hint = getValidationHint(input);
+  syncResolvedDisplayValue(input, result);
   if (!hint) return;
 
   input.classList.remove('field-valid', 'field-invalid');
@@ -243,9 +274,19 @@ function initFieldValidation() {
     if (input.type === 'checkbox' || input.tagName === 'SELECT') {
       input.addEventListener('change', () => validateFieldElement(input));
     } else {
-      input.addEventListener('input', () => scheduleValidation(input));
+      input.addEventListener('input', () => {
+        if (input.dataset.key === 'poetryPath' && input.dataset.autoResolved === 'true') {
+          input.dataset.autoResolved = 'false';
+        }
+        scheduleValidation(input);
+      });
       input.addEventListener('blur', () => validateFieldElement(input));
-      input.addEventListener('change', () => validateFieldElement(input));
+      input.addEventListener('change', () => {
+        if (input.dataset.key === 'poetryPath' && input.dataset.autoResolved === 'true') {
+          input.dataset.autoResolved = 'false';
+        }
+        validateFieldElement(input);
+      });
     }
 
     validateFieldElement(input);

@@ -6,6 +6,7 @@ const fs = require('fs');
 const { readConfig, writeConfig, getProfileList, copyProfileToActive } = require('./config-manager');
 const { readConfigMetadata, getSupportedMediaExtensions } = require('./config-metadata');
 const { runPreflight, validateSettingField } = require('./preflight-checker');
+const { createQueueManager } = require('./queue-manager');
 const { runScript, stopProcess } = require('./python-runner');
 const { resolvePoetryPath } = require('./path-resolver');
 
@@ -44,6 +45,16 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
       getLocalSettings,
     };
   }
+
+  function sendQueueState(state) {
+    mainWindow.webContents.send('queue:state-updated', state);
+  }
+
+  const queueManager = createQueueManager({
+    configPath: path.join(PYTHON_DIR, 'config', 'config.json'),
+    configMetadataPath: CONFIG_METADATA_PATH,
+    onStateChange: sendQueueState,
+  });
 
   // ── Running State ─────────────────────────────────────────────────────────
   ipcMain.on('app:set-running', (_event, val) => setIsRunning(val));
@@ -130,6 +141,9 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
       configMetadataPath: CONFIG_METADATA_PATH,
     });
   });
+  ipcMain.handle('queue:get-state', () => queueManager.getState());
+  ipcMain.handle('queue:retry-failed', () => queueManager.retryFailedJobs());
+  ipcMain.handle('queue:clear-finished', () => queueManager.clearFinishedJobs());
 
   // ── Transcription History ─────────────────────────────────────────────────
   const HISTORY_PATH = path.join(app.getPath('userData'), 'history.json');
@@ -158,29 +172,9 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
     mainWindow.webContents.send('run:error', msg);
   }
 
-  ipcMain.on('run:scan', (_event, rootPath) => {
-    const { configPath, whisperToolPath, scripts } = getPaths();
-    const preflight = runPreflight(getPreflightContext());
+  ipcMain.on('run:scan', async (_event, rootPath) => {
+    const { configPath } = getPaths();
 
-    if (!preflight.ok) {
-      sendRunError(preflight.blockingChecks[0]?.message || 'Preflight failed. Please review your settings.');
-      sendDone(1);
-      return;
-    }
-
-    if (!whisperToolPath) {
-      sendLog('[WhisperFlow] Error: whisper_faster_tool_path not set. Please configure it in Settings.\n');
-      sendDone(1);
-      return;
-    }
-
-    const poetryPath = resolvePoetryPath(getLocalSettings().poetryPath, CONFIG_METADATA_PATH);
-    if (!poetryPath) {
-      sendRunError('Poetry not found. Please set the Poetry path in settings.');
-      return;
-    }
-
-    // Always pass --root_path to avoid config_setting.py falling into interactive input().
     let effectiveRootPath = rootPath;
     if (!effectiveRootPath) {
       try {
@@ -189,24 +183,36 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
       } catch (_) {}
     }
 
-    if (!effectiveRootPath) {
-      sendLog('[WhisperFlow] Error: No media root path set. Please select a directory first.\n');
+    const rootPathCheck = validateSettingField({
+      key: 'media_root_path',
+      value: effectiveRootPath,
+      configMetadataPath: CONFIG_METADATA_PATH,
+    });
+
+    if (rootPathCheck.status === 'error') {
+      sendRunError(rootPathCheck.message);
       sendDone(1);
       return;
     }
 
-    const args = ['--root_path', effectiveRootPath];
-    sendLog('[WhisperFlow] Starting directory scan...\n');
+    try {
+      sendLog(`[WhisperFlow] Scanning queue from: "${effectiveRootPath}"\n`);
+      const snapshot = queueManager.scanMedia(effectiveRootPath);
+      const { stats, currentJob, scanSummary } = snapshot;
 
-    runScript(
-      poetryPath,
-      scripts.scan,
-      args,
-      whisperToolPath,
-      sendLog,
-      (err) => sendLog(`[stderr] ${err}`),
-      (code) => sendDone(code)
-    );
+      if (stats.total > 0 && currentJob) {
+        sendLog(`[WhisperFlow] Found ${stats.total} media files without subtitles.\n`);
+        sendLog(`[WhisperFlow] Next queued file: "${currentJob.fileName}"\n`);
+      } else {
+        sendLog('[WhisperFlow] No media files without subtitles were found.\n');
+      }
+
+      sendLog(`[WhisperFlow] Scan complete. Directories: ${scanSummary.scannedDirectories}, files: ${scanSummary.scannedFiles}.\n`);
+      sendDone(0);
+    } catch (error) {
+      sendRunError(error.message);
+      sendDone(1);
+    }
   });
 
   ipcMain.on('run:cli', () => {
@@ -231,21 +237,40 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
       return;
     }
 
-    sendLog('[WhisperFlow] Starting CLI transcription...\n');
+    const job = queueManager.startNextJob();
+    if (!job) {
+      sendLog('[WhisperFlow] No queued media files are ready for transcription.\n');
+      sendDone(0);
+      return;
+    }
+
+    let stderrBuffer = '';
+    sendLog(`[WhisperFlow] Starting CLI transcription for "${job.fileName}"...\n`);
 
     runScript(
       poetryPath,
       scripts.cli,
       [],
       whisperToolPath,
-      sendLog,
-      (err) => sendLog(`[stderr] ${err}`),
-      (code) => sendDone(code)
+      (text) => {
+        sendLog(text);
+        queueManager.handleRunnerOutput(text);
+      },
+      (err) => {
+        stderrBuffer += err;
+        sendLog(`[stderr] ${err}`);
+        queueManager.handleRunnerOutput(err);
+      },
+      (code) => {
+        queueManager.finishCurrentJob(code, stderrBuffer.trim());
+        sendDone(code);
+      }
     );
   });
 
   ipcMain.on('run:stop', () => {
     stopProcess();
+    queueManager.stopCurrentJob();
     sendLog('[WhisperFlow] Process stopped by user.\n');
     mainWindow.webContents.send('run:done', -2);
   });

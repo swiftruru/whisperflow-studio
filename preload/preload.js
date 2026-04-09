@@ -15,6 +15,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeAppSettings: (data)      => ipcRenderer.invoke('appsettings:write', data),
   runPreflight:     ()          => ipcRenderer.invoke('app:run-preflight'),
   validateSettingField: (data)  => ipcRenderer.invoke('app:validate-setting-field', data),
+  getQueueState:    ()          => ipcRenderer.invoke('queue:get-state'),
+  retryFailedQueueJobs: ()      => ipcRenderer.invoke('queue:retry-failed'),
+  clearFinishedQueueJobs: ()    => ipcRenderer.invoke('queue:clear-finished'),
 
   // ── File System Dialogs ───────────────────────────────────────────────────
   browseFolder:    ()           => ipcRenderer.invoke('fs:browse-folder'),
@@ -40,5 +43,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onLogData:     (cb)           => ipcRenderer.on('log:data',  (_e, v) => cb(v)),
   onRunDone:     (cb)           => ipcRenderer.on('run:done',  (_e, v) => cb(v)),
   onRunError:    (cb)           => ipcRenderer.on('run:error', (_e, v) => cb(v)),
+  onQueueStateUpdated: (cb)     => ipcRenderer.on('queue:state-updated', (_e, v) => cb(v)),
   removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),
 });
