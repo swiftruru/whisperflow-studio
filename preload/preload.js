@@ -37,6 +37,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   notify:        (opts)         => ipcRenderer.send('app:notify', opts),
   runScan:       (rootPath)     => ipcRenderer.send('run:scan', rootPath),
   runCli:        ()             => ipcRenderer.send('run:cli'),
+  pauseProcess:  ()             => ipcRenderer.send('run:pause'),
+  resumeProcess: ()             => ipcRenderer.send('run:resume'),
+  skipCurrent:   ()             => ipcRenderer.send('run:skip-current'),
   stopProcess:   ()             => ipcRenderer.send('run:stop'),
 
   // ── Streaming Log Events (renderer listens) ───────────────────────────────

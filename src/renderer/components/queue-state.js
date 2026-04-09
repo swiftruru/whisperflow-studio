@@ -17,6 +17,7 @@ function normalizeQueueState(nextState = {}) {
       total: nextState.stats?.total || 0,
       pending: nextState.stats?.pending || 0,
       running: nextState.stats?.running || 0,
+      paused: nextState.stats?.paused || 0,
       done: nextState.stats?.done || 0,
       failed: nextState.stats?.failed || 0,
       skipped: nextState.stats?.skipped || 0,

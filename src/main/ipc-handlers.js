@@ -7,7 +7,7 @@ const { readConfig, writeConfig, getProfileList, copyProfileToActive } = require
 const { readConfigMetadata, getSupportedMediaExtensions } = require('./config-metadata');
 const { runPreflight, validateSettingField } = require('./preflight-checker');
 const { createQueueManager } = require('./queue-manager');
-const { runScript, stopProcess } = require('./python-runner');
+const { runScript, stopProcess, pauseProcess, resumeProcess } = require('./python-runner');
 const { resolvePoetryPath } = require('./path-resolver');
 
 function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveLocalSettings, setIsRunning) {
@@ -262,17 +262,58 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
         queueManager.handleRunnerOutput(err);
       },
       (code) => {
-        queueManager.finishCurrentJob(code, stderrBuffer.trim());
+        if (code === -3) {
+          queueManager.skipCurrentJob();
+        } else if (code === -2) {
+          queueManager.stopCurrentJob();
+        } else {
+          queueManager.finishCurrentJob(code, stderrBuffer.trim());
+        }
         sendDone(code);
       }
     );
   });
 
+  ipcMain.on('run:pause', () => {
+    const paused = pauseProcess();
+    if (!paused) {
+      sendRunError('Unable to pause the current transcription on this platform or there is no active job.');
+      return;
+    }
+
+    queueManager.pauseCurrentJob();
+    sendLog('[WhisperFlow] Process paused.\n');
+  });
+
+  ipcMain.on('run:resume', () => {
+    const resumed = resumeProcess();
+    if (!resumed) {
+      sendRunError('Unable to resume the current transcription because no paused job was found.');
+      return;
+    }
+
+    queueManager.resumeCurrentJob();
+    sendLog('[WhisperFlow] Process resumed.\n');
+  });
+
+  ipcMain.on('run:skip-current', () => {
+    const skipped = stopProcess(-3);
+    if (!skipped) {
+      sendRunError('No active transcription is available to skip.');
+      return;
+    }
+
+    sendLog('[WhisperFlow] Skipping current file...\n');
+  });
+
   ipcMain.on('run:stop', () => {
-    stopProcess();
-    queueManager.stopCurrentJob();
+    const stopped = stopProcess(-2);
+    if (!stopped) {
+      sendRunError('No active transcription is running.');
+      return;
+    }
+
     sendLog('[WhisperFlow] Process stopped by user.\n');
-    mainWindow.webContents.send('run:done', -2);
   });
 }
 

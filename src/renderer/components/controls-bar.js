@@ -5,10 +5,12 @@ import { setStatus } from './console-log.js';
 import { showToast } from './toast.js';
 import { addHistoryEntry } from './history.js';
 import { getPreflightState, refreshPreflight, subscribePreflight } from './preflight-panel.js';
-import { getQueueState } from './queue-state.js';
+import { getQueueState, subscribeQueueState } from './queue-state.js';
 
 const btnScan = document.getElementById('btn-scan');
 const btnCli = document.getElementById('btn-run-cli');
+const btnPauseResume = document.getElementById('btn-pause-resume');
+const btnSkipCurrent = document.getElementById('btn-skip-current');
 const btnStop = document.getElementById('btn-stop');
 const chkLoop = document.getElementById('chk-auto-loop');
 const actionHint = document.getElementById('action-hint');
@@ -36,12 +38,18 @@ function getRunBlockingMessage() {
 
 function syncActionState() {
   const preflight = getPreflightState();
+  const queueState = getQueueState();
+  const hasActiveJob = queueState.stats.running > 0 || queueState.stats.paused > 0;
+  const queuePaused = queueState.stage === 'paused';
   const scanBlocked = preflight.pending || Boolean(getScanBlockingMessage());
   const runBlocked = preflight.pending || !preflight.ok;
 
   btnScan.disabled = isRunning || scanBlocked;
   btnCli.disabled = isRunning || runBlocked;
-  btnStop.disabled = !isRunning;
+  btnPauseResume.disabled = !hasActiveJob;
+  btnPauseResume.textContent = queuePaused ? 'Resume' : 'Pause';
+  btnSkipCurrent.disabled = !hasActiveJob;
+  btnStop.disabled = !hasActiveJob;
   btnScan.classList.toggle('spinning', isRunning && lastAction === 'scan');
 
   const reason = isRunning ? '' : (getScanBlockingMessage() || getRunBlockingMessage());
@@ -51,10 +59,19 @@ function syncActionState() {
   }
   btnScan.title = getScanBlockingMessage() || 'Scan for missing subtitles';
   btnCli.title = getRunBlockingMessage() || 'Run transcription';
+  btnPauseResume.title = queuePaused ? 'Resume the current transcription' : 'Pause the current transcription';
+  btnSkipCurrent.title = hasActiveJob ? 'Skip the current file and move on' : 'No active job to skip';
+  btnStop.title = hasActiveJob ? 'Stop the current batch run' : 'No active job to stop';
 
   if (!isRunning) {
     setStatus(preflight.pending ? 'Checking' : (preflight.ok ? 'Idle' : 'Setup'));
     document.title = 'WhisperFlow Studio';
+  } else if (queuePaused) {
+    setStatus('Paused');
+    document.title = '❚❚ Paused — WhisperFlow Studio';
+  } else {
+    setStatus('Running');
+    document.title = '● Running — WhisperFlow Studio';
   }
 }
 
@@ -112,6 +129,20 @@ btnCli.addEventListener('click', async () => {
   window.electronAPI.runCli();
 });
 
+btnPauseResume.addEventListener('click', () => {
+  const queueState = getQueueState();
+  if (queueState.stage === 'paused') {
+    window.electronAPI.resumeProcess();
+    return;
+  }
+
+  window.electronAPI.pauseProcess();
+});
+
+btnSkipCurrent.addEventListener('click', () => {
+  window.electronAPI.skipCurrent();
+});
+
 btnStop.addEventListener('click', () => {
   window.electronAPI.stopProcess();
 });
@@ -125,9 +156,13 @@ subscribePreflight(() => {
   if (!isRunning) syncActionState();
 });
 
+subscribeQueueState(() => {
+  syncActionState();
+});
+
 window.electronAPI.onRunDone(async (code) => {
   setRunning(false);
-  if (code !== 0 && code !== -2) {
+  if (code !== 0 && code !== -2 && code !== -3) {
     setStatus('Error');
   }
 
@@ -183,6 +218,17 @@ window.electronAPI.onRunDone(async (code) => {
       } else if (chkLoop.checked) {
         showToast('自動循環完成：佇列已全部處理', 'success');
       }
+    } else if (code === -3) {
+      showToast('已跳過目前檔案', 'info');
+
+      if (chkLoop.checked && queueState.stats.pending > 0) {
+        showToast('自動循環：跳到下一個檔案…', 'info', 2000);
+        lastAction = 'cli';
+        setRunning(true);
+        window.electronAPI.runCli();
+      }
+    } else if (code === -2) {
+      showToast('已停止目前批次', 'info');
     } else if (code !== -2) {
       showToast('Transcription failed', 'error');
       window.electronAPI.notify({ title: 'WhisperFlow Studio', body: '轉錄失敗，請查看 Console 的錯誤訊息。' });

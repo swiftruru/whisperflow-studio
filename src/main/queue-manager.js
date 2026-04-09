@@ -71,6 +71,7 @@ function computeStats(jobs = []) {
     total: 0,
     pending: 0,
     running: 0,
+    paused: 0,
     done: 0,
     failed: 0,
     skipped: 0,
@@ -106,7 +107,10 @@ function createQueueManager({
   }
 
   function getCurrentJob() {
-    return getRunnableJob();
+    return state.jobs.find((job) => job.status === 'running')
+      || state.jobs.find((job) => job.status === 'paused')
+      || state.jobs.find((job) => job.id === state.currentJobId)
+      || getRunnableJob();
   }
 
   function buildSnapshot() {
@@ -133,13 +137,14 @@ function createQueueManager({
     config.SETTING.media_root_path = state.rootPath || config.SETTING.media_root_path || '';
     config.SETTING.media_file_path = currentJob?.dirPath || '';
     config.SETTING.media_file_name = currentJob?.fileName || '';
-    config.SETTING.missing_count = stats.pending + stats.running + stats.failed;
+    config.SETTING.missing_count = stats.pending + stats.running + stats.paused + stats.failed;
 
     writeConfig(configPath, config);
   }
 
   function setNextCurrentJob() {
     const nextJob = state.jobs.find((item) => item.status === 'running')
+      || state.jobs.find((item) => item.status === 'paused')
       || state.jobs.find((item) => item.status === 'pending')
       || state.jobs.find((item) => item.status === 'failed')
       || null;
@@ -232,6 +237,10 @@ function createQueueManager({
   }
 
   function startNextJob() {
+    if (state.jobs.some((item) => item.status === 'paused')) {
+      return null;
+    }
+
     const job = getRunnableJob();
     if (!job) return null;
 
@@ -249,7 +258,7 @@ function createQueueManager({
   }
 
   function updateRunningJobStage(stage, progress = null) {
-    const job = state.jobs.find((item) => item.status === 'running');
+    const job = state.jobs.find((item) => item.status === 'running' || item.status === 'paused');
     if (!job) return;
 
     job.stage = stage;
@@ -257,6 +266,36 @@ function createQueueManager({
       job.progress = progress;
     }
     emitState();
+  }
+
+  function pauseCurrentJob() {
+    const job = state.jobs.find((item) => item.status === 'running');
+    if (!job) return buildSnapshot();
+
+    job.resumeStage = job.stage && job.stage !== 'idle' ? job.stage : 'transcribing';
+    job.status = 'paused';
+    job.stage = 'paused';
+    state.currentJobId = job.id;
+    state.stage = 'paused';
+
+    syncActiveConfig();
+    emitState();
+    return buildSnapshot();
+  }
+
+  function resumeCurrentJob() {
+    const job = state.jobs.find((item) => item.status === 'paused');
+    if (!job) return buildSnapshot();
+
+    job.status = 'running';
+    job.stage = job.resumeStage || 'transcribing';
+    delete job.resumeStage;
+    state.currentJobId = job.id;
+    state.stage = 'running';
+
+    syncActiveConfig();
+    emitState();
+    return buildSnapshot();
   }
 
   function handleRunnerOutput(text) {
@@ -316,9 +355,10 @@ function createQueueManager({
   }
 
   function stopCurrentJob() {
-    const job = state.jobs.find((item) => item.status === 'running');
+    const job = state.jobs.find((item) => item.status === 'running' || item.status === 'paused');
     if (!job) return buildSnapshot();
 
+    delete job.resumeStage;
     job.status = 'failed';
     job.stage = 'failed';
     job.progress = 0;
@@ -333,8 +373,38 @@ function createQueueManager({
       code: -2,
       error: job.error,
     };
-    state.currentJobId = job.id;
-    state.stage = 'ready';
+
+    const nextJob = setNextCurrentJob();
+    state.stage = nextJob ? 'ready' : 'error';
+
+    syncActiveConfig();
+    emitState();
+    return buildSnapshot();
+  }
+
+  function skipCurrentJob() {
+    const job = state.jobs.find((item) => item.status === 'running' || item.status === 'paused');
+    if (!job) return buildSnapshot();
+
+    delete job.resumeStage;
+    job.status = 'skipped';
+    job.stage = 'skipped';
+    job.progress = 0;
+    job.error = null;
+
+    state.lastFinishedJob = {
+      id: job.id,
+      fileName: job.fileName,
+      filePath: job.filePath,
+      dirPath: job.dirPath,
+      success: false,
+      code: -3,
+      error: null,
+      skipped: true,
+    };
+
+    const nextJob = setNextCurrentJob();
+    state.stage = nextJob ? 'ready' : 'completed';
 
     syncActiveConfig();
     emitState();
@@ -364,11 +434,11 @@ function createQueueManager({
   }
 
   function clearFinishedJobs() {
-    const runningJobId = state.jobs.find((job) => job.status === 'running')?.id || null;
+    const currentActiveJobId = state.jobs.find((job) => job.status === 'running' || job.status === 'paused')?.id || null;
     state.jobs = state.jobs.filter((job) => job.status !== 'done' && job.status !== 'skipped');
 
-    if (runningJobId && state.jobs.some((job) => job.id === runningJobId)) {
-      state.currentJobId = runningJobId;
+    if (currentActiveJobId && state.jobs.some((job) => job.id === currentActiveJobId)) {
+      state.currentJobId = currentActiveJobId;
     } else {
       setNextCurrentJob();
     }
@@ -378,6 +448,8 @@ function createQueueManager({
       state.lastFinishedJob = null;
     } else if (state.jobs.some((job) => job.status === 'running')) {
       state.stage = 'running';
+    } else if (state.jobs.some((job) => job.status === 'paused')) {
+      state.stage = 'paused';
     } else {
       state.stage = 'ready';
     }
@@ -396,8 +468,11 @@ function createQueueManager({
     finishCurrentJob,
     getState,
     handleRunnerOutput,
+    pauseCurrentJob,
     retryFailedJobs,
+    resumeCurrentJob,
     scanMedia,
+    skipCurrentJob,
     startNextJob,
     stopCurrentJob,
   };

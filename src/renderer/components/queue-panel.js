@@ -31,12 +31,14 @@ function stageLabel(stage) {
     case 'scanning': return 'Scanning';
     case 'ready': return 'Ready';
     case 'running': return 'Running';
+    case 'paused': return 'Paused';
     case 'completed': return 'Done';
     case 'error': return 'Error';
     case 'preparing': return 'Preparing';
     case 'transcribing': return 'Transcribing';
     case 'finalizing': return 'Finalizing';
     case 'failed': return 'Failed';
+    case 'skipped': return 'Skipped';
     default: return 'Idle';
   }
 }
@@ -45,6 +47,7 @@ function jobStatusLabel(status) {
   switch (status) {
     case 'pending': return 'Pending';
     case 'running': return 'Running';
+    case 'paused': return 'Paused';
     case 'done': return 'Done';
     case 'failed': return 'Failed';
     case 'skipped': return 'Skipped';
@@ -65,17 +68,18 @@ function getBatchProgressPercent(state) {
     return state.scanSummary.scannedFiles > 0 ? 100 : 0;
   }
 
-  const currentProgress = state.currentJob?.status === 'running'
+  const processedCount = state.stats.done + state.stats.skipped;
+  const currentProgress = (state.currentJob?.status === 'running' || state.currentJob?.status === 'paused')
     ? Math.max(0, Math.min(100, Number(state.currentJob.progress) || 0))
     : 0;
 
-  const rawValue = ((state.stats.done + (currentProgress / 100)) / state.stats.total) * 100;
+  const rawValue = ((processedCount + (currentProgress / 100)) / state.stats.total) * 100;
   return Math.max(0, Math.min(100, rawValue));
 }
 
 function renderFoundCard(state) {
   const currentJob = state.currentJob;
-  const remaining = state.stats.pending + state.stats.running + state.stats.failed;
+  const remaining = state.stats.pending + state.stats.running + state.stats.paused + state.stats.failed;
 
   if (!currentJob) {
     foundCard.hidden = true;
@@ -91,6 +95,7 @@ function renderFoundCard(state) {
 
 function renderProgress(state) {
   const hasBatchResults = state.stats.total > 0 || state.scanSummary.scannedFiles > 0;
+  const processedCount = state.stats.done + state.stats.skipped;
   if (!hasBatchResults) {
     progressCard.hidden = true;
     return;
@@ -114,17 +119,17 @@ function renderProgress(state) {
       ? 'Next up'
       : getJobStageLabel(state.currentJob);
     progressHeadline.textContent = `${currentLabel} · ${state.currentJob.fileName}`;
-  } else if (state.stats.done === state.stats.total) {
-    progressHeadline.textContent = 'All queued files completed';
+  } else if (processedCount === state.stats.total) {
+    progressHeadline.textContent = 'All queued files processed';
   } else {
     progressHeadline.textContent = 'Queue ready';
   }
 
   progressStats.textContent =
-    `Pending ${state.stats.pending} · Running ${state.stats.running} · Done ${state.stats.done} · Failed ${state.stats.failed}`;
+    `Pending ${state.stats.pending} · Running ${state.stats.running} · Paused ${state.stats.paused} · Done ${state.stats.done} · Skipped ${state.stats.skipped} · Failed ${state.stats.failed}`;
 
   const scanSummary = `Scanned ${state.scanSummary.scannedFiles} files in ${state.scanSummary.scannedDirectories} folders`;
-  const completion = `${state.stats.done}/${state.stats.total} completed`;
+  const completion = `${processedCount}/${state.stats.total} processed`;
   progressCurrent.textContent = state.currentJob
     ? `${completion} · ${scanSummary}`
     : `${completion} · ${scanSummary}`;

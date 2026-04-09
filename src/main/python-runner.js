@@ -4,6 +4,41 @@ const { spawn } = require('child_process');
 const stripAnsi = require('strip-ansi');
 
 let activeProcess = null;
+let activeState = 'idle';
+let exitCodeOverride = null;
+
+function isUnixLike() {
+  return process.platform !== 'win32';
+}
+
+function signalActiveProcess(signal) {
+  if (!activeProcess?.pid) return false;
+
+  try {
+    if (isUnixLike()) {
+      process.kill(-activeProcess.pid, signal);
+    } else {
+      activeProcess.kill(signal);
+    }
+    return true;
+  } catch (_) {
+    try {
+      activeProcess.kill(signal);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+}
+
+function settleProcess(child, onClose, code) {
+  if (activeProcess === child) {
+    activeProcess = null;
+    activeState = 'idle';
+    exitCodeOverride = null;
+  }
+  onClose(code);
+}
 
 /**
  * Spawn a Python script and stream stdout/stderr back via callbacks.
@@ -18,24 +53,36 @@ let activeProcess = null;
  * @returns {ChildProcess}
  */
 function runScript(poetryPath, scriptPath, args, cwd, onData, onError, onClose) {
-  // Kill any previous process
-  stopProcess();
+  if (activeProcess) {
+    stopProcess(-2);
+  }
+
+  exitCodeOverride = null;
+  activeState = 'running';
 
   const child = spawn(
     poetryPath,
     ['run', 'python', scriptPath, ...args],
     {
       cwd,
+      detached: isUnixLike(),
       env: {
-        ...process.env,  // includes the augmented PATH set in main.js
-        PYTHONUNBUFFERED: '1',      // force Python to flush stdout immediately
-        PYTHONIOENCODING: 'utf-8',  // handle CJK filenames
-        WHISPERFLOW_POETRY_PATH: poetryPath, // pass resolved path for sub-processes
+        ...process.env,
+        PYTHONUNBUFFERED: '1',
+        PYTHONIOENCODING: 'utf-8',
+        WHISPERFLOW_POETRY_PATH: poetryPath,
       },
     }
   );
 
   activeProcess = child;
+
+  let settled = false;
+  function finalize(code) {
+    if (settled) return;
+    settled = true;
+    settleProcess(child, onClose, code);
+  }
 
   child.stdout.on('data', (chunk) => {
     const text = stripAnsi(chunk.toString('utf-8'));
@@ -48,33 +95,67 @@ function runScript(poetryPath, scriptPath, args, cwd, onData, onError, onClose) 
   });
 
   child.on('close', (code) => {
-    if (activeProcess === child) activeProcess = null;
-    onClose(code);
+    const finalCode = exitCodeOverride ?? (typeof code === 'number' ? code : -1);
+    finalize(finalCode);
   });
 
   child.on('error', (err) => {
     onError(`[Process error] ${err.message}\n`);
-    if (activeProcess === child) activeProcess = null;
-    onClose(-1);
+    finalize(-1);
   });
 
   return child;
 }
 
-/**
- * Kill the currently running process, if any.
- */
-function stopProcess() {
-  if (activeProcess) {
-    try {
-      activeProcess.kill('SIGTERM');
-    } catch (_) {}
-    activeProcess = null;
+function pauseProcess() {
+  if (!activeProcess || activeState !== 'running' || !isUnixLike()) return false;
+
+  const paused = signalActiveProcess('SIGSTOP');
+  if (paused) {
+    activeState = 'paused';
   }
+  return paused;
+}
+
+function resumeProcess() {
+  if (!activeProcess || activeState !== 'paused' || !isUnixLike()) return false;
+
+  const resumed = signalActiveProcess('SIGCONT');
+  if (resumed) {
+    activeState = 'running';
+  }
+  return resumed;
+}
+
+/**
+ * Stop the currently running process, if any.
+ */
+function stopProcess(codeOverride = -2) {
+  if (!activeProcess) return false;
+
+  exitCodeOverride = codeOverride;
+
+  if (activeState === 'paused' && isUnixLike()) {
+    signalActiveProcess('SIGCONT');
+  }
+
+  activeState = 'stopping';
+  return signalActiveProcess('SIGTERM');
 }
 
 function isRunning() {
   return activeProcess !== null;
 }
 
-module.exports = { runScript, stopProcess, isRunning };
+function isPaused() {
+  return activeState === 'paused';
+}
+
+module.exports = {
+  isPaused,
+  isRunning,
+  pauseProcess,
+  resumeProcess,
+  runScript,
+  stopProcess,
+};

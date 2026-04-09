@@ -546,6 +546,12 @@ body {
   background: color-mix(in srgb, var(--green) 8%, transparent);
 }
 
+.queue-stage-chip[data-stage="paused"] {
+  color: var(--amber);
+  border-color: color-mix(in srgb, var(--amber) 40%, transparent);
+  background: color-mix(in srgb, var(--amber) 10%, transparent);
+}
+
 .queue-stage-chip[data-stage="ready"] {
   color: var(--amber);
   border-color: color-mix(in srgb, var(--yellow) 40%, transparent);
@@ -635,6 +641,11 @@ body {
   border-color: color-mix(in srgb, var(--green) 30%, transparent);
 }
 
+.queue-item.paused {
+  border-color: color-mix(in srgb, var(--amber) 32%, transparent);
+  background: color-mix(in srgb, var(--amber) 6%, var(--surface1));
+}
+
 .queue-item.failed {
   border-color: color-mix(in srgb, var(--red) 28%, transparent);
 }
@@ -692,6 +703,11 @@ body {
 .queue-item-status.done {
   color: var(--green);
   border-color: color-mix(in srgb, var(--green) 35%, transparent);
+}
+
+.queue-item-status.paused {
+  color: var(--amber);
+  border-color: color-mix(in srgb, var(--amber) 35%, transparent);
 }
 
 .queue-item-status.pending {
@@ -771,6 +787,19 @@ body {
 
 /* ── Action Stack ────────────────────────────────────────────────────────────── */
 .action-stack { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+
+.action-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.action-mini-btn {
+  min-width: 0;
+  height: 36px;
+  padding: 0 10px;
+  font-size: 11px;
+}
 
 .action-hint {
   font-size: 11px;
@@ -939,6 +968,10 @@ html:not([data-theme="light"]) .btn-primary {
   border-color: color-mix(in srgb, var(--red) 50%, transparent);
 }
 .btn-stop:disabled { cursor: default; }
+
+.action-skip-btn {
+  color: var(--amber);
+}
 
 /* ── Transcription History ───────────────────────────────────────────────────── */
 .history-section {
