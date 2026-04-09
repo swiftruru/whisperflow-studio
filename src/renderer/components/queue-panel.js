@@ -1,6 +1,12 @@
 'use strict';
 
 import { getQueueState, subscribeQueueState } from './queue-state.js';
+import {
+  getQueueViewState,
+  setQueueSearchQuery,
+  setQueueStatusFilter,
+  subscribeQueueViewState,
+} from './queue-view-state.js';
 import { showToast } from './toast.js';
 
 const foundCard = document.getElementById('found-card');
@@ -22,11 +28,17 @@ const clearFinishedButton = document.getElementById('btn-queue-clear-finished');
 
 const queueCard = document.getElementById('queue-card');
 const queueTotalBadge = document.getElementById('queue-total-badge');
+const queueSearchInput = document.getElementById('queue-search-input');
+const queueFilterContainer = document.getElementById('queue-filter-chips');
+const queueViewSummary = document.getElementById('queue-view-summary');
 const queueList = document.getElementById('queue-list');
 
 let actionsBound = false;
 let isRetrying = false;
 let isClearing = false;
+let activeJobAction = null;
+let latestQueueState = getQueueState();
+let latestViewState = getQueueViewState();
 
 function stageLabel(stage) {
   switch (stage) {
@@ -157,6 +169,64 @@ function buildJobProgressText(job) {
   return parts.join(' · ');
 }
 
+function matchesSearch(job, query) {
+  if (!query) return true;
+
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return true;
+
+  return [
+    job.fileName,
+    job.filePath,
+    job.dirPath,
+  ].some((value) => String(value || '').toLowerCase().includes(normalizedQuery));
+}
+
+function matchesStatus(job, statusFilter) {
+  return statusFilter === 'all' || job.status === statusFilter;
+}
+
+function getVisibleJobs(state, viewState) {
+  return state.jobs.filter((job) => matchesSearch(job, viewState.searchQuery) && matchesStatus(job, viewState.statusFilter));
+}
+
+function canRetryJob(job) {
+  return job.status === 'failed' || job.status === 'skipped';
+}
+
+function canRemoveJob(job) {
+  return ['pending', 'failed', 'skipped'].includes(job.status);
+}
+
+function canMoveJob(job) {
+  return ['pending', 'failed', 'skipped'].includes(job.status);
+}
+
+function canMoveJobDirection(jobs, index, direction) {
+  const job = jobs[index];
+  if (!canMoveJob(job)) return false;
+
+  const targetIndex = direction === 'up' ? index - 1 : index + 1;
+  if (targetIndex < 0 || targetIndex >= jobs.length) return false;
+
+  return canMoveJob(jobs[targetIndex]);
+}
+
+function isJobActionPending(jobId, actionType = null) {
+  if (!activeJobAction || activeJobAction.jobId !== jobId) return false;
+  return actionType ? activeJobAction.type === actionType : true;
+}
+
+function renderQueueViewState(viewState = latestViewState) {
+  if (queueSearchInput && queueSearchInput.value !== viewState.searchQuery) {
+    queueSearchInput.value = viewState.searchQuery;
+  }
+
+  queueFilterContainer?.querySelectorAll('.queue-filter-chip').forEach((button) => {
+    button.classList.toggle('active', button.dataset.filter === viewState.statusFilter);
+  });
+}
+
 function renderFoundCard(state) {
   const currentJob = state.currentJob;
   const remaining = state.stats.pending + state.stats.running + state.stats.paused + state.stats.failed;
@@ -237,18 +307,40 @@ function renderActions(state) {
   clearFinishedButton.disabled = isClearing;
 }
 
-function renderQueueList(state) {
+function renderQueueList(state, viewState) {
   if (state.stats.total === 0) {
     queueCard.hidden = true;
     queueList.innerHTML = '';
     return;
   }
 
+  const visibleJobs = getVisibleJobs(state, viewState);
   queueCard.hidden = false;
   queueTotalBadge.textContent = `${state.stats.total} files`;
+  const summaryParts = [
+    visibleJobs.length === state.jobs.length
+      ? `${visibleJobs.length} visible`
+      : `${visibleJobs.length} of ${state.jobs.length} visible`,
+  ];
+  if (viewState.statusFilter !== 'all') {
+    summaryParts.push(`filter: ${viewState.statusFilter}`);
+  }
+  if (viewState.searchQuery.trim()) {
+    summaryParts.push(`search: "${viewState.searchQuery.trim()}"`);
+  }
+  queueViewSummary.textContent = summaryParts.join(' · ');
   queueList.innerHTML = '';
 
-  state.jobs.forEach((job, index) => {
+  if (visibleJobs.length === 0) {
+    const emptyState = document.createElement('div');
+    emptyState.className = 'queue-list-empty';
+    emptyState.textContent = 'No matching queue items';
+    queueList.appendChild(emptyState);
+    return;
+  }
+
+  visibleJobs.forEach((job) => {
+    const absoluteIndex = state.jobs.findIndex((item) => item.id === job.id);
     const row = document.createElement('div');
     row.className = `queue-item ${job.status}`;
     if (job.id === state.currentJobId) {
@@ -260,7 +352,7 @@ function renderQueueList(state) {
 
     const name = document.createElement('div');
     name.className = 'queue-item-name';
-    name.textContent = `${index + 1}. ${job.fileName}`;
+    name.textContent = `${absoluteIndex + 1}. ${job.fileName}`;
 
     const meta = document.createElement('div');
     meta.className = 'queue-item-meta';
@@ -288,9 +380,6 @@ function renderQueueList(state) {
     status.className = `queue-item-status ${job.status}`;
     status.textContent = jobStatusLabel(job.status);
 
-    row.appendChild(info);
-    row.appendChild(status);
-
     if (job.error) {
       const error = document.createElement('div');
       error.className = 'queue-item-error';
@@ -298,15 +387,81 @@ function renderQueueList(state) {
       info.appendChild(error);
     }
 
+    const actions = document.createElement('div');
+    actions.className = 'queue-item-actions';
+
+    if (canRetryJob(job)) {
+      const retryButton = document.createElement('button');
+      retryButton.className = 'queue-item-action-btn';
+      retryButton.type = 'button';
+      retryButton.textContent = 'Retry';
+      retryButton.disabled = isJobActionPending(job.id, 'retry');
+      retryButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        handleRetryJob(job.id);
+      });
+      actions.appendChild(retryButton);
+    }
+
+    if (canRemoveJob(job)) {
+      const removeButton = document.createElement('button');
+      removeButton.className = 'queue-item-action-btn queue-item-action-danger';
+      removeButton.type = 'button';
+      removeButton.textContent = 'Remove';
+      removeButton.disabled = isJobActionPending(job.id, 'remove');
+      removeButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        handleRemoveJob(job.id);
+      });
+      actions.appendChild(removeButton);
+    }
+
+    if (canMoveJob(job)) {
+      const moveUpButton = document.createElement('button');
+      moveUpButton.className = 'queue-item-action-btn queue-item-action-move';
+      moveUpButton.type = 'button';
+      moveUpButton.textContent = '↑';
+      moveUpButton.disabled = isJobActionPending(job.id, 'move') || !canMoveJobDirection(state.jobs, absoluteIndex, 'up');
+      moveUpButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        handleMoveJob(job.id, 'up');
+      });
+      actions.appendChild(moveUpButton);
+
+      const moveDownButton = document.createElement('button');
+      moveDownButton.className = 'queue-item-action-btn queue-item-action-move';
+      moveDownButton.type = 'button';
+      moveDownButton.textContent = '↓';
+      moveDownButton.disabled = isJobActionPending(job.id, 'move') || !canMoveJobDirection(state.jobs, absoluteIndex, 'down');
+      moveDownButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        handleMoveJob(job.id, 'down');
+      });
+      actions.appendChild(moveDownButton);
+    }
+
+    const aside = document.createElement('div');
+    aside.className = 'queue-item-aside';
+    aside.appendChild(status);
+    if (actions.childElementCount > 0) {
+      aside.appendChild(actions);
+    }
+
+    row.appendChild(info);
+    row.appendChild(aside);
+
     queueList.appendChild(row);
   });
 }
 
-function renderQueueState(state = getQueueState()) {
+function renderQueueState(state = latestQueueState, viewState = latestViewState) {
+  latestQueueState = state;
+  latestViewState = viewState;
   renderFoundCard(state);
   renderProgress(state);
   renderActions(state);
-  renderQueueList(state);
+  renderQueueViewState(viewState);
+  renderQueueList(state, viewState);
 }
 
 async function handleRetryFailed() {
@@ -343,6 +498,53 @@ async function handleClearFinished() {
   }
 }
 
+async function runJobAction(jobId, actionType, actionFn, successMessage) {
+  if (isJobActionPending(jobId)) return;
+
+  activeJobAction = { jobId, type: actionType };
+  renderQueueState();
+
+  try {
+    const state = await actionFn();
+    latestQueueState = state;
+    renderQueueState(state, latestViewState);
+    showToast(successMessage, 'success');
+  } catch (error) {
+    showToast(error.message || '佇列操作失敗', 'error');
+  } finally {
+    activeJobAction = null;
+    renderQueueState(latestQueueState, latestViewState);
+  }
+}
+
+function handleRetryJob(jobId) {
+  return runJobAction(
+    jobId,
+    'retry',
+    () => window.electronAPI.retryQueueJob(jobId),
+    '已將項目重新加入待處理佇列',
+  );
+}
+
+function handleRemoveJob(jobId) {
+  return runJobAction(
+    jobId,
+    'remove',
+    () => window.electronAPI.removeQueueJob(jobId),
+    '已從佇列移除項目',
+  );
+}
+
+function handleMoveJob(jobId, direction) {
+  const directionLabel = direction === 'up' ? '上移' : '下移';
+  return runJobAction(
+    jobId,
+    'move',
+    () => window.electronAPI.moveQueueJob(jobId, direction),
+    `已將項目${directionLabel}`,
+  );
+}
+
 function bindActions() {
   if (actionsBound) return;
   actionsBound = true;
@@ -354,12 +556,29 @@ function bindActions() {
   clearFinishedButton?.addEventListener('click', () => {
     handleClearFinished();
   });
+
+  queueSearchInput?.addEventListener('input', (event) => {
+    setQueueSearchQuery(event.target.value);
+  });
+
+  queueFilterContainer?.querySelectorAll('.queue-filter-chip').forEach((button) => {
+    button.addEventListener('click', () => {
+      setQueueStatusFilter(button.dataset.filter || 'all');
+    });
+  });
 }
 
 function initQueuePanel() {
   bindActions();
-  subscribeQueueState(renderQueueState);
-  renderQueueState();
+  subscribeQueueState((state) => {
+    latestQueueState = state;
+    renderQueueState(state, latestViewState);
+  });
+  subscribeQueueViewState((viewState) => {
+    latestViewState = viewState;
+    renderQueueState(latestQueueState, viewState);
+  });
+  renderQueueState(latestQueueState, latestViewState);
 }
 
 export {

@@ -633,12 +633,80 @@ body {
   gap: 8px;
 }
 
+.queue-toolbar {
+  display: flex;
+  align-items: center;
+}
+
+.queue-search-input {
+  width: 100%;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface1);
+  color: var(--text);
+  font-size: 11px;
+  font-family: var(--font-ui);
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+.queue-search-input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--yellow) 45%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--yellow) 14%, transparent);
+}
+
+.queue-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.queue-filter-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface1);
+  color: var(--overlay1);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.queue-filter-chip:hover {
+  color: var(--amber);
+  border-color: color-mix(in srgb, var(--yellow) 45%, transparent);
+}
+
+.queue-filter-chip.active {
+  color: var(--amber);
+  border-color: color-mix(in srgb, var(--yellow) 50%, transparent);
+  background: color-mix(in srgb, var(--yellow) 10%, var(--surface1));
+}
+
+.queue-view-summary {
+  font-size: 10px;
+  color: var(--overlay1);
+}
+
 .queue-list {
   display: flex;
   flex-direction: column;
   gap: 6px;
   max-height: 240px;
   overflow-y: auto;
+}
+
+.queue-list-empty {
+  padding: 16px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed color-mix(in srgb, var(--border) 90%, transparent);
+  background: var(--surface1);
+  color: var(--overlay1);
+  font-size: 11px;
+  text-align: center;
 }
 
 .queue-item {
@@ -683,6 +751,14 @@ body {
   gap: 2px;
   min-width: 0;
   flex: 1;
+}
+
+.queue-item-aside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .queue-item-name {
@@ -753,6 +829,49 @@ body {
 .queue-item-status.skipped {
   color: var(--overlay1);
   border-color: color-mix(in srgb, var(--overlay0) 30%, transparent);
+}
+
+.queue-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  max-width: 120px;
+}
+
+.queue-item-action-btn {
+  min-width: 0;
+  padding: 3px 7px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface0);
+  color: var(--subtext0);
+  font-size: 10px;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.queue-item-action-btn:hover:not(:disabled) {
+  color: var(--amber);
+  border-color: color-mix(in srgb, var(--yellow) 45%, transparent);
+  background: color-mix(in srgb, var(--yellow) 8%, var(--surface0));
+}
+
+.queue-item-action-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.queue-item-action-danger:hover:not(:disabled) {
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 35%, transparent);
+  background: color-mix(in srgb, var(--red) 8%, var(--surface0));
+}
+
+.queue-item-action-move {
+  min-width: 24px;
+  padding-inline: 0;
 }
 
 /* ── Browse button ───────────────────────────────────────────────────────────── */

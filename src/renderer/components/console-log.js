@@ -52,14 +52,20 @@ function copyLog() {
 let _timerInterval = null;
 let _timerStart    = null;
 
+function renderRunningTimer() {
+  if (_timerStart === null) return;
+
+  const elapsed = Math.max(0, Math.floor((Date.now() - _timerStart) / 1000));
+  const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
+  const ss = String(elapsed % 60).padStart(2, '0');
+  statusLabel.textContent = `Running ${mm}:${ss}`;
+}
+
 function startTimer() {
+  stopTimer();
   _timerStart = Date.now();
-  _timerInterval = setInterval(() => {
-    const elapsed = Math.floor((Date.now() - _timerStart) / 1000);
-    const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
-    const ss = String(elapsed % 60).padStart(2, '0');
-    statusLabel.textContent = `Running ${mm}:${ss}`;
-  }, 1000);
+  renderRunningTimer();
+  _timerInterval = setInterval(renderRunningTimer, 1000);
 }
 
 function stopTimer() {

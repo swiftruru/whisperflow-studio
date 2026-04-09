@@ -18,6 +18,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getQueueState:    ()          => ipcRenderer.invoke('queue:get-state'),
   retryFailedQueueJobs: ()      => ipcRenderer.invoke('queue:retry-failed'),
   clearFinishedQueueJobs: ()    => ipcRenderer.invoke('queue:clear-finished'),
+  retryQueueJob:    (jobId)     => ipcRenderer.invoke('queue:retry-job', jobId),
+  removeQueueJob:   (jobId)     => ipcRenderer.invoke('queue:remove-job', jobId),
+  moveQueueJob:     (jobId, direction) => ipcRenderer.invoke('queue:move-job', jobId, direction),
 
   // ── File System Dialogs ───────────────────────────────────────────────────
   browseFolder:    ()           => ipcRenderer.invoke('fs:browse-folder'),

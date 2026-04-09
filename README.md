@@ -26,6 +26,7 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 - **Batch media scan** — recursively builds a queue of media files without subtitle companions
 - **Queue-based transcription** — runs the current queued item through `faster-whisper-webui` via Poetry CLI
 - **Real-time console** — streams Python stdout/stderr with timestamps and color-coded log levels
+- **Structured runner events** — Python bridge emits machine-readable stage events (`preparing`, `loading-model`, `transcribing`, `writing-subtitle`, `completed`, `failed`)
 - **Preflight checks** — validates Poetry, tool paths, media root, and required scripts before running transcription
 - **Settings panel** — edit all Whisper parameters (model, language, VAD, prompts, paths) in-app
 - **Profile switcher** — switch between multiple config profiles (shown when more than one profile exists)
@@ -36,7 +37,9 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 - **System Check panel** — surfaces blocking setup problems and links directly to the right settings field
 - **Next to Transcribe card** — shows the current queued file name, path, and remaining count
 - **Batch Progress card** — shows queue stage, processed counts, and per-batch scan summary
+- **Elapsed / ETA timing** — current job and batch cards show elapsed time plus estimated remaining time when enough progress data is available
 - **Queue panel** — lists pending / running / paused / done / skipped / failed items
+- **Stage messages** — queue UI surfaces the current runner stage message directly from the Python bridge
 - **Pause / Resume / Skip Current / Stop Batch** — control the current queued transcription without losing the rest of the queue
 - **Transcription history** — last 10 transcribed files (✓ success / ✗ fail) displayed in the main panel; persisted across sessions
 - **Recent directories** — last 5 used directories shown below the directory card for one-click re-selection
@@ -160,6 +163,8 @@ whisperflow-studio/
 │   │   ├── config-metadata.js   # Reads shared config metadata for Electron
 │   │   ├── preflight-checker.js # Environment checks for Poetry, paths, and required scripts
 │   │   ├── queue-manager.js     # Batch queue state, scan logic, and job lifecycle
+│   │   ├── runner-event.js      # Structured runner event schema and parser
+│   │   ├── runner-metrics.js    # Elapsed / ETA helpers for current job and batch timing
 │   │   ├── python-runner.js     # Spawns Poetry subprocesses, streams stdout/stderr, pause/resume/stop control
 │   │   ├── config-manager.js    # Reads/writes and normalizes config.json
 │   │   └── path-resolver.js     # Locates the Poetry executable
@@ -269,8 +274,25 @@ Tracked metadata for non-user-editable app constants shared across Electron and 
    - **Skip Current** to mark the current item as skipped and move on
    - **Stop Batch** to terminate the current process and leave the remaining queue ready
 5. Review the queue list for pending / running / paused / done / skipped / failed states
+6. Watch **Batch Progress** for:
+   - current stage (`Preparing`, `Loading Model`, `Transcribing`, `Writing Subtitle`, ...)
+   - current job elapsed time and ETA
+   - batch elapsed time and estimated remaining time
+   - stage message forwarded from the Python bridge
 
 Or enable **自動循環模式** (Auto-loop) to have the app continue through all queued files automatically after a single scan.
+
+### Progress model
+
+- The Python bridge now emits structured runner events in addition to human-readable log lines
+- Electron main parses those events and updates queue state with:
+  - `stage`
+  - `progress`
+  - `stageMessage`
+  - `elapsedSeconds`
+  - `etaSeconds`
+- The renderer uses that queue state to drive the visible progress UI
+- If a structured event is missing, queue progress falls back to the older stdout keyword heuristics so the UI does not go blank
 
 ### Settings tab
 

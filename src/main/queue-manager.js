@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { readConfig, writeConfig } = require('./config-manager');
 const { readConfigMetadata } = require('./config-metadata');
+const { ERROR_CODES } = require('./error-catalog');
 const {
   calculateElapsedSeconds,
   clampProgress,
@@ -109,6 +110,12 @@ function getStageProgress(stage) {
   }
 }
 
+function createQueueOperationError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
+
 function createQueueManager({
   configPath,
   configMetadataPath,
@@ -122,6 +129,54 @@ function createQueueManager({
 
   let nextJobId = 1;
   let state = createEmptyState();
+
+  function getJobIndexById(jobId) {
+    return state.jobs.findIndex((job) => job.id === jobId);
+  }
+
+  function getJobById(jobId) {
+    return state.jobs.find((job) => job.id === jobId) || null;
+  }
+
+  function isRetryableJob(job) {
+    return job?.status === 'failed' || job?.status === 'skipped';
+  }
+
+  function isRemovableJob(job) {
+    return job && !['running', 'paused'].includes(job.status);
+  }
+
+  function isMovableJob(job) {
+    return job && ['pending', 'failed', 'skipped'].includes(job.status);
+  }
+
+  function refreshQueueAfterMutation() {
+    const activeJob = state.jobs.find((job) => job.status === 'running')
+      || state.jobs.find((job) => job.status === 'paused')
+      || null;
+
+    if (activeJob) {
+      state.currentJobId = activeJob.id;
+      state.stage = activeJob.status === 'paused' ? 'paused' : 'running';
+    } else {
+      const nextJob = setNextCurrentJob();
+      if (nextJob) {
+        state.stage = 'ready';
+      } else if (state.jobs.length === 0) {
+        state.stage = 'idle';
+      } else {
+        state.stage = 'completed';
+      }
+    }
+
+    if (state.lastFinishedJob && !state.jobs.some((job) => job.id === state.lastFinishedJob.id)) {
+      state.lastFinishedJob = null;
+    }
+
+    syncActiveConfig();
+    emitState();
+    return buildSnapshot();
+  }
 
   function getActiveJob() {
     return state.jobs.find((job) => job.status === 'running')
@@ -576,6 +631,74 @@ function createQueueManager({
     return buildSnapshot();
   }
 
+  function retryJob(jobId) {
+    const job = getJobById(jobId);
+    if (!job) {
+      throw createQueueOperationError(ERROR_CODES.QUEUE_JOB_NOT_FOUND, '找不到指定的佇列項目。');
+    }
+
+    if (!isRetryableJob(job)) {
+      throw createQueueOperationError(ERROR_CODES.QUEUE_JOB_NOT_RETRYABLE, '只有 failed 或 skipped 的項目可以重新加入佇列。');
+    }
+
+    job.status = 'pending';
+    job.stage = 'idle';
+    job.progress = 0;
+    job.error = null;
+    job.stageMessage = '';
+    job.startedAt = null;
+    job.finishedAt = null;
+    job.elapsedSeconds = null;
+    job.etaSeconds = null;
+    job.progressSource = null;
+
+    return refreshQueueAfterMutation();
+  }
+
+  function removeJob(jobId) {
+    const job = getJobById(jobId);
+    if (!job) {
+      throw createQueueOperationError(ERROR_CODES.QUEUE_JOB_NOT_FOUND, '找不到指定的佇列項目。');
+    }
+
+    if (!isRemovableJob(job)) {
+      throw createQueueOperationError(ERROR_CODES.QUEUE_JOB_NOT_REMOVABLE, '目前執行中的項目無法從佇列中移除。');
+    }
+
+    state.jobs = state.jobs.filter((item) => item.id !== jobId);
+    return refreshQueueAfterMutation();
+  }
+
+  function moveJob(jobId, direction) {
+    const currentIndex = getJobIndexById(jobId);
+    if (currentIndex === -1) {
+      throw createQueueOperationError(ERROR_CODES.QUEUE_JOB_NOT_FOUND, '找不到指定的佇列項目。');
+    }
+
+    const job = state.jobs[currentIndex];
+    if (!isMovableJob(job)) {
+      throw createQueueOperationError(ERROR_CODES.QUEUE_JOB_NOT_MOVABLE, '只有待處理、失敗或已跳過的項目可以調整順序。');
+    }
+
+    const delta = direction === 'up' ? -1 : direction === 'down' ? 1 : 0;
+    if (delta === 0) {
+      throw createQueueOperationError(ERROR_CODES.QUEUE_JOB_NOT_MOVABLE, '不支援的佇列移動方向。');
+    }
+
+    const targetIndex = currentIndex + delta;
+    if (targetIndex < 0 || targetIndex >= state.jobs.length) {
+      throw createQueueOperationError(ERROR_CODES.QUEUE_JOB_NOT_MOVABLE, '該項目已經在佇列邊界，無法再移動。');
+    }
+
+    const targetJob = state.jobs[targetIndex];
+    if (!isMovableJob(targetJob)) {
+      throw createQueueOperationError(ERROR_CODES.QUEUE_JOB_NOT_MOVABLE, '只能在可調整的佇列項目之間移動順序。');
+    }
+
+    [state.jobs[currentIndex], state.jobs[targetIndex]] = [state.jobs[targetIndex], state.jobs[currentIndex]];
+    return refreshQueueAfterMutation();
+  }
+
   function clearFinishedJobs() {
     const currentActiveJobId = state.jobs.find((job) => job.status === 'running' || job.status === 'paused')?.id || null;
     state.jobs = state.jobs.filter((job) => job.status !== 'done' && job.status !== 'skipped');
@@ -610,9 +733,12 @@ function createQueueManager({
     clearFinishedJobs,
     finishCurrentJob,
     getState,
+    moveJob,
+    removeJob,
     handleRunnerEvent,
     handleRunnerOutput,
     pauseCurrentJob,
+    retryJob,
     retryFailedJobs,
     resumeCurrentJob,
     scanMedia,

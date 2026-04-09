@@ -160,6 +160,26 @@
             Queue
             <span class="queue-total-badge" id="queue-total-badge"></span>
           </div>
+          <div class="queue-toolbar">
+            <input
+              type="text"
+              class="queue-search-input"
+              id="queue-search-input"
+              placeholder="搜尋檔名或路徑…"
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </div>
+          <div class="queue-filter-chips" id="queue-filter-chips">
+            <button class="queue-filter-chip active" type="button" data-filter="all">All</button>
+            <button class="queue-filter-chip" type="button" data-filter="pending">Pending</button>
+            <button class="queue-filter-chip" type="button" data-filter="running">Running</button>
+            <button class="queue-filter-chip" type="button" data-filter="paused">Paused</button>
+            <button class="queue-filter-chip" type="button" data-filter="failed">Failed</button>
+            <button class="queue-filter-chip" type="button" data-filter="done">Done</button>
+            <button class="queue-filter-chip" type="button" data-filter="skipped">Skipped</button>
+          </div>
+          <div class="queue-view-summary" id="queue-view-summary"></div>
           <div class="queue-list" id="queue-list"></div>
         </div>
 

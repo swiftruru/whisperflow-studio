@@ -145,6 +145,9 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
   ipcMain.handle('queue:get-state', () => queueManager.getState());
   ipcMain.handle('queue:retry-failed', () => queueManager.retryFailedJobs());
   ipcMain.handle('queue:clear-finished', () => queueManager.clearFinishedJobs());
+  ipcMain.handle('queue:retry-job', (_event, jobId) => queueManager.retryJob(jobId));
+  ipcMain.handle('queue:remove-job', (_event, jobId) => queueManager.removeJob(jobId));
+  ipcMain.handle('queue:move-job', (_event, jobId, direction) => queueManager.moveJob(jobId, direction));
 
   // ── Transcription History ─────────────────────────────────────────────────
   const HISTORY_PATH = path.join(app.getPath('userData'), 'history.json');
