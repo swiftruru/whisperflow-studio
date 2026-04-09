@@ -1,0 +1,18 @@
+{
+  "SETTING": {
+    "whisper_faster_tool_path": "",
+    "whisper_implementation": "faster-whisper",
+    "python_executor": "poetry",
+    "model": "large-v2",
+    "fp16_enabled": "True",
+    "auto_parallel_enabled": "True",
+    "vad_argument": "silero-vad",
+    "language": "Chinese",
+    "initial_prompt": "台灣繁體中文",
+    "vad_initial_prompt_mode": "prepend_all_segments",
+    "media_root_path": "",
+    "media_file_path": "",
+    "media_file_name": "",
+    "missing_count": 0
+  }
+}

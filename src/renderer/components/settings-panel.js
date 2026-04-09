@@ -2,51 +2,27 @@
 
 import { showToast } from './toast.js';
 
-// ── Enum options for known keys ───────────────────────────────────────────────
-const ENUM_OPTIONS = {
-  model: ['tiny', 'base', 'small', 'medium', 'large', 'large-v1', 'large-v2', 'large-v3'],
-  language: [
-    'Chinese', 'Japanese', 'English', 'Korean', 'French', 'German',
-    'Spanish', 'Italian', 'Portuguese', 'Russian', 'Arabic', 'Hindi',
-  ],
-  vad_argument: [
-    'none', 'silero-vad', 'silero-vad-expand-into-gaps',
-    'silero-vad-skip-gaps', 'periodic-vad',
-  ],
-  default_vad: [
-    'none', 'silero-vad', 'silero-vad-expand-into-gaps',
-    'silero-vad-skip-gaps', 'periodic-vad',
-  ],
-  vad_initial_prompt_mode: ['prepend_all_segments', 'prepend_first_segment', 'none'],
-  python_executor: ['poetry', 'python'],
-  whisper_implementation: ['faster-whisper', 'whisper', 'faster-whisper.original'],
-};
-
-// ── Language-specific initial_prompt presets ─────────────────────────────────
-const LANGUAGE_PROMPTS = {
-  Chinese:    '台灣繁體中文',
-  Japanese:   'ワールドチャンピオンシップ',
-  English:    'Hello. The following is an English transcript.',
-  Korean:     '안녕하세요.',
-  French:     'Bonjour.',
-  German:     'Hallo.',
-  Spanish:    'Hola.',
-  Italian:    'Ciao.',
-  Portuguese: 'Olá.',
-  Russian:    'Здравствуйте.',
-  Arabic:     'مرحباً.',
-  Hindi:      'नमस्ते।',
-};
-
-// Keys that should render a folder browse button
-const FOLDER_BROWSE_KEYS = ['whisper_faster_tool_path', 'media_root_path', 'media_file_path'];
-// Keys that should render a file browse button
-const FILE_BROWSE_KEYS = ['media_file_name'];
-
 let _configObj = null;
+let _configMetadata = null;
+
+function getEnumOptions() {
+  return _configMetadata?.settingsUi?.enumOptions || {};
+}
+
+function getLanguagePrompts() {
+  return _configMetadata?.settingsUi?.languagePrompts || {};
+}
+
+function getFolderBrowseKeys() {
+  return _configMetadata?.settingsUi?.pathFieldKeys?.folder || [];
+}
+
+function getFileBrowseKeys() {
+  return _configMetadata?.settingsUi?.pathFieldKeys?.file || [];
+}
 
 function inferFieldType(key, value) {
-  if (ENUM_OPTIONS[key]) return 'select';
+  if (getEnumOptions()[key]) return 'select';
   if (value === 'True' || value === 'False') return 'boolean';
   if (!isNaN(value) && value !== '') return 'number';
   return 'text';
@@ -69,7 +45,7 @@ function buildField(section, key, value) {
 
   if (fieldType === 'select') {
     input = document.createElement('select');
-    const options = ENUM_OPTIONS[key];
+    const options = getEnumOptions()[key];
     for (const opt of options) {
       const o = document.createElement('option');
       o.value = opt;
@@ -104,7 +80,7 @@ function buildField(section, key, value) {
   controlWrap.appendChild(input);
 
   // Browse button for path fields
-  if (FOLDER_BROWSE_KEYS.includes(key)) {
+  if (getFolderBrowseKeys().includes(key)) {
     const btn = document.createElement('button');
     btn.className = 'btn-field-browse';
     btn.textContent = '…';
@@ -114,7 +90,7 @@ function buildField(section, key, value) {
       if (folder) input.value = folder;
     });
     controlWrap.appendChild(btn);
-  } else if (FILE_BROWSE_KEYS.includes(key)) {
+  } else if (getFileBrowseKeys().includes(key)) {
     const btn = document.createElement('button');
     btn.className = 'btn-field-browse';
     btn.textContent = '…';
@@ -150,6 +126,7 @@ async function renderSettings() {
   container.innerHTML = '<p class="loading-msg">Loading config...</p>';
 
   try {
+    _configMetadata = await window.electronAPI.readConfigMetadata();
     _configObj = await window.electronAPI.readConfig();
   } catch (e) {
     container.innerHTML = `<p class="error-msg">Failed to load config: ${e.message}</p>`;
@@ -208,7 +185,7 @@ function initLanguagePromptSync() {
   const promptInput = document.querySelector('[data-section="SETTING"][data-key="initial_prompt"]');
   if (!langSelect || !promptInput) return;
   langSelect.addEventListener('change', () => {
-    const preset = LANGUAGE_PROMPTS[langSelect.value];
+    const preset = getLanguagePrompts()[langSelect.value];
     if (preset !== undefined) promptInput.value = preset;
   });
 }

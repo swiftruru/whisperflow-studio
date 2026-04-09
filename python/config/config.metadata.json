@@ -1,0 +1,67 @@
+{
+  "settingsUi": {
+    "enumOptions": {
+      "model": ["tiny", "base", "small", "medium", "large", "large-v1", "large-v2", "large-v3"],
+      "language": ["Chinese", "Japanese", "English", "Korean", "French", "German", "Spanish", "Italian", "Portuguese", "Russian", "Arabic", "Hindi"],
+      "vad_argument": ["none", "silero-vad", "silero-vad-expand-into-gaps", "silero-vad-skip-gaps", "periodic-vad"],
+      "default_vad": ["none", "silero-vad", "silero-vad-expand-into-gaps", "silero-vad-skip-gaps", "periodic-vad"],
+      "vad_initial_prompt_mode": ["prepend_all_segments", "prepend_first_segment", "none"],
+      "python_executor": ["poetry", "python"],
+      "whisper_implementation": ["faster-whisper", "whisper", "faster-whisper.original"]
+    },
+    "languagePrompts": {
+      "Chinese": "台灣繁體中文",
+      "Japanese": "ワールドチャンピオンシップ",
+      "English": "Hello. The following is an English transcript.",
+      "Korean": "안녕하세요.",
+      "French": "Bonjour.",
+      "German": "Hallo.",
+      "Spanish": "Hola.",
+      "Italian": "Ciao.",
+      "Portuguese": "Olá.",
+      "Russian": "Здравствуйте.",
+      "Arabic": "مرحباً.",
+      "Hindi": "नमस्ते।"
+    },
+    "pathFieldKeys": {
+      "folder": ["whisper_faster_tool_path", "media_root_path", "media_file_path"],
+      "file": ["media_file_name"]
+    }
+  },
+  "appRuntime": {
+    "macPathPrefixes": [
+      "/opt/homebrew/bin",
+      "/opt/homebrew/sbin",
+      "/usr/local/bin",
+      "/usr/bin",
+      "/bin"
+    ],
+    "windowDefaults": {
+      "width": 1100,
+      "height": 720,
+      "minWidth": 800,
+      "minHeight": 560
+    },
+    "knownPoetryPaths": {
+      "darwin": [
+        "${HOME}/.local/bin/poetry",
+        "/opt/homebrew/bin/poetry",
+        "/usr/local/bin/poetry",
+        "/usr/bin/poetry"
+      ],
+      "linux": [
+        "${HOME}/.local/bin/poetry",
+        "/usr/local/bin/poetry",
+        "/usr/bin/poetry"
+      ],
+      "win32": [
+        "${HOME}/AppData/Roaming/Python/Scripts/poetry.exe",
+        "${HOME}/AppData/Local/Programs/Python/Scripts/poetry.exe"
+      ]
+    }
+  },
+  "media": {
+    "supportedMediaExtensions": [".mp4", ".mov", ".mkv", ".avi", ".ts", ".mjpeg", ".mpeg", ".f4v", ".flv", ".m2t", ".m2ts", ".m2v", ".3gp", ".3g2", ".mp3", ".wav", ".ogg", ".flac", ".m4a", ".m4v", ".aiff"],
+    "subtitleExtensions": [".srt", ".vtt", ".ass", ".ssa"]
+  }
+}

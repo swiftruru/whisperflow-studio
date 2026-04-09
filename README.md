@@ -73,7 +73,7 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 | **Node.js** ≥ 18 | For running the Electron app |
 | **Poetry** | Python dependency manager; must be findable in PATH or a known location |
 | **[faster-whisper-webui](https://github.com/jhj0517/faster-whisper-webui)** | The Python backend that does the actual transcription |
-| **faster-whisper-app** | The Python wrapper project that contains `config_setting.py` and the scan logic |
+| **WhisperFlow Studio `python/` helpers** | Included in this repo; they handle scan logic and the headless CLI bridge |
 
 ---
 
@@ -85,7 +85,7 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 npm install
 ```
 
-### 2. Configure the Python project path
+### 2. Configure local app settings
 
 Copy the settings template and edit it:
 
@@ -93,20 +93,34 @@ Copy the settings template and edit it:
 cp settings.example.json settings.json
 ```
 
-Open `settings.json` and set `pythonProjectPath` to the absolute path of the `faster-whisper-app` Python project:
+Open `settings.json` and, if needed, set a custom `poetryPath`:
 
 ```json
 {
-  "pythonProjectPath": "/absolute/path/to/faster-whisper-app",
   "poetryPath": null
 }
 ```
 
 `poetryPath` can be left `null` — the app searches common install locations automatically (`~/.local/bin/poetry`, `/opt/homebrew/bin/poetry`, etc.). Set it only if Poetry is installed somewhere non-standard.
 
-> If you skip this step, the app will show an onboarding screen on first launch and ask you to browse to the directory.
+### 3. Configure transcription settings
 
-### 3. Run
+WhisperFlow Studio now uses `python/config/config.json` as the single source of truth for transcription settings.
+
+If `python/config/config.json` does not exist yet in your local checkout, create it from the template first:
+
+```bash
+cp python/config/config.example.json python/config/config.json
+```
+
+On first run:
+
+1. Open the **Settings** tab
+2. Set `whisper_faster_tool_path` to your `faster-whisper-webui` directory
+3. Optionally adjust model, language, VAD, and prompt defaults
+4. Click **Save**
+
+### 4. Run
 
 ```bash
 npm run dev
@@ -122,14 +136,24 @@ npm start
 whisperflow-studio/
 ├── bridge/
 │   └── run_cli.py               # Python bridge: headless CLI runner (streams output to Electron)
+├── python/
+│   ├── config/
+│   │   ├── config.example.json  # Tracked template for local runtime config
+│   │   ├── config.metadata.json # Shared UI/options/media-extension metadata
+│   │   └── config.json          # Main transcription config (single source of truth)
+│   ├── config_metadata.py       # Python helper for reading shared config metadata
+│   ├── config_setting.py        # Scan media root, update next pending file in config.json
+│   ├── faster-whisper-webui-cli.run.py # Shared CLI wrapper logic
+│   └── subtitle_utils.py        # Subtitle detection helpers
 ├── preload/
 │   └── preload.js               # Electron contextBridge (exposes window.electronAPI)
 ├── src/
 │   ├── main/
 │   │   ├── main.js              # App bootstrap, window creation, dock icon
 │   │   ├── ipc-handlers.js      # All IPC channels (config, fs dialogs, process runners)
+│   │   ├── config-metadata.js   # Reads shared config metadata for Electron
 │   │   ├── python-runner.js     # Spawns Poetry subprocesses, streams stdout/stderr
-│   │   ├── config-manager.js    # Reads/writes config.ini (preserves comments)
+│   │   ├── config-manager.js    # Reads/writes and normalizes config.json
 │   │   └── path-resolver.js     # Locates the Poetry executable
 │   └── renderer/
 │       ├── index.html           # Main HTML template
@@ -155,28 +179,44 @@ whisperflow-studio/
 
 ### `settings.json` (portable, gitignored)
 
-Stored in the project root so it travels with the app when you move it.
+Stored in the project root during development. In packaged builds it lives in Electron `userData`.
 
 | Key | Type | Description |
 |-----|------|-------------|
-| `pythonProjectPath` | `string` | Absolute path to the `faster-whisper-app` Python project |
 | `poetryPath` | `string \| null` | Absolute path to the `poetry` binary; `null` = auto-detect |
 
-### `config/config.ini` (in the Python project)
+### `python/config/config.json`
 
 Whisper transcription settings. Edited via the **Settings** tab inside the app.
+This file is the only runtime config for scan/transcription state.
+`python/config/config.example.json` is the tracked template; `config.json` is the local working copy.
 
 | Key | Description |
 |-----|-------------|
+| `whisper_implementation` | Backend mode passed to `faster-whisper-webui` |
+| `python_executor` | Stored for compatibility with the Python wrapper; default is `poetry` |
 | `model` | Whisper model size (`large-v2`, `medium`, …) |
+| `fp16_enabled` / `auto_parallel_enabled` | Execution flags forwarded to the CLI |
 | `language` | Target language for transcription |
 | `initial_prompt` | Hint text fed to Whisper (e.g. `台灣繁體中文` for Traditional Chinese output) |
 | `vad_argument` | Voice activity detection strategy |
+| `vad_initial_prompt_mode` | How the initial prompt is applied during VAD runs |
 | `whisper_faster_tool_path` | Path to the `faster-whisper-webui` installation |
 | `media_root_path` | Directory to scan for media files |
 | `media_file_name` / `media_file_path` | Set automatically after a scan |
+| `missing_count` | Number of remaining media files without subtitles after the last scan |
 
 > Selecting a language in the Settings tab auto-fills `initial_prompt` with a sensible preset for that language.
+
+### `python/config/config.metadata.json`
+
+Tracked metadata for non-user-editable app constants shared across Electron and Python:
+
+- settings form enum options
+- language-to-prompt presets
+- media file extensions for browse/scan
+- subtitle file extensions for detection
+- app runtime defaults such as window sizing and Poetry path discovery
 
 ---
 
@@ -199,7 +239,7 @@ Or enable **自動循環模式** (Auto-loop) to have the app cycle through all f
 ### Settings tab
 
 - Adjust model, language, VAD, initial prompt, and other Whisper parameters
-- Click **Save** to write changes to `config.ini`
+- Click **Save** to write changes to `python/config/config.json`
 - Switching the **language** dropdown auto-fills `initial_prompt` with a language-appropriate preset
 - Each settings section can be collapsed; the state is remembered across sessions
 
@@ -207,12 +247,13 @@ Or enable **自動循環模式** (Auto-loop) to have the app cycle through all f
 
 ## Moving the app
 
-Because all path resolution is driven by `settings.json` (not hardcoded relative paths), you can move the project directory anywhere:
+Because runtime settings live in `settings.json` and `python/config/config.json`, you can move the project directory anywhere as long as your external tool paths still point to valid locations:
 
 1. Move the folder to the new location
 2. Run `npm install` (restores `node_modules`)
-3. Edit `settings.json` — update `pythonProjectPath` to the correct path on the new machine
-4. `npm run dev`
+3. Check `settings.json` if you use a custom `poetryPath`
+4. Open the app and update `whisper_faster_tool_path` in the **Settings** tab if the `faster-whisper-webui` path changed
+5. `npm run dev`
 
 ---
 
@@ -235,7 +276,7 @@ Output goes to `dist/`.
 | Desktop shell | Electron 35 |
 | Renderer | Vanilla JS (ES modules), no framework |
 | Styling | CSS custom properties, pastel cream/yellow palette (light + dark) |
-| Config I/O | `ini` npm package (comment-preserving write strategy) |
+| Config I/O | JSON files via `fs` (`python/config/config.json`, `settings.json`) |
 | Python subprocess | `child_process.spawn` with `PYTHONUNBUFFERED=1` |
 | ANSI stripping | `strip-ansi@6.0.1` (pinned CJS build) |
 | Packaging | electron-builder |

@@ -137,7 +137,7 @@ async function applyDirectory(folder) {
   updateDirDisplay(folder);
   saveRecentDir(folder);
   renderRecentDirs();
-  // Persist to config.ini
+  // Persist to python/config/config.json
   const config = await window.electronAPI.readConfig().catch(() => ({}));
   if (!config.SETTING) config.SETTING = {};
   config.SETTING.media_root_path = folder;

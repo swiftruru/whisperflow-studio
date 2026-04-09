@@ -93,7 +93,7 @@ window.electronAPI.onRunDone(async (code) => {
       }
       // Re-render Settings form so it reflects the new config values.
       // Without this, clicking Run Transcription would call saveSettings()
-      // and overwrite config.ini with the stale form data (old filename).
+      // and overwrite config.json with the stale form data (old filename).
       await renderSettings();
     }
   }

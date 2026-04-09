@@ -4,6 +4,7 @@ import os
 import re
 import sys
 from common.colors import Colors
+from config_metadata import get_supported_media_extensions
 from subtitle_utils import has_subtitle
 
 
@@ -19,9 +20,7 @@ class ConfigSettingScript:
         self.media_root_path = root_path.strip('"')
         self.config_directory = os.path.join(os.path.dirname(__file__), "config")
         self.config_file_name = os.path.join(self.config_directory, "config.json")
-        self.video_extensions = [".mp4", ".mov", ".mkv", ".avi", ".ts", ".mjpeg", ".mpeg", ".f4v", ".flv", ".m2t",
-                                 ".m2ts", ".m2v", ".3gp", ".3g2", ".mp3", ".wav", ".ogg", ".flac", ".m4a", ".m4v",
-                                 ".aiff"]
+        self.video_extensions = get_supported_media_extensions()
 
     @staticmethod
     def natural_sort_key(s):
@@ -57,8 +56,11 @@ class ConfigSettingScript:
 
     def update_config(self, missing_subtitle_name="", missing_video_directory="", missing_count=0):
         """Updates the configuration file with the missing subtitle name and video directory."""
-        with open(self.config_file_name, 'r', encoding='utf-8') as f:
-            config = json.load(f)
+        try:
+            with open(self.config_file_name, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            config = {}
 
         config.setdefault('SETTING', {})
         config['SETTING'][self.media_root_path_key] = self.media_root_path

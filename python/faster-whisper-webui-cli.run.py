@@ -5,6 +5,7 @@ import sys
 from datetime import datetime
 import time
 from common.colors import Colors
+from config_metadata import get_subtitle_extensions
 # from subtitle_utils import has_subtitle
 
 
@@ -36,17 +37,20 @@ class WhisperFasterScript:
         self.config_section = "SETTING"
         self.whisper_tool_script = "cli.py"
         self.whisper_config = WhisperFasterConfigData()
-        self.config_file_path = self.get_config_file_path()  # Get the full path to the config.ini file
+        self.config_file_path = self.get_config_file_path()  # Get the full path to the config.json file
         self.read_config()
 
     def get_config_file_path(self):
-        """Get the full path to the config.ini file."""
+        """Get the full path to the config.json file."""
         return os.path.join(self.script_path, self.config_file_name)
 
     def read_config(self):
         """Reads configuration from the config.json file and sets properties in WhisperFasterConfigData."""
-        with open(self.config_file_path, 'r', encoding='utf-8') as f:
-            config = json.load(f)
+        try:
+            with open(self.config_file_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            config = {}
 
         section = config.get(self.config_section, {})
         for key, value in section.items():
@@ -87,12 +91,7 @@ class WhisperFasterScript:
         # print(f"DEBUG: Files in dir (lowercase): {files_in_dir_lower}")
 
         # Check for the full filename with "-subs" suffix
-        subtitle_patterns = [
-            f"{file_name_lower}-subs.srt",
-            f"{file_name_lower}-subs.vtt",
-            f"{file_name_lower}-subs.ass",
-            f"{file_name_lower}-subs.ssa"
-        ]
+        subtitle_patterns = [f"{file_name_lower}-subs{ext}" for ext in get_subtitle_extensions()]
 
         # print(f"DEBUG: Looking for these patterns: {subtitle_patterns}")
 

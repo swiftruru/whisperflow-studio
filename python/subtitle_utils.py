@@ -1,10 +1,5 @@
-import fnmatch
 import os
-
-
-def escape_fnmatch_pattern(pattern):
-    """Escapes all special characters from fnmatch pattern."""
-    return ''.join(['[' + char + ']' if char in '[]?*|' else char for char in pattern])
+from config_metadata import get_subtitle_extensions
 
 
 def prepare_file_list(search_target):
@@ -22,7 +17,7 @@ def has_subtitle(base_name, search_target):
     - base_name: The base name of the file without extension.
     - search_target: Can be either a directory path (str) or a list of file names (list).
     """
-    subtitle_extensions = ['.srt', '.vtt', 'ass', 'ssa']
+    subtitle_extensions = get_subtitle_extensions()
     files = prepare_file_list(search_target)
     base_name_no_ext = os.path.splitext(base_name.lower())[0]  # Remove the extension from the base name
 
@@ -39,4 +34,3 @@ def has_subtitle(base_name, search_target):
 
     # print("No subtitle found for:", base_name)
     return False
-

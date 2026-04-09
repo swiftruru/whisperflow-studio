@@ -90,7 +90,7 @@ class HeadlessWhisperScript(WhisperFasterScript):
             print(f'[WhisperFlow] Error: Directory "{wc.whisper_faster_tool_path}" does not exist.')
             sys.exit(1)
 
-        print(f'[WhisperFlow] Reading config.ini ...')
+        print(f'[WhisperFlow] Reading config.json ...')
         sys.stdout.flush()
 
         if not wc.media_file_name:

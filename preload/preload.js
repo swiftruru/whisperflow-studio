@@ -5,6 +5,7 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   // ── Config ───────────────────────────────────────────────────────────────
   readConfig:    ()              => ipcRenderer.invoke('config:read'),
+  readConfigMetadata: ()         => ipcRenderer.invoke('config:metadata:read'),
   writeConfig:   (data)         => ipcRenderer.invoke('config:write', data),
   listProfiles:  ()             => ipcRenderer.invoke('config:profiles:list'),
   loadProfile:   (configPath)   => ipcRenderer.invoke('config:profiles:load', configPath),
@@ -30,7 +31,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   notify:        (opts)         => ipcRenderer.send('app:notify', opts),
   runScan:       (rootPath)     => ipcRenderer.send('run:scan', rootPath),
   runCli:        ()             => ipcRenderer.send('run:cli'),
-  runWebUI:      ()             => ipcRenderer.send('run:webui'),
   stopProcess:   ()             => ipcRenderer.send('run:stop'),
 
   // ── Streaming Log Events (renderer listens) ───────────────────────────────

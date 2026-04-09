@@ -4,20 +4,17 @@ const { ipcMain, dialog, Notification, shell, app } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { readConfig, writeConfig, getProfileList, copyProfileToActive } = require('./config-manager');
+const { readConfigMetadata, getSupportedMediaExtensions } = require('./config-metadata');
 const { runScript, stopProcess } = require('./python-runner');
 const { resolvePoetryPath } = require('./path-resolver');
 
-const SUPPORTED_MEDIA_EXTENSIONS = [
-  'mp4', 'mov', 'mkv', 'avi', 'ts', 'mjpeg', 'mpeg', 'f4v', 'flv',
-  'm2t', 'm2ts', 'm2v', '3gp', '3g2', 'mp3', 'wav', 'ogg', 'flac',
-  'm4a', 'm4v', 'aiff',
-];
-
 function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveLocalSettings, setIsRunning) {
   const PYTHON_DIR = path.join(ELECTRON_APP_ROOT, 'python');
+  const CONFIG_METADATA_PATH = path.join(PYTHON_DIR, 'config', 'config.metadata.json');
 
   // All paths are relative to the bundled python/ directory.
-  // whisperToolPath is read from config.ini and used as the Poetry cwd
+  // whisperToolPath is read from python/config/config.json and used as the
+  // Poetry cwd so we reuse the faster-whisper-webui environment.
   // (reuses faster-whisper-webui's env; our scripts need only stdlib).
   function getPaths() {
     const configPath = path.join(PYTHON_DIR, 'config', 'config.json');
@@ -55,6 +52,10 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
     return readConfig(path.join(PYTHON_DIR, 'config', 'config.json'));
   });
 
+  ipcMain.handle('config:metadata:read', () => {
+    return readConfigMetadata(CONFIG_METADATA_PATH);
+  });
+
   ipcMain.handle('config:write', (_event, configObj) => {
     writeConfig(path.join(PYTHON_DIR, 'config', 'config.json'), configObj);
     return true;
@@ -82,7 +83,7 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
   ipcMain.handle('fs:browse-file', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openFile'],
-      filters: [{ name: 'Media Files', extensions: SUPPORTED_MEDIA_EXTENSIONS }],
+      filters: [{ name: 'Media Files', extensions: getSupportedMediaExtensions(CONFIG_METADATA_PATH) }],
     });
     return result.canceled ? null : result.filePaths[0];
   });
@@ -143,7 +144,7 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
       return;
     }
 
-    const poetryPath = resolvePoetryPath(getLocalSettings().poetryPath);
+    const poetryPath = resolvePoetryPath(getLocalSettings().poetryPath, CONFIG_METADATA_PATH);
     if (!poetryPath) {
       sendRunError('Poetry not found. Please set the Poetry path in settings.');
       return;
@@ -187,7 +188,7 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
       return;
     }
 
-    const poetryPath = resolvePoetryPath(getLocalSettings().poetryPath);
+    const poetryPath = resolvePoetryPath(getLocalSettings().poetryPath, CONFIG_METADATA_PATH);
     if (!poetryPath) {
       sendRunError('Poetry not found. Please set the Poetry path in settings.');
       return;
