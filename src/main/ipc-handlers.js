@@ -9,6 +9,7 @@ const { runPreflight, validateSettingField } = require('./preflight-checker');
 const { createQueueManager } = require('./queue-manager');
 const { runScript, stopProcess, pauseProcess, resumeProcess } = require('./python-runner');
 const { resolvePoetryPath } = require('./path-resolver');
+const { ERROR_CODES, createAppError, normalizeUnknownError, toAppError } = require('./error-catalog');
 
 function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveLocalSettings, setIsRunning) {
   const PYTHON_DIR = path.join(ELECTRON_APP_ROOT, 'python');
@@ -168,8 +169,13 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
     mainWindow.webContents.send('run:done', code);
   }
 
-  function sendRunError(msg) {
-    mainWindow.webContents.send('run:error', msg);
+  function sendRunError(errorLike, fallback = {}) {
+    const payload = (errorLike && (typeof errorLike === 'string' || errorLike.message || errorLike.code))
+      ? toAppError(errorLike, fallback)
+      : normalizeUnknownError(errorLike, fallback);
+
+    mainWindow.webContents.send('run:error', payload);
+    return payload;
   }
 
   ipcMain.on('run:scan', async (_event, rootPath) => {
@@ -190,7 +196,10 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
     });
 
     if (rootPathCheck.status === 'error') {
-      sendRunError(rootPathCheck.message);
+      sendRunError(rootPathCheck, {
+        source: 'scan',
+        suggestedAction: 'retry-scan',
+      });
       sendDone(1);
       return;
     }
@@ -210,7 +219,13 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
       sendLog(`[WhisperFlow] Scan complete. Directories: ${scanSummary.scannedDirectories}, files: ${scanSummary.scannedFiles}.\n`);
       sendDone(0);
     } catch (error) {
-      sendRunError(error.message);
+      sendRunError(error, {
+        code: ERROR_CODES.SCAN_FAILED,
+        title: '媒體掃描失敗',
+        message: '掃描媒體資料夾時發生錯誤。',
+        suggestedAction: 'retry-scan',
+        source: 'scan',
+      });
       sendDone(1);
     }
   });
@@ -220,20 +235,46 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
     const preflight = runPreflight(getPreflightContext());
 
     if (!preflight.ok) {
-      sendRunError(preflight.blockingChecks[0]?.message || 'Preflight failed. Please review your settings.');
+      sendRunError(
+        preflight.blockingChecks[0] || createAppError({
+          code: ERROR_CODES.PREFLIGHT_BLOCKED,
+          title: '環境檢查未通過',
+          message: 'Preflight failed. Please review your settings.',
+          suggestedAction: 'rerun-preflight',
+          source: 'run',
+        }),
+        {
+          source: 'run',
+        }
+      );
       sendDone(1);
       return;
     }
 
     if (!whisperToolPath) {
-      sendLog('[WhisperFlow] Error: whisper_faster_tool_path not set. Please configure it in Settings.\n');
+      sendRunError(createAppError({
+        code: ERROR_CODES.MISSING_WHISPER_TOOL_PATH,
+        title: 'Whisper 工具路徑未設定',
+        message: '請先在 Settings 指定 faster-whisper-webui 路徑。',
+        suggestedAction: 'open-settings',
+        actionPayload: { section: 'SETTING', key: 'whisper_faster_tool_path' },
+        source: 'run',
+      }));
       sendDone(1);
       return;
     }
 
     const poetryPath = resolvePoetryPath(getLocalSettings().poetryPath, CONFIG_METADATA_PATH);
     if (!poetryPath) {
-      sendRunError('Poetry not found. Please set the Poetry path in settings.');
+      sendRunError(createAppError({
+        code: ERROR_CODES.POETRY_NOT_FOUND,
+        title: '找不到 Poetry',
+        message: 'Poetry not found. Please set the Poetry path in settings.',
+        suggestedAction: 'open-settings',
+        actionPayload: { section: 'APP_SETTINGS', key: 'poetryPath' },
+        source: 'run',
+      }));
+      sendDone(1);
       return;
     }
 
@@ -268,6 +309,16 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
           queueManager.stopCurrentJob();
         } else {
           queueManager.finishCurrentJob(code, stderrBuffer.trim());
+          if (code !== 0) {
+            sendRunError(createAppError({
+              code: ERROR_CODES.TRANSCRIPTION_FAILED,
+              title: '轉錄失敗',
+              message: '目前檔案的轉錄流程失敗。',
+              details: stderrBuffer.trim() || `Process exited with code ${code}`,
+              suggestedAction: 'retry-run',
+              source: 'run',
+            }));
+          }
         }
         sendDone(code);
       }
@@ -277,7 +328,13 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
   ipcMain.on('run:pause', () => {
     const paused = pauseProcess();
     if (!paused) {
-      sendRunError('Unable to pause the current transcription on this platform or there is no active job.');
+      sendRunError(createAppError({
+        code: ERROR_CODES.RUNNER_PAUSE_FAILED,
+        title: '無法暫停轉錄',
+        message: 'Unable to pause the current transcription on this platform or there is no active job.',
+        suggestedAction: 'dismiss-error',
+        source: 'run',
+      }));
       return;
     }
 
@@ -288,7 +345,13 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
   ipcMain.on('run:resume', () => {
     const resumed = resumeProcess();
     if (!resumed) {
-      sendRunError('Unable to resume the current transcription because no paused job was found.');
+      sendRunError(createAppError({
+        code: ERROR_CODES.RUNNER_RESUME_FAILED,
+        title: '無法恢復轉錄',
+        message: 'Unable to resume the current transcription because no paused job was found.',
+        suggestedAction: 'dismiss-error',
+        source: 'run',
+      }));
       return;
     }
 
@@ -299,7 +362,13 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
   ipcMain.on('run:skip-current', () => {
     const skipped = stopProcess(-3);
     if (!skipped) {
-      sendRunError('No active transcription is available to skip.');
+      sendRunError(createAppError({
+        code: ERROR_CODES.RUNNER_SKIP_FAILED,
+        title: '無法跳過目前檔案',
+        message: 'No active transcription is available to skip.',
+        suggestedAction: 'dismiss-error',
+        source: 'run',
+      }));
       return;
     }
 
@@ -309,7 +378,13 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
   ipcMain.on('run:stop', () => {
     const stopped = stopProcess(-2);
     if (!stopped) {
-      sendRunError('No active transcription is running.');
+      sendRunError(createAppError({
+        code: ERROR_CODES.RUNNER_STOP_FAILED,
+        title: '無法停止批次',
+        message: 'No active transcription is running.',
+        suggestedAction: 'dismiss-error',
+        source: 'run',
+      }));
       return;
     }
 

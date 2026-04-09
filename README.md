@@ -11,9 +11,10 @@ Built with Electron 35, vanilla JS renderer, pastel cream/yellow theme with dark
 | Step | Action |
 |------|--------|
 | 1 | Point the app at a folder containing video/audio files |
-| 2 | **Scan for Missing Subtitles** — finds the first file that has no `.srt` / `.vtt` companion |
-| 3 | **Run Transcription** — calls `faster-whisper-webui`'s CLI to generate subtitles |
-| 4 | Repeat until all files are covered (or enable **Auto-loop** to do it automatically) |
+| 2 | **Scan for Missing Subtitles** — builds a queue of media files that do not yet have `.srt` / `.vtt` companions |
+| 3 | **Run Transcription** — starts the current queued item through `faster-whisper-webui`'s CLI |
+| 4 | Monitor the batch queue, then **Pause / Resume / Skip Current / Stop Batch** as needed |
+| 5 | Enable **Auto-loop** to keep processing queued items until the batch is done |
 
 The real-time console panel streams Python output (stdout + stderr) directly into the UI so you can monitor transcription progress without opening a terminal.
 
@@ -22,16 +23,21 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 ## Features
 
 ### Core
-- **Media scan** — recursively finds the first media file without a subtitle companion
-- **One-click transcription** — runs `faster-whisper-webui` via Poetry CLI
+- **Batch media scan** — recursively builds a queue of media files without subtitle companions
+- **Queue-based transcription** — runs the current queued item through `faster-whisper-webui` via Poetry CLI
 - **Real-time console** — streams Python stdout/stderr with timestamps and color-coded log levels
+- **Preflight checks** — validates Poetry, tool paths, media root, and required scripts before running transcription
 - **Settings panel** — edit all Whisper parameters (model, language, VAD, prompts, paths) in-app
 - **Profile switcher** — switch between multiple config profiles (shown when more than one profile exists)
 - **Drag & drop** — drag a folder onto the directory card to set the media root
 
 ### UX
-- **Auto-loop mode** — Scan → Transcribe → Scan cycles automatically until all files are done
-- **Next to Transcribe card** — shows the found file name, path, and **total pending count badge** after each scan
+- **Auto-loop mode** — one scan builds the batch queue, then queued items run continuously until the batch is done
+- **System Check panel** — surfaces blocking setup problems and links directly to the right settings field
+- **Next to Transcribe card** — shows the current queued file name, path, and remaining count
+- **Batch Progress card** — shows queue stage, processed counts, and per-batch scan summary
+- **Queue panel** — lists pending / running / paused / done / skipped / failed items
+- **Pause / Resume / Skip Current / Stop Batch** — control the current queued transcription without losing the rest of the queue
 - **Transcription history** — last 10 transcribed files (✓ success / ✗ fail) displayed in the main panel; persisted across sessions
 - **Recent directories** — last 5 used directories shown below the directory card for one-click re-selection
 - **Reveal in Finder** — open the scanned file's parent folder directly from the UI
@@ -101,7 +107,7 @@ Open `settings.json` and, if needed, set a custom `poetryPath`:
 }
 ```
 
-`poetryPath` can be left `null` — the app searches common install locations automatically (`~/.local/bin/poetry`, `/opt/homebrew/bin/poetry`, etc.). Set it only if Poetry is installed somewhere non-standard.
+`poetryPath` can be left `null` — the app searches common install locations automatically (`~/.local/bin/poetry`, `/opt/homebrew/bin/poetry`, etc.). Set it only if Poetry is installed somewhere non-standard. In the Settings tab, the resolved auto-detected Poetry path is shown directly in the field even when you have not pinned a custom override.
 
 ### 3. Configure transcription settings
 
@@ -142,7 +148,7 @@ whisperflow-studio/
 │   │   ├── config.metadata.json # Shared UI/options/media-extension metadata
 │   │   └── config.json          # Main transcription config (single source of truth)
 │   ├── config_metadata.py       # Python helper for reading shared config metadata
-│   ├── config_setting.py        # Scan media root, update next pending file in config.json
+│   ├── config_setting.py        # Legacy compatibility helper retained for older scan/config flows
 │   ├── faster-whisper-webui-cli.run.py # Shared CLI wrapper logic
 │   └── subtitle_utils.py        # Subtitle detection helpers
 ├── preload/
@@ -152,7 +158,9 @@ whisperflow-studio/
 │   │   ├── main.js              # App bootstrap, window creation, dock icon
 │   │   ├── ipc-handlers.js      # All IPC channels (config, fs dialogs, process runners)
 │   │   ├── config-metadata.js   # Reads shared config metadata for Electron
-│   │   ├── python-runner.js     # Spawns Poetry subprocesses, streams stdout/stderr
+│   │   ├── preflight-checker.js # Environment checks for Poetry, paths, and required scripts
+│   │   ├── queue-manager.js     # Batch queue state, scan logic, and job lifecycle
+│   │   ├── python-runner.js     # Spawns Poetry subprocesses, streams stdout/stderr, pause/resume/stop control
 │   │   ├── config-manager.js    # Reads/writes and normalizes config.json
 │   │   └── path-resolver.js     # Locates the Poetry executable
 │   └── renderer/
@@ -160,7 +168,10 @@ whisperflow-studio/
 │       ├── index.js             # Tab switching, directory drag-drop, theme, keyboard shortcuts
 │       ├── styles.css           # Pastel cream/yellow theme (light + dark)
 │       └── components/
-│           ├── controls-bar.js      # Scan / Run Transcription / Stop / auto-loop logic
+│           ├── controls-bar.js      # Scan / Run / Pause / Resume / Skip / Stop / auto-loop logic
+│           ├── preflight-panel.js   # System Check panel
+│           ├── queue-state.js       # Renderer-side queue store
+│           ├── queue-panel.js       # Queue list + batch progress cards
 │           ├── settings-panel.js    # Whisper settings form, dirty tracking, section collapse
 │           ├── console-log.js       # Real-time log panel, filters, search, save log
 │           ├── profile-switcher.js  # Profile switching UI
@@ -188,7 +199,7 @@ Stored in the project root during development. In packaged builds it lives in El
 ### `python/config/config.json`
 
 Whisper transcription settings. Edited via the **Settings** tab inside the app.
-This file is the only runtime config for scan/transcription state.
+This file is the main runtime config for transcription defaults and bridge compatibility fields.
 `python/config/config.example.json` is the tracked template; `config.json` is the local working copy.
 
 | Key | Description |
@@ -204,8 +215,10 @@ This file is the only runtime config for scan/transcription state.
 | `vad_initial_prompt_mode` | How the initial prompt is applied during VAD runs |
 | `whisper_faster_tool_path` | Path to the `faster-whisper-webui` installation |
 | `media_root_path` | Directory to scan for media files |
-| `media_file_name` / `media_file_path` | Set automatically after a scan |
-| `missing_count` | Number of remaining media files without subtitles after the last scan |
+| `media_file_name` / `media_file_path` | Kept in sync with the current queue item for Python bridge compatibility |
+| `missing_count` | Remaining queue size (`pending + running + paused + failed`) after the last queue update |
+
+> Queue state itself lives in Electron main process (`queue-manager.js`), not inside `config.json`.
 
 > Selecting a language in the Settings tab auto-fills `initial_prompt` with a sensible preset for that language.
 
@@ -240,14 +253,24 @@ Tracked metadata for non-user-editable app constants shared across Electron and 
 - **Browse** — click the Browse button to open a folder picker
 - **Drag and drop** — drag a folder (or any file inside it) onto the directory card
 
+### System Check / Preflight
+
+- The app runs a startup **System Check** before transcription
+- Missing Poetry, invalid `whisper_faster_tool_path`, missing media root, or missing bridge scripts are shown directly in the main panel
+- `Scan` only requires a valid media root; `Run Transcription` requires the full preflight to pass
+
 ### Scan → Transcribe workflow
 
 1. Set the media directory
-2. Click **Scan for Missing Subtitles** — the console shows scan results; the "Next to Transcribe" card updates with the found file
-3. Click **Run Transcription** — transcription streams in the console in real time
-4. Click **Scan** again to find the next file; repeat until done
+2. Click **Scan for Missing Subtitles** — the console shows scan results, a batch queue is built, and the **Next to Transcribe / Batch Progress / Queue** cards update
+3. Click **Run Transcription** — the current queued item starts and the console streams progress in real time
+4. While a job is running you can:
+   - **Pause / Resume** the current transcription
+   - **Skip Current** to mark the current item as skipped and move on
+   - **Stop Batch** to terminate the current process and leave the remaining queue ready
+5. Review the queue list for pending / running / paused / done / skipped / failed states
 
-Or enable **自動循環模式** (Auto-loop) to have the app cycle through all files automatically.
+Or enable **自動循環模式** (Auto-loop) to have the app continue through all queued files automatically after a single scan.
 
 ### Settings tab
 

@@ -241,6 +241,21 @@
         <span class="console-search-count" id="console-search-count"></span>
         <button class="tool-btn" id="btn-search-close" title="Close">✕</button>
       </div>
+      <div class="error-banner" id="error-banner" hidden>
+        <div class="error-banner-copy">
+          <div class="error-banner-meta">
+            <span class="error-banner-badge" id="error-banner-badge">ERROR</span>
+            <span class="error-banner-code" id="error-banner-code" hidden></span>
+          </div>
+          <div class="error-banner-title" id="error-banner-title"></div>
+          <div class="error-banner-message" id="error-banner-message"></div>
+        </div>
+        <div class="error-banner-actions">
+          <button class="tool-btn error-banner-btn" id="btn-error-banner-action" hidden></button>
+          <button class="tool-btn error-banner-btn" id="btn-error-banner-details">查看詳細資訊</button>
+          <button class="tool-btn error-banner-btn" id="btn-error-banner-dismiss">關閉</button>
+        </div>
+      </div>
       <div class="console-header">
         <div class="console-filters">
           <button class="filter-btn active" data-filter="">All</button>
@@ -283,6 +298,25 @@
       </div>
       <div class="modal-actions" style="margin-top:20px;">
         <button class="btn-primary" id="btn-shortcuts-close">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="error-dialog" hidden>
+    <div class="modal error-dialog">
+      <div class="error-dialog-header">
+        <span class="error-dialog-severity" id="error-dialog-severity">ERROR</span>
+        <div class="error-dialog-title-block">
+          <h2 id="error-dialog-title">執行失敗</h2>
+          <p class="error-dialog-code" id="error-dialog-code">Error code: UNKNOWN_RUNTIME_ERROR</p>
+        </div>
+      </div>
+      <p class="error-dialog-message" id="error-dialog-message"></p>
+      <pre class="error-dialog-details" id="error-dialog-details"></pre>
+      <div class="error-dialog-actions">
+        <button class="btn-secondary" id="btn-error-dialog-action" hidden></button>
+        <button class="btn-secondary" id="btn-error-dialog-copy">Copy Details</button>
+        <button class="btn-primary" id="btn-error-dialog-close">Close</button>
       </div>
     </div>
   </div>

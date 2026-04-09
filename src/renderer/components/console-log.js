@@ -162,13 +162,22 @@ document.getElementById('btn-search-close').addEventListener('click', closeSearc
 
 export { openSearch };
 
+function formatRunErrorLog(payload) {
+  if (!payload) return '[ERROR] 發生未預期錯誤。\n';
+  if (typeof payload === 'string') return `[ERROR] ${payload}\n`;
+
+  const code = payload.code ? `[${payload.code}] ` : '';
+  const details = payload.details ? `\n${payload.details}` : '';
+  return `[ERROR] ${code}${payload.message || '發生未預期錯誤。'}${details}\n`;
+}
+
 // IPC listeners
 window.electronAPI.onLogData((text) => {
   appendLog(text);
 });
 
-window.electronAPI.onRunError((msg) => {
-  appendLog(`[ERROR] ${msg}\n`);
+window.electronAPI.onRunError((payload) => {
+  appendLog(formatRunErrorLog(payload));
   setStatus('Error');
 });
 

@@ -109,24 +109,34 @@ async function ensureRunReady() {
   return false;
 }
 
-btnScan.addEventListener('click', async () => {
+async function triggerScan() {
   const isReady = await ensureScanReady();
-  if (!isReady) return;
+  if (!isReady) return false;
 
   const values = collectFormValues();
   const rootPath = values?.SETTING?.media_root_path || '';
   lastAction = 'scan';
   setRunning(true);
   window.electronAPI.runScan(rootPath || undefined);
-});
+  return true;
+}
 
-btnCli.addEventListener('click', async () => {
+async function triggerRun() {
   const isReady = await ensureRunReady();
-  if (!isReady) return;
+  if (!isReady) return false;
 
   lastAction = 'cli';
   setRunning(true);
   window.electronAPI.runCli();
+  return true;
+}
+
+btnScan.addEventListener('click', async () => {
+  await triggerScan();
+});
+
+btnCli.addEventListener('click', async () => {
+  await triggerRun();
 });
 
 btnPauseResume.addEventListener('click', () => {
@@ -248,4 +258,4 @@ window.electronAPI.onRunDone(async (code) => {
 
 syncActionState();
 
-export { setRunning };
+export { setRunning, triggerRun, triggerScan };

@@ -1306,6 +1306,96 @@ select { appearance: auto; cursor: pointer; }
 
 .console-search-count { font-size: 11px; color: var(--overlay0); min-width: 40px; text-align: right; }
 
+/* ── Error Banner ───────────────────────────────────────────────────────────── */
+.error-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 16px 0;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--red) 28%, var(--border));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--red) 4%, var(--surface0)), var(--surface0)),
+    radial-gradient(circle at top right, color-mix(in srgb, var(--yellow) 12%, transparent), transparent 38%);
+  box-shadow: var(--shadow-sm);
+}
+
+.error-banner[data-severity="warning"] {
+  border-color: color-mix(in srgb, var(--amber) 36%, var(--border));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--yellow) 8%, var(--surface0)), var(--surface0)),
+    radial-gradient(circle at top right, color-mix(in srgb, var(--yellow) 18%, transparent), transparent 42%);
+}
+
+.error-banner-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  flex: 1;
+}
+
+.error-banner-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.error-banner-badge,
+.error-dialog-severity {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 60px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+  color: var(--red);
+  border: 1px solid color-mix(in srgb, var(--red) 24%, transparent);
+}
+
+.error-banner[data-severity="warning"] .error-banner-badge,
+.modal-overlay[data-severity="warning"] .error-dialog-severity {
+  background: color-mix(in srgb, var(--yellow) 15%, transparent);
+  color: var(--amber);
+  border-color: color-mix(in srgb, var(--amber) 24%, transparent);
+}
+
+.error-banner-code {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--overlay1);
+}
+
+.error-banner-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.error-banner-message {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--subtext0);
+}
+
+.error-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.error-banner-btn {
+  min-width: fit-content;
+}
+
 .log-line.search-match { background: rgba(245,158,11,0.10); border-radius: 3px; }
 .log-line.search-match-active { background: rgba(245,158,11,0.22); border-radius: 3px; }
 
@@ -1460,6 +1550,64 @@ select { appearance: auto; cursor: pointer; }
 .modal-actions .btn-primary { width: 160px; font-size: 13px; height: 40px; }
 
 .error-msg { color: var(--red); font-size: 11px; text-align: center; margin-bottom: 8px; }
+
+.error-dialog {
+  max-width: 560px;
+  padding-top: 24px;
+}
+
+.error-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.error-dialog-title-block {
+  min-width: 0;
+  flex: 1;
+}
+
+.error-dialog .error-dialog-title-block h2 {
+  text-align: left;
+  margin-bottom: 4px;
+}
+
+.error-dialog-code {
+  margin: 0;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--overlay1);
+}
+
+.error-dialog-message {
+  text-align: left;
+  margin-bottom: 14px;
+  color: var(--subtext1);
+}
+
+.error-dialog-details {
+  margin: 0 0 16px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface1);
+  color: var(--subtext0);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.55;
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.error-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
 
 /* ── Step Guide ──────────────────────────────────────────────────────────────── */
 .step-guide {
