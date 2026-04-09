@@ -99,6 +99,8 @@ function saveWindowState(win) {
 // ── Window ────────────────────────────────────────────────────────────────────
 let mainWindow;
 let isRunning = false;
+let isAppQuitting = false;
+let isForceClosingWindow = false;
 
 function createWindow() {
   const state = readWindowState();
@@ -131,6 +133,7 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
 
   mainWindow.on('close', (e) => {
+    if (isAppQuitting || isForceClosingWindow) return;
     if (!isRunning) return;
     e.preventDefault();
     dialog.showMessageBox(mainWindow, {
@@ -142,14 +145,17 @@ function createWindow() {
       message: '轉錄正在進行中',
       detail: '強制關閉將會中斷目前的轉錄作業，確定要關閉嗎？',
     }).then(({ response }) => {
-      if (response === 1) {
-        isRunning = false;
-        mainWindow.close();
-      }
+      if (response !== 1) return;
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+
+      isRunning = false;
+      isForceClosingWindow = true;
+      mainWindow.close();
     });
   });
 
   mainWindow.on('closed', () => {
+    isForceClosingWindow = false;
     mainWindow = null;
   });
 }
@@ -165,6 +171,11 @@ app.whenReady().then(() => {
   }
   createWindow();
   registerHandlers(mainWindow, ELECTRON_APP_ROOT, readLocalSettings, writeLocalSettings, setIsRunning);
+});
+
+app.on('before-quit', () => {
+  isAppQuitting = true;
+  isRunning = false;
 });
 
 app.on('window-all-closed', () => {
