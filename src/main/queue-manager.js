@@ -5,6 +5,7 @@ const path = require('path');
 const { readConfig, writeConfig } = require('./config-manager');
 const { readConfigMetadata } = require('./config-metadata');
 const { ERROR_CODES } = require('./error-catalog');
+const { createQueueStorage } = require('./queue-storage');
 const {
   calculateElapsedSeconds,
   clampProgress,
@@ -101,6 +102,9 @@ function getStageProgress(stage) {
       return 55;
     case 'writing-subtitle':
       return 90;
+    case 'skipping':
+    case 'stopping':
+      return null;
     case 'completed':
       return 100;
     case 'failed':
@@ -116,9 +120,19 @@ function createQueueOperationError(code, message) {
   return error;
 }
 
+function parseJobIdNumber(jobId) {
+  const match = String(jobId || '').match(/^job_(\d+)$/);
+  return match ? Number(match[1]) : null;
+}
+
+function isTransitionStage(stage) {
+  return stage === 'skipping' || stage === 'stopping';
+}
+
 function createQueueManager({
   configPath,
   configMetadataPath,
+  queueStatePath = null,
   onStateChange,
 }) {
   const metadata = readConfigMetadata(configMetadataPath);
@@ -129,6 +143,116 @@ function createQueueManager({
 
   let nextJobId = 1;
   let state = createEmptyState();
+  const queueStorage = queueStatePath ? createQueueStorage(queueStatePath) : null;
+
+  function getPersistableState() {
+    return cloneJson(state);
+  }
+
+  function savePersistedState(flush = false) {
+    if (!queueStorage) return;
+    const payload = getPersistableState();
+    if (flush) {
+      queueStorage.flush(payload);
+      return;
+    }
+    queueStorage.save(payload);
+  }
+
+  function flushState() {
+    savePersistedState(true);
+  }
+
+  function normalizeRestoredJob(job, nowIso) {
+    const normalized = {
+      id: job?.id || `job_${nextJobId++}`,
+      fileName: job?.fileName || '',
+      dirPath: job?.dirPath || '',
+      filePath: job?.filePath || '',
+      status: job?.status || 'pending',
+      stage: job?.stage || 'idle',
+      progress: Number.isFinite(Number(job?.progress)) ? Number(job.progress) : 0,
+      error: job?.error || null,
+      stageMessage: job?.stageMessage || '',
+      startedAt: job?.startedAt || null,
+      finishedAt: job?.finishedAt || null,
+      elapsedSeconds: job?.elapsedSeconds ?? null,
+      etaSeconds: job?.etaSeconds ?? null,
+      progressSource: job?.progressSource || null,
+    };
+
+    if (normalized.status === 'running') {
+      normalized.status = 'failed';
+      normalized.stage = 'failed';
+      normalized.progress = 0;
+      normalized.error = 'Interrupted by app restart';
+      normalized.stageMessage = 'Running job was interrupted by app restart';
+      normalized.finishedAt = nowIso;
+      normalized.elapsedSeconds = normalized.elapsedSeconds ?? calculateElapsedSeconds(normalized.startedAt, nowIso);
+      normalized.etaSeconds = null;
+      normalized.progressSource = null;
+    } else if (normalized.status === 'paused') {
+      normalized.status = 'pending';
+      normalized.stage = 'idle';
+      normalized.progress = 0;
+      normalized.error = null;
+      normalized.stageMessage = 'Paused job restored to queue after app restart';
+      normalized.startedAt = null;
+      normalized.finishedAt = null;
+      normalized.elapsedSeconds = null;
+      normalized.etaSeconds = null;
+      normalized.progressSource = null;
+    }
+
+    return normalized;
+  }
+
+  function deriveStageFromJobs() {
+    if (state.jobs.length === 0) return 'idle';
+    if (state.jobs.some((job) => job.status === 'running')) return 'running';
+    if (state.jobs.some((job) => job.status === 'paused')) return 'paused';
+    if (state.jobs.some((job) => job.status === 'pending' || job.status === 'failed')) return 'ready';
+    if (state.jobs.some((job) => job.status === 'done' || job.status === 'skipped')) return 'completed';
+    return 'idle';
+  }
+
+  function restorePersistedState() {
+    if (!queueStorage) return;
+
+    const stored = queueStorage.load(null);
+    if (!stored || typeof stored !== 'object') return;
+
+    const nowIso = new Date().toISOString();
+    const restoredJobs = Array.isArray(stored.jobs)
+      ? stored.jobs.map((job) => normalizeRestoredJob(job, nowIso))
+      : [];
+
+    const maxJobId = restoredJobs
+      .map((job) => parseJobIdNumber(job.id))
+      .filter((value) => Number.isFinite(value))
+      .reduce((max, value) => Math.max(max, value), 0);
+
+    nextJobId = Math.max(nextJobId, maxJobId + 1);
+
+    state = {
+      ...createEmptyState(),
+      rootPath: stored.rootPath || '',
+      jobs: restoredJobs,
+      scanSummary: {
+        scannedDirectories: stored.scanSummary?.scannedDirectories || 0,
+        scannedFiles: stored.scanSummary?.scannedFiles || 0,
+      },
+      lastFinishedJob: stored.lastFinishedJob || null,
+      lastRunnerEvent: null,
+    };
+
+    setNextCurrentJob();
+    state.stage = deriveStageFromJobs();
+
+    syncActiveConfig();
+    emitState();
+    savePersistedState(true);
+  }
 
   function getJobIndexById(jobId) {
     return state.jobs.findIndex((job) => job.id === jobId);
@@ -223,6 +347,7 @@ function createQueueManager({
   function emitState() {
     updateBatchTiming();
     state.updatedAt = new Date().toISOString();
+    savePersistedState();
     onStateChange(buildSnapshot());
   }
 
@@ -371,6 +496,7 @@ function createQueueManager({
   function updateRunningJobStage(stage, progress = null, stageMessage = '', progressSource = 'heuristic') {
     const job = state.jobs.find((item) => item.status === 'running' || item.status === 'paused');
     if (!job) return;
+    if (isTransitionStage(state.stage)) return;
 
     job.stage = stage;
     job.progress = typeof progress === 'number' ? progress : (getStageProgress(stage) ?? job.progress);
@@ -386,6 +512,11 @@ function createQueueManager({
       || state.jobs.find((item) => item.id === state.currentJobId);
 
     if (!job) {
+      emitState();
+      return buildSnapshot();
+    }
+
+    if (isTransitionStage(state.stage)) {
       emitState();
       return buildSnapshot();
     }
@@ -473,6 +604,9 @@ function createQueueManager({
   function handleRunnerOutput(text) {
     const activeJob = state.jobs.find((item) => item.status === 'running' || item.status === 'paused');
     if (activeJob?.progressSource === 'event') {
+      return;
+    }
+    if (isTransitionStage(state.stage)) {
       return;
     }
 
@@ -603,6 +737,32 @@ function createQueueManager({
     return buildSnapshot();
   }
 
+  function markSkippingCurrent() {
+    const job = state.jobs.find((item) => item.status === 'running' || item.status === 'paused');
+    if (!job) return buildSnapshot();
+
+    state.currentJobId = job.id;
+    state.stage = 'skipping';
+    job.stage = 'skipping';
+    job.etaSeconds = null;
+    job.stageMessage = 'Skipping current file. Waiting for process to exit before moving on.';
+    emitState();
+    return buildSnapshot();
+  }
+
+  function markStoppingCurrent() {
+    const job = state.jobs.find((item) => item.status === 'running' || item.status === 'paused');
+    if (!job) return buildSnapshot();
+
+    state.currentJobId = job.id;
+    state.stage = 'stopping';
+    job.stage = 'stopping';
+    job.etaSeconds = null;
+    job.stageMessage = 'Stopping current batch. Waiting for process to exit.';
+    emitState();
+    return buildSnapshot();
+  }
+
   function retryFailedJobs() {
     let retriedCount = 0;
 
@@ -729,10 +889,15 @@ function createQueueManager({
     return buildSnapshot();
   }
 
+  restorePersistedState();
+
   return {
     clearFinishedJobs,
     finishCurrentJob,
+    flushState,
     getState,
+    markSkippingCurrent,
+    markStoppingCurrent,
     moveJob,
     removeJob,
     handleRunnerEvent,

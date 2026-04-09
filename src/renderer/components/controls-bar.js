@@ -41,15 +41,16 @@ function syncActionState() {
   const queueState = getQueueState();
   const hasActiveJob = queueState.stats.running > 0 || queueState.stats.paused > 0;
   const queuePaused = queueState.stage === 'paused';
+  const queueTransitioning = queueState.stage === 'skipping' || queueState.stage === 'stopping';
   const scanBlocked = preflight.pending || Boolean(getScanBlockingMessage());
   const runBlocked = preflight.pending || !preflight.ok;
 
   btnScan.disabled = isRunning || scanBlocked;
   btnCli.disabled = isRunning || runBlocked;
-  btnPauseResume.disabled = !hasActiveJob;
+  btnPauseResume.disabled = !hasActiveJob || queueTransitioning;
   btnPauseResume.textContent = queuePaused ? 'Resume' : 'Pause';
-  btnSkipCurrent.disabled = !hasActiveJob;
-  btnStop.disabled = !hasActiveJob;
+  btnSkipCurrent.disabled = !hasActiveJob || queueTransitioning;
+  btnStop.disabled = !hasActiveJob || queueTransitioning;
   btnScan.classList.toggle('spinning', isRunning && lastAction === 'scan');
 
   const reason = isRunning ? '' : (getScanBlockingMessage() || getRunBlockingMessage());
@@ -59,13 +60,31 @@ function syncActionState() {
   }
   btnScan.title = getScanBlockingMessage() || 'Scan for missing subtitles';
   btnCli.title = getRunBlockingMessage() || 'Run transcription';
-  btnPauseResume.title = queuePaused ? 'Resume the current transcription' : 'Pause the current transcription';
-  btnSkipCurrent.title = hasActiveJob ? 'Skip the current file and move on' : 'No active job to skip';
-  btnStop.title = hasActiveJob ? 'Stop the current batch run' : 'No active job to stop';
+  btnPauseResume.title = queueTransitioning
+    ? 'Please wait while the current process exits'
+    : queuePaused
+      ? 'Resume the current transcription'
+      : 'Pause the current transcription';
+  btnSkipCurrent.title = queueTransitioning
+    ? 'Already waiting for the current process to exit'
+    : hasActiveJob
+      ? 'Skip the current file and move on'
+      : 'No active job to skip';
+  btnStop.title = queueTransitioning
+    ? 'Already waiting for the current process to exit'
+    : hasActiveJob
+      ? 'Stop the current batch run'
+      : 'No active job to stop';
 
   if (!isRunning) {
     setStatus(preflight.pending ? 'Checking' : (preflight.ok ? 'Idle' : 'Setup'));
     document.title = 'WhisperFlow Studio';
+  } else if (queueState.stage === 'skipping') {
+    setStatus('Skipping');
+    document.title = '↷ Skipping — WhisperFlow Studio';
+  } else if (queueState.stage === 'stopping') {
+    setStatus('Stopping');
+    document.title = '■ Stopping — WhisperFlow Studio';
   } else if (queuePaused) {
     setStatus('Paused');
     document.title = '❚❚ Paused — WhisperFlow Studio';

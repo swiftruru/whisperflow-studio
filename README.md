@@ -39,8 +39,13 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 - **Batch Progress card** — shows queue stage, processed counts, and per-batch scan summary
 - **Elapsed / ETA timing** — current job and batch cards show elapsed time plus estimated remaining time when enough progress data is available
 - **Queue panel** — lists pending / running / paused / done / skipped / failed items
+- **Queue search + status filters** — narrow the queue by file name/path and by status chips such as `Pending`, `Skipped`, or `Failed`
+- **Single-item queue controls** — retry, remove, and move queue items up/down directly from the queue list
+- **Queue persistence** — queue state is restored after app restart so pending/skipped/failed work is not lost
 - **Stage messages** — queue UI surfaces the current runner stage message directly from the Python bridge
 - **Pause / Resume / Skip Current / Stop Batch** — control the current queued transcription without losing the rest of the queue
+- **Skip / Stop transition states** — the UI now shows `Skipping` / `Stopping` while waiting for the current Python process to exit cleanly
+- **Sticky action dock** — Scan / Run / Pause / Skip / Stop stay visible near the top of the sidebar instead of being pushed below long queue cards
 - **Transcription history** — last 10 transcribed files (✓ success / ✗ fail) displayed in the main panel; persisted across sessions
 - **Recent directories** — last 5 used directories shown below the directory card for one-click re-selection
 - **Reveal in Finder** — open the scanned file's parent folder directly from the UI
@@ -49,6 +54,7 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 - **Dirty state indicator** — Save button highlights when settings have unsaved changes
 - **Settings section collapse** — each settings group is collapsible; state persisted across sessions
 - **Toast notifications** — success / info / error feedback for every action
+- **Structured error UI** — runtime failures are normalized into actionable banners/dialogs instead of only raw stderr
 - **Execution timer** — status bar shows elapsed time (`Running 01:23`) while a process is running
 - **Window title status** — title bar shows `● Running` during transcription
 
@@ -163,6 +169,7 @@ whisperflow-studio/
 │   │   ├── config-metadata.js   # Reads shared config metadata for Electron
 │   │   ├── preflight-checker.js # Environment checks for Poetry, paths, and required scripts
 │   │   ├── queue-manager.js     # Batch queue state, scan logic, and job lifecycle
+│   │   ├── queue-storage.js     # Persists queue state to Electron userData for restart recovery
 │   │   ├── runner-event.js      # Structured runner event schema and parser
 │   │   ├── runner-metrics.js    # Elapsed / ETA helpers for current job and batch timing
 │   │   ├── python-runner.js     # Spawns Poetry subprocesses, streams stdout/stderr, pause/resume/stop control
@@ -176,7 +183,11 @@ whisperflow-studio/
 │           ├── controls-bar.js      # Scan / Run / Pause / Resume / Skip / Stop / auto-loop logic
 │           ├── preflight-panel.js   # System Check panel
 │           ├── queue-state.js       # Renderer-side queue store
+│           ├── queue-view-state.js  # Queue search/filter view state
 │           ├── queue-panel.js       # Queue list + batch progress cards
+│           ├── error-banner.js      # Actionable runtime error banner
+│           ├── error-dialog.js      # Detailed runtime error modal
+│           ├── error-actions.js     # Error CTA dispatcher
 │           ├── settings-panel.js    # Whisper settings form, dirty tracking, section collapse
 │           ├── console-log.js       # Real-time log panel, filters, search, save log
 │           ├── profile-switcher.js  # Profile switching UI
@@ -224,6 +235,7 @@ This file is the main runtime config for transcription defaults and bridge compa
 | `missing_count` | Remaining queue size (`pending + running + paused + failed`) after the last queue update |
 
 > Queue state itself lives in Electron main process (`queue-manager.js`), not inside `config.json`.
+> Persisted queue snapshots live separately in Electron `userData/queue-state.json`.
 
 > Selecting a language in the Settings tab auto-fills `initial_prompt` with a sensible preset for that language.
 
@@ -258,6 +270,13 @@ Tracked metadata for non-user-editable app constants shared across Electron and 
 - **Browse** — click the Browse button to open a folder picker
 - **Drag and drop** — drag a folder (or any file inside it) onto the directory card
 
+### Queue workflow
+
+- A single **Scan** builds the full queue rather than selecting only one file
+- Use the queue search box and status chips to focus on a subset of items
+- Use row actions to `Retry`, `Remove`, or move items `↑ / ↓`
+- `Skip Current` marks the active job as `skipped`; it is not permanent and can be returned to `pending` later via `Retry`
+
 ### System Check / Preflight
 
 - The app runs a startup **System Check** before transcription
@@ -280,7 +299,16 @@ Tracked metadata for non-user-editable app constants shared across Electron and 
    - batch elapsed time and estimated remaining time
    - stage message forwarded from the Python bridge
 
+When **Auto-loop** is enabled and you press **Skip Current**, WhisperFlow Studio first enters a short `Skipping` transition while the current Python process exits, then automatically continues to the next queued file.
+
 Or enable **自動循環模式** (Auto-loop) to have the app continue through all queued files automatically after a single scan.
+
+### Restart recovery
+
+- Queue state is persisted in Electron `userData/queue-state.json`
+- `running` jobs are restored as `failed` with an interruption message after app restart
+- `paused` jobs are restored as `pending`
+- WhisperFlow Studio does not fake-resume old Python subprocesses after restart
 
 ### Progress model
 

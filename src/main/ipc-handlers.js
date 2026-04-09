@@ -11,9 +11,13 @@ const { runScript, stopProcess, pauseProcess, resumeProcess } = require('./pytho
 const { resolvePoetryPath } = require('./path-resolver');
 const { ERROR_CODES, createAppError, normalizeUnknownError, toAppError } = require('./error-catalog');
 
+let activeQueueManager = null;
+let beforeQuitPersistenceHookRegistered = false;
+
 function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveLocalSettings, setIsRunning) {
   const PYTHON_DIR = path.join(ELECTRON_APP_ROOT, 'python');
   const CONFIG_METADATA_PATH = path.join(PYTHON_DIR, 'config', 'config.metadata.json');
+  const QUEUE_STATE_PATH = path.join(app.getPath('userData'), 'queue-state.json');
 
   // All paths are relative to the bundled python/ directory.
   // whisperToolPath is read from python/config/config.json and used as the
@@ -54,8 +58,18 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
   const queueManager = createQueueManager({
     configPath: path.join(PYTHON_DIR, 'config', 'config.json'),
     configMetadataPath: CONFIG_METADATA_PATH,
+    queueStatePath: QUEUE_STATE_PATH,
     onStateChange: sendQueueState,
   });
+
+  activeQueueManager = queueManager;
+
+  if (!beforeQuitPersistenceHookRegistered) {
+    app.on('before-quit', () => {
+      activeQueueManager?.flushState?.();
+    });
+    beforeQuitPersistenceHookRegistered = true;
+  }
 
   // ── Running State ─────────────────────────────────────────────────────────
   ipcMain.on('app:set-running', (_event, val) => setIsRunning(val));
@@ -383,7 +397,8 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
       return;
     }
 
-    sendLog('[WhisperFlow] Skipping current file...\n');
+    queueManager.markSkippingCurrent();
+    sendLog('[WhisperFlow] Skipping current file. Waiting for current process to exit...\n');
   });
 
   ipcMain.on('run:stop', () => {
@@ -399,7 +414,8 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
       return;
     }
 
-    sendLog('[WhisperFlow] Process stopped by user.\n');
+    queueManager.markStoppingCurrent();
+    sendLog('[WhisperFlow] Stopping current batch. Waiting for current process to exit...\n');
   });
 }
 

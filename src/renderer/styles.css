@@ -552,6 +552,12 @@ body {
   background: color-mix(in srgb, var(--amber) 10%, transparent);
 }
 
+.queue-stage-chip[data-stage="skipping"] {
+  color: var(--amber);
+  border-color: color-mix(in srgb, var(--amber) 42%, transparent);
+  background: color-mix(in srgb, var(--yellow) 12%, transparent);
+}
+
 .queue-stage-chip[data-stage="ready"] {
   color: var(--amber);
   border-color: color-mix(in srgb, var(--yellow) 40%, transparent);
@@ -565,6 +571,12 @@ body {
 .queue-stage-chip[data-stage="error"] {
   color: var(--red);
   border-color: color-mix(in srgb, var(--red) 35%, transparent);
+  background: color-mix(in srgb, var(--red) 8%, transparent);
+}
+
+.queue-stage-chip[data-stage="stopping"] {
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 38%, transparent);
   background: color-mix(in srgb, var(--red) 8%, transparent);
 }
 
@@ -935,7 +947,23 @@ body {
 }
 
 /* ── Action Stack ────────────────────────────────────────────────────────────── */
-.action-stack { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.action-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 2px 0 4px;
+  position: sticky;
+  top: 0;
+  z-index: 18;
+  padding: 8px 0 12px;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--mantle) 98%, var(--surface0)) 0%,
+      color-mix(in srgb, var(--mantle) 94%, transparent) 78%,
+      transparent 100%
+    );
+}
 
 .action-row {
   display: grid;

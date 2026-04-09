@@ -56,6 +56,8 @@ function stageLabel(stage) {
     case 'finalizing': return 'Finalizing';
     case 'failed': return 'Failed';
     case 'skipped': return 'Skipped';
+    case 'skipping': return 'Skipping';
+    case 'stopping': return 'Stopping';
     default: return 'Idle';
   }
 }

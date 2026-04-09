@@ -8,6 +8,14 @@ let activeProcess = null;
 let activeState = 'idle';
 let exitCodeOverride = null;
 
+function isIgnorableShutdownWarning(text) {
+  return /resource_tracker: There appear to be \d+ leaked semaphore objects to clean up at shutdown/i.test(String(text || ''));
+}
+
+function shouldSuppressStderr(text) {
+  return activeState === 'stopping' && isIgnorableShutdownWarning(text);
+}
+
 function isUnixLike() {
   return process.platform !== 'win32';
 }
@@ -122,7 +130,8 @@ function runScript(poetryPath, scriptPath, args, cwd, onData, onError, onClose, 
 
   child.stderr.on('data', (chunk) => {
     const text = stripAnsi(chunk.toString('utf-8'));
-    if (text) onError(text);
+    if (!text || shouldSuppressStderr(text)) return;
+    onError(text);
   });
 
   child.on('close', (code) => {
