@@ -54,12 +54,18 @@ class HeadlessWhisperScript(WhisperFasterScript):
             '--fp16',                    wc.fp16_enabled,
             '--auto_parallel',           wc.auto_parallel_enabled,
             '--vad',                     wc.vad_argument,
+        ]
+
+        if wc.vad_max_merge_size not in (None, ''):
+            cmd.extend(['--vad_max_merge_size', str(wc.vad_max_merge_size)])
+
+        cmd.extend([
             '--language',                wc.language,
             '--initial_prompt',          wc.initial_prompt or '',
             '--vad_initial_prompt_mode', wc.vad_initial_prompt_mode,
             '--output_dir',              f'{wc.media_file_path}/',
             f'{wc.media_file_path}/{wc.media_file_name}',
-        ]
+        ])
 
         proc = subprocess.Popen(
             cmd,

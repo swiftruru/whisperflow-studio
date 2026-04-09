@@ -2,6 +2,7 @@
   "settingsUi": {
     "enumOptions": {
       "model": ["tiny", "base", "small", "medium", "large", "large-v1", "large-v2", "large-v3"],
+      "default_model_name": ["tiny", "base", "small", "medium", "large", "large-v1", "large-v2", "large-v3"],
       "language": ["Chinese", "Japanese", "English", "Korean", "French", "German", "Spanish", "Italian", "Portuguese", "Russian", "Arabic", "Hindi"],
       "vad_argument": ["none", "silero-vad", "silero-vad-expand-into-gaps", "silero-vad-skip-gaps", "periodic-vad"],
       "default_vad": ["none", "silero-vad", "silero-vad-expand-into-gaps", "silero-vad-skip-gaps", "periodic-vad"],

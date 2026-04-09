@@ -200,6 +200,7 @@ This file is the only runtime config for scan/transcription state.
 | `language` | Target language for transcription |
 | `initial_prompt` | Hint text fed to Whisper (e.g. `台灣繁體中文` for Traditional Chinese output) |
 | `vad_argument` | Voice activity detection strategy |
+| `vad_max_merge_size` | Merge nearby VAD segments within the given number of seconds |
 | `vad_initial_prompt_mode` | How the initial prompt is applied during VAD runs |
 | `whisper_faster_tool_path` | Path to the `faster-whisper-webui` installation |
 | `media_root_path` | Directory to scan for media files |
@@ -207,6 +208,18 @@ This file is the only runtime config for scan/transcription state.
 | `missing_count` | Number of remaining media files without subtitles after the last scan |
 
 > Selecting a language in the Settings tab auto-fills `initial_prompt` with a sensible preset for that language.
+
+### `WEBUI_SETTING` in `python/config/config.json`
+
+Legacy WebUI-related defaults are also preserved in JSON form, including:
+
+- `server_name`
+- `server_port`
+- `default_model_name`
+- `input_audio_max_duration`
+- `default_vad`
+
+If a legacy `python/config/config.ini` still exists, WhisperFlow Studio will import missing or still-default values from it into `config.json` automatically.
 
 ### `python/config/config.metadata.json`
 

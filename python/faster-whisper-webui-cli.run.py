@@ -20,6 +20,7 @@ class WhisperFasterConfigData:
         self.fp16_enabled = None
         self.auto_parallel_enabled = None
         self.vad_argument = None
+        self.vad_max_merge_size = None
         self.language = None
         self.initial_prompt = None
         self.vad_initial_prompt_mode = None
@@ -190,6 +191,7 @@ class WhisperFasterScript:
             f"--fp16 {self.whisper_config.fp16_enabled}",
             f"--auto_parallel {self.whisper_config.auto_parallel_enabled}",
             f"--vad {self.whisper_config.vad_argument}",
+            f"--vad_max_merge_size {self.whisper_config.vad_max_merge_size}",
             f'--language {self.whisper_config.language}',
             f'--initial_prompt "{self.whisper_config.initial_prompt}"',
             f"--vad_initial_prompt_mode {self.whisper_config.vad_initial_prompt_mode}",

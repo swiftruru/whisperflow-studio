@@ -135,7 +135,7 @@ async function renderSettings() {
 
   container.innerHTML = '';
 
-  for (const [section, fields] of Object.entries(_configObj).filter(([s]) => s !== 'WEBUI_SETTING')) {
+  for (const [section, fields] of Object.entries(_configObj)) {
     const isCollapsed = localStorage.getItem(`section-collapsed:${section}`) === 'true';
 
     const header = document.createElement('div');

@@ -4,9 +4,10 @@
     "whisper_implementation": "faster-whisper",
     "python_executor": "poetry",
     "model": "large-v2",
-    "fp16_enabled": "True",
+    "fp16_enabled": "False",
     "auto_parallel_enabled": "True",
-    "vad_argument": "silero-vad",
+    "vad_argument": "silero-vad-skip-gaps",
+    "vad_max_merge_size": 3,
     "language": "Chinese",
     "initial_prompt": "台灣繁體中文",
     "vad_initial_prompt_mode": "prepend_all_segments",
@@ -14,5 +15,12 @@
     "media_file_path": "",
     "media_file_name": "",
     "missing_count": 0
+  },
+  "WEBUI_SETTING": {
+    "server_name": "127.0.0.1",
+    "server_port": 7860,
+    "default_model_name": "large-v2",
+    "input_audio_max_duration": -1,
+    "default_vad": "silero-vad-skip-gaps"
   }
 }
