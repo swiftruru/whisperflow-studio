@@ -13,10 +13,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── App Settings ─────────────────────────────────────────────────────────
   readAppSettings:  ()          => ipcRenderer.invoke('appsettings:read'),
   writeAppSettings: (data)      => ipcRenderer.invoke('appsettings:write', data),
+  runPreflight:     ()          => ipcRenderer.invoke('app:run-preflight'),
+  validateSettingField: (data)  => ipcRenderer.invoke('app:validate-setting-field', data),
 
   // ── File System Dialogs ───────────────────────────────────────────────────
   browseFolder:    ()           => ipcRenderer.invoke('fs:browse-folder'),
   browseFile:      ()           => ipcRenderer.invoke('fs:browse-file'),
+  browseAnyFile:   ()           => ipcRenderer.invoke('fs:browse-any-file'),
   saveLog:         (text)       => ipcRenderer.invoke('fs:save-log', text),
   showInFolder:    (filePath)   => ipcRenderer.invoke('shell:show-in-folder', filePath),
   // Electron 32+: replaces file.path which is deprecated in contextIsolation mode

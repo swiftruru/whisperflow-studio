@@ -59,6 +59,22 @@
         <!-- Profile switcher (hidden when only default profile exists) -->
         <div id="profile-switcher-container" class="profile-switcher" hidden></div>
 
+        <!-- Preflight panel -->
+        <div class="card preflight-panel" id="preflight-panel" hidden>
+          <div class="card-label">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 1.333l6.167 11.334A1 1 0 0113.3 14H2.7a1 1 0 01-.867-1.333L8 1.333zm0 3.5a.75.75 0 00-.75.75v3.167a.75.75 0 001.5 0V5.583A.75.75 0 008 4.833zm0 6.25a.917.917 0 100 1.834.917.917 0 000-1.834z"/>
+            </svg>
+            System Check
+            <span class="preflight-count" id="preflight-count"></span>
+          </div>
+          <div class="preflight-summary" id="preflight-summary">正在檢查目前環境與設定…</div>
+          <div class="preflight-list" id="preflight-list"></div>
+          <div class="preflight-actions">
+            <button class="btn-browse" id="btn-preflight-recheck">重新檢查</button>
+          </div>
+        </div>
+
         <!-- Directory card -->
         <div class="card dir-card">
           <div class="card-label">
@@ -135,6 +151,8 @@
             </svg>
             Run Transcription
           </button>
+
+          <div class="action-hint" id="action-hint" hidden></div>
 
           <label class="auto-loop-toggle">
             <input type="checkbox" id="chk-auto-loop" />
@@ -228,6 +246,6 @@
     </div>
   </div>
 
-  <script type="module" src="index.js"></script>
+  <script type="module" src="bootstrap.js"></script>
 </body>
 </html>

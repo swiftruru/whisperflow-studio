@@ -1,7 +1,8 @@
-import { renderSettings, collectFormValues } from './components/settings-panel.js';
+import { renderSettings } from './components/settings-panel.js';
 import { openSearch } from './components/console-log.js';
 import { initProfileSwitcher } from './components/profile-switcher.js';
 import { initHistory } from './components/history.js';
+import { initPreflightPanel, refreshPreflight } from './components/preflight-panel.js';
 import './components/controls-bar.js';
 
 // ── Theme toggle ──────────────────────────────────────────────────────────────
@@ -144,7 +145,12 @@ async function applyDirectory(folder) {
   await window.electronAPI.writeConfig(config);
   // Keep the Settings tab form in sync
   const inputEl = document.querySelector('[data-section="SETTING"][data-key="media_root_path"]');
-  if (inputEl) inputEl.value = folder;
+  if (inputEl) {
+    inputEl.value = folder;
+    inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+    inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  await refreshPreflight();
 }
 
 // ── Browse button ─────────────────────────────────────────────────────────────
@@ -257,10 +263,23 @@ async function init() {
   initDragDrop();
   initKeyboardShortcuts();
   initRecentDirs();
-  await renderSettings();
-  await refreshDirDisplay();
-  await initProfileSwitcher();
-  await initHistory();
+  initPreflightPanel({ onApplyDirectory: applyDirectory });
+  const startupTasks = [
+    refreshPreflight(),
+    Promise.resolve().then(() => renderSettings()),
+    Promise.resolve().then(() => refreshDirDisplay()),
+    Promise.resolve().then(() => initProfileSwitcher()),
+    Promise.resolve().then(() => initHistory()),
+  ];
+  const results = await Promise.allSettled(startupTasks);
+
+  results.forEach((result) => {
+    if (result.status === 'rejected') {
+      console.error('[WhisperFlow Studio] Startup task failed:', result.reason);
+    }
+  });
 }
 
-init();
+init().catch((error) => {
+  console.error('[WhisperFlow Studio] Failed to initialize app:', error);
+});

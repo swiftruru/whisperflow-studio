@@ -102,6 +102,10 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 /* ── App Grid ────────────────────────────────────────────────────────────────── */
 body {
   display: grid;
@@ -364,6 +368,111 @@ body {
 .found-card.animate-in { animation: cardFadeIn 0.25s var(--easing) both; }
 .found-card .card-label { color: var(--green); }
 
+/* Preflight panel */
+.preflight-panel {
+  gap: 12px;
+  border-color: color-mix(in srgb, var(--red) 20%, var(--border));
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--yellow) 10%, transparent), transparent 42%),
+    linear-gradient(180deg, color-mix(in srgb, var(--red) 2%, var(--surface0)), var(--surface0));
+}
+
+.preflight-panel .card-label {
+  color: var(--red);
+}
+
+.preflight-count {
+  margin-left: auto;
+  padding: 1px 7px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--red) 14%, transparent);
+  color: var(--red);
+  border: 1px solid color-mix(in srgb, var(--red) 24%, transparent);
+}
+
+.preflight-summary {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--subtext1);
+}
+
+.preflight-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.preflight-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface1);
+}
+
+.preflight-item.error {
+  border-color: color-mix(in srgb, var(--red) 30%, transparent);
+}
+
+.preflight-item.warning {
+  border-color: color-mix(in srgb, var(--yellow) 30%, transparent);
+}
+
+.preflight-item-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+  color: var(--surface0);
+  background: var(--red);
+}
+
+.preflight-item.warning .preflight-item-icon {
+  background: var(--amber);
+}
+
+.preflight-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.preflight-item-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.preflight-item-message {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--subtext1);
+}
+
+.preflight-item-detail {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.45;
+  color: var(--overlay1);
+  word-break: break-all;
+}
+
+.preflight-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .missing-count-badge {
   margin-left: auto;
   padding: 1px 7px;
@@ -475,6 +584,13 @@ body {
 
 /* ── Action Stack ────────────────────────────────────────────────────────────── */
 .action-stack { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+
+.action-hint {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--red);
+  padding: 0 2px;
+}
 
 /* ── Scan button ─────────────────────────────────────────────────────────────── */
 .btn-scan {
@@ -814,7 +930,20 @@ html:not([data-theme="light"]) .btn-primary {
   text-overflow: ellipsis;
 }
 
-.field-row .field-control { display: flex; gap: 4px; align-items: center; min-width: 0; }
+.field-row .field-control {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  min-width: 0;
+}
+
+.field-input-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+}
 
 input[type="text"],
 input[type="number"],
@@ -837,6 +966,17 @@ input[type="number"]:focus,
 select:focus {
   border-color: color-mix(in srgb, var(--yellow) 65%, transparent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--yellow) 12%, transparent);
+}
+
+input.field-invalid,
+select.field-invalid {
+  border-color: color-mix(in srgb, var(--red) 65%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--red) 12%, transparent);
+}
+
+input.field-valid,
+select.field-valid {
+  border-color: color-mix(in srgb, var(--green) 40%, transparent);
 }
 
 input[type="checkbox"] {
@@ -867,6 +1007,45 @@ select { appearance: auto; cursor: pointer; }
   border-color: color-mix(in srgb, var(--yellow) 45%, transparent);
   color: var(--amber);
   background: color-mix(in srgb, var(--yellow) 6%, var(--surface1));
+}
+
+.btn-inline-action {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  background: var(--surface0);
+  color: var(--amber);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  font-family: var(--font-ui);
+}
+
+.btn-inline-action:hover {
+  border-color: color-mix(in srgb, var(--yellow) 45%, transparent);
+  background: color-mix(in srgb, var(--yellow) 8%, var(--surface0));
+  color: var(--gold);
+}
+
+.field-hint {
+  min-height: 14px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--subtext0);
+}
+
+.field-hint.ok {
+  color: var(--green);
+}
+
+.field-hint.info {
+  color: var(--overlay1);
+}
+
+.field-hint.error {
+  color: var(--red);
 }
 
 /* ── Right Panel: Console ────────────────────────────────────────────────────── */

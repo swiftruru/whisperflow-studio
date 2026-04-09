@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { readConfig, writeConfig, getProfileList, copyProfileToActive } = require('./config-manager');
 const { readConfigMetadata, getSupportedMediaExtensions } = require('./config-metadata');
+const { runPreflight, validateSettingField } = require('./preflight-checker');
 const { runScript, stopProcess } = require('./python-runner');
 const { resolvePoetryPath } = require('./path-resolver');
 
@@ -33,6 +34,14 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
         scan: path.join(PYTHON_DIR, 'config_setting.py'),
         cli:  path.join(ELECTRON_APP_ROOT, 'bridge', 'run_cli.py'),
       },
+    };
+  }
+
+  function getPreflightContext() {
+    return {
+      electronAppRoot: ELECTRON_APP_ROOT,
+      configMetadataPath: CONFIG_METADATA_PATH,
+      getLocalSettings,
     };
   }
 
@@ -88,6 +97,13 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
     return result.canceled ? null : result.filePaths[0];
   });
 
+  ipcMain.handle('fs:browse-any-file', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openFile'],
+    });
+    return result.canceled ? null : result.filePaths[0];
+  });
+
   ipcMain.handle('shell:show-in-folder', (_event, filePath) => {
     shell.showItemInFolder(filePath);
   });
@@ -107,6 +123,13 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
 
   ipcMain.handle('appsettings:read', () => getLocalSettings());
   ipcMain.handle('appsettings:write', (_event, data) => saveLocalSettings(data));
+  ipcMain.handle('app:run-preflight', () => runPreflight(getPreflightContext()));
+  ipcMain.handle('app:validate-setting-field', (_event, payload = {}) => {
+    return validateSettingField({
+      ...payload,
+      configMetadataPath: CONFIG_METADATA_PATH,
+    });
+  });
 
   // ── Transcription History ─────────────────────────────────────────────────
   const HISTORY_PATH = path.join(app.getPath('userData'), 'history.json');
@@ -137,6 +160,13 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
 
   ipcMain.on('run:scan', (_event, rootPath) => {
     const { configPath, whisperToolPath, scripts } = getPaths();
+    const preflight = runPreflight(getPreflightContext());
+
+    if (!preflight.ok) {
+      sendRunError(preflight.blockingChecks[0]?.message || 'Preflight failed. Please review your settings.');
+      sendDone(1);
+      return;
+    }
 
     if (!whisperToolPath) {
       sendLog('[WhisperFlow] Error: whisper_faster_tool_path not set. Please configure it in Settings.\n');
@@ -181,6 +211,13 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
 
   ipcMain.on('run:cli', () => {
     const { whisperToolPath, scripts } = getPaths();
+    const preflight = runPreflight(getPreflightContext());
+
+    if (!preflight.ok) {
+      sendRunError(preflight.blockingChecks[0]?.message || 'Preflight failed. Please review your settings.');
+      sendDone(1);
+      return;
+    }
 
     if (!whisperToolPath) {
       sendLog('[WhisperFlow] Error: whisper_faster_tool_path not set. Please configure it in Settings.\n');

@@ -6,7 +6,7 @@
   "main": "src/main/main.js",
   "scripts": {
     "start": "ELECTRON_RUN_AS_NODE='' electron .",
-    "dev": "electron .",
+    "dev": "ELECTRON_RUN_AS_NODE='' electron .",
     "postinstall": "node scripts/postinstall.js",
     "build:mac": "electron-builder --mac",
     "build:win": "electron-builder --win",
