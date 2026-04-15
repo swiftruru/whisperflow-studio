@@ -1,6 +1,9 @@
 node_modules/
 dist/
-settings.json
+# Anchored to project root so only the portable dev override is
+# ignored — NOT the translation files locales/*/settings.json, which
+# must be tracked so CI builds ship the Settings-tab i18n strings.
+/settings.json
 python/config/config.json
 test.mjs
 

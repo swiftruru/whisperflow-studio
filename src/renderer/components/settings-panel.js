@@ -172,8 +172,9 @@ function buildField(section, key, value) {
     const detectBtn = document.createElement('button');
     detectBtn.className = 'btn-field-detect';
     detectBtn.type = 'button';
-    detectBtn.textContent = t('settings:fields.pythonPath.detectButton');
-    detectBtn.title = t('settings:fields.pythonPath.detectButton');
+    const detectLabel = t('settings:fields.pythonPath.detectButton') || 'Detect';
+    detectBtn.textContent = detectLabel;
+    detectBtn.title = detectLabel;
     detectBtn.addEventListener('click', async () => {
       const originalLabel = detectBtn.textContent;
       detectBtn.disabled = true;

@@ -1594,13 +1594,14 @@ select { appearance: auto; cursor: pointer; }
    btn-field-browse so they read as siblings in the input row. */
 .btn-field-detect {
   flex-shrink: 0;
-  padding: 4px 10px;
+  padding: 6px 14px;
   border-radius: var(--radius-sm);
-  border: 1px solid color-mix(in srgb, var(--yellow) 40%, var(--border));
-  background: color-mix(in srgb, var(--yellow) 7%, var(--surface1));
-  color: var(--gold);
-  font-size: 10px;
-  font-weight: 600;
+  border: 1px solid color-mix(in srgb, var(--yellow) 60%, var(--border));
+  background: color-mix(in srgb, var(--yellow) 14%, var(--surface1));
+  color: var(--amber);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
@@ -1608,9 +1609,9 @@ select { appearance: auto; cursor: pointer; }
 }
 
 .btn-field-detect:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--yellow) 65%, transparent);
-  background: color-mix(in srgb, var(--yellow) 15%, var(--surface1));
-  color: var(--amber);
+  border-color: color-mix(in srgb, var(--yellow) 80%, transparent);
+  background: color-mix(in srgb, var(--yellow) 22%, var(--surface1));
+  color: var(--text);
 }
 
 .btn-field-detect:disabled {

@@ -1,0 +1,75 @@
+{
+  "toolbar": {
+    "label": "設定",
+    "save": "儲存",
+    "saved": "已儲存 ✓"
+  },
+  "toast": {
+    "saved": "設定已儲存"
+  },
+  "loading": "正在載入設定…",
+  "sections": {
+    "APP_SETTINGS": "APP_SETTINGS",
+    "SETTING": "SETTING"
+  },
+  "fields": {
+    "pythonPath": {
+      "description": "系統 Python 路徑，僅在第一次建立虛擬環境時使用。留空讓 App 自動偵測（會先尋找 pyenv、Homebrew、系統 Python）。",
+      "detectButton": "立即偵測",
+      "detecting": "偵測中…",
+      "detectSuccess": "已偵測到 Python：{{path}}",
+      "detectFailed": "仍然找不到 Python 3，請手動指定路徑。"
+    },
+    "uiLanguage": {
+      "description": "介面顯示語言。auto 會依作業系統語系自動挑選；中文系統會選繁體中文，其餘選英文。"
+    },
+    "model": {
+      "description": "Whisper 模型。模型越大越準確，但也更慢、檔案更大。清單只會列出已在 Models 頁下載的模型。"
+    },
+    "models_dir": {
+      "description": "模型權重下載目錄。留空會使用系統預設位置（macOS：Application Support；Windows：%APPDATA%）。"
+    },
+    "device": {
+      "description": "推論裝置。auto 會依機器選擇 CUDA 或 CPU。macOS 主要走 CPU。"
+    },
+    "compute_type": {
+      "description": "模型精度。auto 依裝置挑選；int8 最快最省記憶體，float16 品質略好，float32 最準但最耗資源。"
+    },
+    "vad": {
+      "description": "語音活動偵測策略。silero-vad 系列會先切出有人說話的片段再轉錄，能大幅加快並減少幻覺；none 則整段送給 Whisper。"
+    },
+    "vad_merge_window": {
+      "description": "靜音合併視窗（秒）。兩段偵測到的語音若間隔小於此值會被合併成同一段，避免被切得太碎。"
+    },
+    "vad_max_merge_size": {
+      "description": "合併後單一段落的最長長度（秒）。超過此長度的會被強制切開，避免一次送給 Whisper 過長的段落。"
+    },
+    "vad_padding": {
+      "description": "語音段前後各加入的靜音緩衝（秒），避免切到開頭或結尾的字。"
+    },
+    "vad_prompt_window": {
+      "description": "跨段提示視窗長度（秒）。Whisper 轉錄下一段時會帶上前段的最後 N 秒做上下文，有助於維持術語一致。"
+    },
+    "language": {
+      "description": "目標語言。留空代表讓 Whisper 自動偵測；指定語言通常能得到更穩定的結果。"
+    },
+    "initial_prompt": {
+      "description": "初始提示詞。給 Whisper 看的起始文字，可用來強制特定詞彙、字型（繁中/簡中）或語氣。選語言時會自動套用預設提示。"
+    },
+    "initial_prompt_mode": {
+      "description": "提示詞套用方式。prepend_all_segments：每段都加入提示；prepend_first_segment：只加在第一段；json_prompt_mode：讀取每段自己的 JSON 提示。"
+    },
+    "media_root_path": {
+      "description": "要掃描的媒體資料夾。Scan 會遞迴找出此目錄下所有沒有字幕的影片／音訊檔。"
+    },
+    "media_file_name": {
+      "description": "目前要轉錄的檔案名稱。由佇列自動帶入，一般不需要手動修改。"
+    },
+    "media_file_path": {
+      "description": "目前要轉錄的檔案完整路徑。由佇列自動帶入，一般不需要手動修改。"
+    },
+    "missing_count": {
+      "description": "上次掃描後剩餘未處理的檔案數。由佇列自動更新。"
+    }
+  }
+}

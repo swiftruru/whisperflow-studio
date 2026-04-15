@@ -73,11 +73,22 @@ function getDefaultLocalSettings() {
   return readJsonFile(SETTINGS_TEMPLATE_PATH, {});
 }
 
+// Legacy settings keys that earlier versions wrote to settings.json but
+// are no longer used.  Strip them on load so the Settings tab doesn't
+// render stale fields (e.g. `poetryPath` — replaced by the bundled venv
+// bootstrap in v1.4.0 and fully redundant since `pythonPath` alone is
+// enough to kick off the first-run environment setup).
+const LEGACY_SETTINGS_KEYS = ['poetryPath'];
+
 function normalizeLocalSettings(data) {
-  return {
+  const merged = {
     ...cloneJson(getDefaultLocalSettings()),
     ...(data || {}),
   };
+  for (const legacyKey of LEGACY_SETTINGS_KEYS) {
+    delete merged[legacyKey];
+  }
+  return merged;
 }
 
 function readLocalSettings() {
@@ -85,7 +96,8 @@ function readLocalSettings() {
   const settings = readJsonFile(LOCAL_SETTINGS_PATH, defaults);
   const normalized = normalizeLocalSettings(settings);
 
-  if (!fs.existsSync(LOCAL_SETTINGS_PATH)) {
+  const hadLegacyKey = settings && LEGACY_SETTINGS_KEYS.some((k) => k in settings);
+  if (!fs.existsSync(LOCAL_SETTINGS_PATH) || hadLegacyKey) {
     writeLocalSettings(normalized);
   }
 

@@ -1,0 +1,75 @@
+{
+  "toolbar": {
+    "label": "Config Settings",
+    "save": "Save",
+    "saved": "Saved ✓"
+  },
+  "toast": {
+    "saved": "Settings saved"
+  },
+  "loading": "Loading config…",
+  "sections": {
+    "APP_SETTINGS": "APP_SETTINGS",
+    "SETTING": "SETTING"
+  },
+  "fields": {
+    "pythonPath": {
+      "description": "System Python path — used only during first-time venv bootstrap. Leave blank to auto-detect (searches pyenv, Homebrew, system Python).",
+      "detectButton": "Detect now",
+      "detecting": "Detecting…",
+      "detectSuccess": "Detected Python: {{path}}",
+      "detectFailed": "Still no Python 3 found — please specify a path manually."
+    },
+    "uiLanguage": {
+      "description": "Interface language. 'auto' follows your OS locale; Chinese systems get Traditional Chinese, everything else gets English."
+    },
+    "model": {
+      "description": "Whisper model to use. Larger models are more accurate but slower and bigger. Only models already downloaded from the Models tab appear here."
+    },
+    "models_dir": {
+      "description": "Directory where model weights are downloaded. Leave blank to use the system default (macOS: Application Support; Windows: %APPDATA%)."
+    },
+    "device": {
+      "description": "Inference device. 'auto' picks CUDA if available, otherwise CPU. macOS currently runs on CPU."
+    },
+    "compute_type": {
+      "description": "Model precision. 'auto' picks based on device. int8 is fastest and uses the least memory; float16 is slightly higher quality; float32 is the most accurate but most resource-hungry."
+    },
+    "vad": {
+      "description": "Voice activity detection strategy. The silero-vad variants cut out speech segments before transcribing, which is much faster and reduces hallucinations; 'none' sends the entire file to Whisper."
+    },
+    "vad_merge_window": {
+      "description": "Silence merge window (seconds). Two speech segments separated by less than this gap are merged into one, preventing over-segmentation."
+    },
+    "vad_max_merge_size": {
+      "description": "Maximum merged-segment length (seconds). Segments longer than this get split so Whisper never receives an over-long chunk."
+    },
+    "vad_padding": {
+      "description": "Padding (seconds) added before and after each detected speech segment, so the first/last word isn't clipped."
+    },
+    "vad_prompt_window": {
+      "description": "Cross-segment prompt window (seconds). Whisper will be fed the last N seconds of the previous segment as context, helping it keep terminology consistent."
+    },
+    "language": {
+      "description": "Target language. Leave blank to let Whisper auto-detect; specifying a language usually gives more stable output."
+    },
+    "initial_prompt": {
+      "description": "Initial prompt. A starting string fed to Whisper — useful for forcing specific vocabulary, writing system (e.g. Traditional vs. Simplified Chinese), or tone. Selecting a language auto-fills a sensible default."
+    },
+    "initial_prompt_mode": {
+      "description": "How the prompt is applied. prepend_all_segments: every segment; prepend_first_segment: only the first; json_prompt_mode: read per-segment prompts from a JSON file."
+    },
+    "media_root_path": {
+      "description": "Folder to scan for media. Scan recursively finds every video/audio file under this directory that doesn't already have a matching subtitle."
+    },
+    "media_file_name": {
+      "description": "The current file's name. Automatically populated by the queue — you don't usually need to edit this."
+    },
+    "media_file_path": {
+      "description": "Full path of the current file. Automatically populated by the queue — you don't usually need to edit this."
+    },
+    "missing_count": {
+      "description": "Files remaining from the last scan. Automatically updated by the queue."
+    }
+  }
+}
