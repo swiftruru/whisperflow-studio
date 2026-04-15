@@ -112,3 +112,46 @@ jobs:
           done
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  finalize:
+    # Runs once after every platform build has finished, on a single
+    # Linux runner.  We prepend the bilingual "which file should I
+    # download?" guide (.github/release-download-guide.md) to the
+    # existing release body so users landing on the GitHub release
+    # page immediately see a download recommendation and don't have
+    # to guess which of the 10+ assets to click.
+    #
+    # The guide contains a `<!-- download-guide -->` marker so a
+    # re-run of the workflow (or a manual re-tag) won't double-
+    # prepend.  `__VERSION__` inside the guide is replaced with the
+    # tag name stripped of its leading `v`.
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepend download guide to release notes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          VERSION="${TAG#v}"
+          CURRENT_BODY=$(gh release view "$TAG" --json body -q .body)
+          if printf '%s' "$CURRENT_BODY" | grep -q '<!-- download-guide -->'; then
+            echo "Download guide already present; skipping."
+            exit 0
+          fi
+          GUIDE_FILE=.github/release-download-guide.md
+          if [ ! -f "$GUIDE_FILE" ]; then
+            echo "::warning::$GUIDE_FILE not found; leaving release body unchanged."
+            exit 0
+          fi
+          sed "s/__VERSION__/${VERSION}/g" "$GUIDE_FILE" > /tmp/guide.md
+          {
+            cat /tmp/guide.md
+            printf '\n'
+            printf '%s' "$CURRENT_BODY"
+          } > /tmp/body.md
+          gh release edit "$TAG" --notes-file /tmp/body.md
