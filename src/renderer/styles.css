@@ -1196,6 +1196,13 @@ html:not([data-theme="light"]) .btn-scan {
   justify-content: center;
   gap: 8px;
   height: 42px;
+  /* Horizontal padding on the base rule so buttons without an
+     explicit `width` (error dialog, install-ffmpeg dialog, etc.)
+     still have breathing room around their label.  Fixed-width
+     instances (e.g. .modal-actions .btn-primary { width: 160px })
+     are unaffected because `box-sizing: border-box` is global. */
+  padding: 0 18px;
+  min-width: 96px;
   border-radius: var(--radius);
   border: 1.5px solid rgba(230,185,50,0.40);
   background: rgba(250,235,140,0.18);
@@ -2239,6 +2246,11 @@ kbd {
   justify-content: center;
   gap: 8px;
   height: 38px;
+  /* See the comment on .btn-primary above — horizontal padding on
+     the base rule so buttons without an explicit `width` still have
+     breathing room around their label. */
+  padding: 0 18px;
+  min-width: 88px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--surface1);
