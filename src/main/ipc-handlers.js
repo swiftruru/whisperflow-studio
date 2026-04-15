@@ -337,6 +337,7 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
     }
 
     let stderrBuffer = '';
+    let lastStructuredError = null;
     sendLog(`[WhisperFlow] Starting CLI transcription for "${job.fileName}"...\n`);
 
     runScript(
@@ -361,11 +362,22 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
         } else {
           queueManager.finishCurrentJob(code, stderrBuffer.trim());
           if (code !== 0) {
+            // Prefer the actual exception message that whisperflow's
+            // EventEmitter sent us via [WhisperFlowEvent], so the banner
+            // shows the real cause (e.g. "[Errno 2] No such file or
+            // directory: 'ffprobe'") instead of a hardcoded "轉錄失敗".
+            // Fall back to stderr buffer or exit code for unstructured
+            // crashes (segfaults, OOM kills, etc).
+            const realMessage = lastStructuredError?.message
+              || stderrBuffer.trim()
+              || `Process exited with code ${code}`;
             sendRunError(createAppError({
               code: ERROR_CODES.TRANSCRIPTION_FAILED,
               title: '轉錄失敗',
-              message: '目前檔案的轉錄流程失敗。',
-              details: stderrBuffer.trim() || `Process exited with code ${code}`,
+              message: realMessage,
+              details: lastStructuredError?.meta?.reason
+                ? `${lastStructuredError.meta.reason}: ${realMessage}\n\n${stderrBuffer.trim()}`.trim()
+                : (stderrBuffer.trim() || realMessage),
               suggestedAction: 'retry-run',
               source: 'run',
             }));
@@ -374,6 +386,9 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
         sendDone(code);
       },
       (event) => {
+        if (event && event.type === 'error') {
+          lastStructuredError = event;
+        }
         queueManager.handleRunnerEvent(event);
         sendRunnerEvent(event);
       }

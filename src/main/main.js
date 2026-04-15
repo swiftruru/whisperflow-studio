@@ -20,14 +20,27 @@ const CONFIG_METADATA_PATH = path.join(ELECTRON_APP_ROOT, 'python', 'config', 'c
 const APP_RUNTIME_CONFIG = getAppRuntimeConfig(CONFIG_METADATA_PATH);
 
 // ── Augment PATH for packaged app ─────────────────────────────────────────────
-// macOS GUI apps don't inherit the user's shell PATH. Prepend common install
-// locations so ffprobe, ffmpeg, poetry, and other tools are always findable,
-// regardless of how many subprocess layers deep they're called from.
-if (process.platform === 'darwin') {
-  const extra = APP_RUNTIME_CONFIG.macPathPrefixes || [];
-  const current = (process.env.PATH || '').split(path.delimiter);
-  const merged = [...new Set([...extra, ...current])].join(path.delimiter);
-  process.env.PATH = merged;
+// GUI apps launched from Finder / Explorer / a desktop launcher inherit a
+// minimal PATH (usually only the system defaults).  They do NOT see the
+// user's shell PATH, so tools the user installed via Homebrew, Scoop,
+// apt --user, etc. are invisible.  We prepend the platform-appropriate
+// install locations from config.metadata.json :: appRuntime.extraPathPrefixes
+// so ffmpeg / ffprobe / and any other binary the Python side spawns can
+// be found.
+//
+// Without this fix, hitting Run Transcription on a freshly-installed app
+// fails inside Python with "[Errno 2] No such file or directory: 'ffprobe'"
+// even though ``which ffprobe`` works fine in the user's terminal.
+{
+  const extraByPlatform = APP_RUNTIME_CONFIG.extraPathPrefixes || {};
+  const extra = (extraByPlatform[process.platform] || []).map((p) =>
+    typeof p === 'string' ? p.replace(/\$\{HOME\}/g, require('os').homedir()) : p
+  );
+  if (extra.length > 0) {
+    const current = (process.env.PATH || '').split(path.delimiter);
+    const merged = [...new Set([...extra, ...current])].join(path.delimiter);
+    process.env.PATH = merged;
+  }
 }
 
 // settings.json: portable in dev (lives with the project), userData in packaged build.

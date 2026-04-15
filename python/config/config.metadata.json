@@ -34,6 +34,26 @@
       "minWidth": 800,
       "minHeight": 560
     },
+    "extraPathPrefixes": {
+      "darwin": [
+        "/opt/homebrew/bin",
+        "/opt/homebrew/sbin",
+        "/usr/local/bin",
+        "/usr/local/sbin"
+      ],
+      "linux": [
+        "/usr/local/bin",
+        "/usr/local/sbin",
+        "${HOME}/.local/bin",
+        "/snap/bin"
+      ],
+      "win32": [
+        "${HOME}/scoop/shims",
+        "${HOME}/AppData/Local/Microsoft/WinGet/Packages",
+        "C:/ProgramData/chocolatey/bin",
+        "C:/Program Files/ffmpeg/bin"
+      ]
+    },
     "bundledPython": {
       "venvDirName": ".venv",
       "requirementsFile": "requirements.txt",

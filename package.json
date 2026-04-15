@@ -1,7 +1,7 @@
 {
   "name": "whisperflow-studio",
   "productName": "WhisperFlow Studio",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "WhisperFlow Studio - self-contained faster-whisper desktop transcription app",
   "main": "src/main/main.js",
   "scripts": {

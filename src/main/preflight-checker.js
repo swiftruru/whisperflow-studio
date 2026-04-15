@@ -38,6 +38,73 @@ function isExistingFile(targetPath) {
   }
 }
 
+/**
+ * Check that the ``ffmpeg`` and ``ffprobe`` binaries are reachable on the
+ * augmented PATH that the packaged app inherits from the user's shell.
+ *
+ * Why this exists
+ * ---------------
+ * The whisperflow Python core uses ``ffmpeg-python`` to (a) probe the
+ * duration of every input file and (b) decode chunks for VAD.  If
+ * either binary is missing the very first call to ``ffmpeg.probe(...)``
+ * inside ``audio/source.py`` raises ``FileNotFoundError`` with no
+ * recovery path and the whole transcription job fails 5 seconds in.
+ *
+ * Surfacing it as a preflight check means the user sees the problem
+ * the moment they open the app, with concrete install instructions,
+ * instead of after they hit Run and watch the model load only to
+ * crash before any subtitle is produced.
+ */
+function validateFfmpeg() {
+  const missing = [];
+  for (const tool of ['ffmpeg', 'ffprobe']) {
+    if (!findExecutableOnPath(tool)) {
+      missing.push(tool);
+    }
+  }
+
+  if (missing.length === 0) {
+    return createPreflightCheck({
+      key: 'ffmpeg',
+      status: 'ok',
+      title: 'ffmpeg / ffprobe 已就緒',
+      message: '音訊解碼工具可正常使用。',
+    });
+  }
+
+  return createPreflightCheck({
+    key: 'ffmpeg',
+    code: ERROR_CODES.FFMPEG_NOT_FOUND,
+    status: 'error',
+    title: `找不到 ${missing.join(' / ')}`,
+    message: 'WhisperFlow Studio 需要 ffmpeg 解碼音訊檔。請依平台安裝後重新整理：'
+      + '\n  • macOS:  brew install ffmpeg'
+      + '\n  • Windows: scoop install ffmpeg  或  choco install ffmpeg'
+      + '\n  • Linux:  sudo apt install ffmpeg  /  sudo dnf install ffmpeg',
+  });
+}
+
+function findExecutableOnPath(name) {
+  const exts = process.platform === 'win32'
+    ? (process.env.PATHEXT || '.EXE;.BAT;.CMD;.COM').split(';').map((e) => e.toLowerCase())
+    : [''];
+  const dirs = (process.env.PATH || '').split(path.delimiter);
+  for (const dir of dirs) {
+    if (!dir) continue;
+    for (const ext of exts) {
+      const candidate = path.join(dir, name + ext);
+      try {
+        if (fs.statSync(candidate).isFile()) {
+          return candidate;
+        }
+      } catch (_) {
+        // not found here, try next
+      }
+    }
+  }
+  return null;
+}
+
 function validateWhisperflowPackage(pythonDir) {
   const packageInit = path.join(pythonDir, 'whisperflow', '__init__.py');
   if (isExistingFile(packageInit)) {
@@ -264,6 +331,7 @@ function runPreflight({
   const appSettings = getLocalSettings() || {};
   checks.push(validateWhisperflowPackage(paths.pythonDir));
   checks.push(validateBundledVenv({ venvRoot, configMetadataPath, userSettings: appSettings }));
+  checks.push(validateFfmpeg());
   checks.push(validateMediaRootPath(config?.SETTING?.media_root_path));
   checks.push(validateScriptPath('scan_script', paths.scanScriptPath, '掃描腳本'));
   checks.push(validateScriptPath('cli_script', paths.cliScriptPath, 'CLI 腳本'));
