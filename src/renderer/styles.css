@@ -534,13 +534,27 @@ html:not([data-platform="darwin"]) .titlebar-logo {
 }
 
 .preflight-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    "icon body"
+    ".    action";
+  column-gap: 10px;
+  row-gap: 8px;
   padding: 10px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--surface1);
+}
+
+.preflight-item > .preflight-item-icon { grid-area: icon; margin-top: 2px; }
+.preflight-item > .preflight-item-body { grid-area: body; }
+.preflight-item > .btn-inline-action {
+  grid-area: action;
+  justify-self: end;
+  max-width: none;
+  width: auto;
+  white-space: nowrap;
 }
 
 .preflight-item.error {
