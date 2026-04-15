@@ -1,0 +1,62 @@
+{
+  "status": {
+    "idle": "待機",
+    "checking": "檢查中",
+    "setup": "需設定",
+    "running": "執行中",
+    "paused": "已暫停",
+    "skipping": "跳過中",
+    "stopping": "停止中",
+    "error": "錯誤"
+  },
+  "docTitle": {
+    "default": "WhisperFlow Studio",
+    "running": "● 執行中 — WhisperFlow Studio",
+    "paused": "❚❚ 已暫停 — WhisperFlow Studio",
+    "skipping": "↷ 跳過中 — WhisperFlow Studio",
+    "stopping": "■ 停止中 — WhisperFlow Studio"
+  },
+  "actionState": {
+    "pause": "暫停",
+    "resume": "繼續"
+  },
+  "tooltip": {
+    "scanDefault": "掃描缺字幕的媒體檔",
+    "runDefault": "開始執行轉錄",
+    "pauseWait": "等待目前程序結束中",
+    "pauseHint": "暫停目前的轉錄",
+    "resumeHint": "繼續已暫停的轉錄",
+    "skipWait": "已在等待目前程序結束",
+    "skipHint": "跳過目前檔案",
+    "skipNoActive": "沒有可跳過的任務",
+    "stopWait": "已在等待目前程序結束",
+    "stopHint": "停止目前批次",
+    "stopNoActive": "沒有可停止的任務"
+  },
+  "blocking": {
+    "checking": "正在檢查環境設定…"
+  },
+  "guard": {
+    "scanNeedsMediaRoot": "請先設定有效的媒體資料夾後再掃描",
+    "runNeedsEnv": "請先修正環境設定後再執行"
+  },
+  "toast": {
+    "scanFound": "找到：{{fileName}}（共 {{total}} 個）",
+    "scanLoopEnvBlocked": "掃描完成，但轉錄前仍需先修正環境設定",
+    "loopCompleteAllDone": "自動循環完成：所有檔案已轉錄",
+    "scanNoMissing": "未找到缺字幕的媒體檔案",
+    "transcriptionComplete": "轉錄完成！",
+    "loopNextFile": "自動循環：處理下一個檔案…",
+    "loopQueueDone": "自動循環完成：佇列已全部處理",
+    "skippedCurrent": "已跳過目前檔案",
+    "loopSkipNext": "自動循環：跳到下一個檔案…",
+    "stoppedCurrent": "已停止目前批次",
+    "transcriptionFailed": "轉錄失敗"
+  },
+  "notify": {
+    "title": "WhisperFlow Studio",
+    "allFilesDone": "所有檔案已轉錄完成！",
+    "transcribeSuccess": "轉錄完成！字幕已生成。",
+    "transcribeFailed": "轉錄失敗，請查看 Console 的錯誤訊息。"
+  }
+}

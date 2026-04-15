@@ -1,0 +1,99 @@
+{
+  "panel": {
+    "title": "系統檢查",
+    "summary": {
+      "checking": "正在檢查目前環境與設定…",
+      "blockingCount": "還有 {{count}} 個環境問題需要先修正。",
+      "warningCount": "有 {{count}} 個環境提醒，可以先設定再執行。",
+      "recheck": "重新檢查"
+    },
+    "countChip": {
+      "checking": "檢查中",
+      "blocking": "{{count}} 項阻擋",
+      "warning": "{{count}} 項提醒"
+    }
+  },
+  "actionButtons": {
+    "openSettings": "前往設定",
+    "browseMediaRoot": "選擇資料夾",
+    "initializeVenv": "立即建立環境",
+    "initializingVenv": "建立中…",
+    "installFfmpeg": "安裝 ffmpeg"
+  },
+  "venvBootstrap": {
+    "starting": "正在啟動 Python 子程序…",
+    "stage": "目前階段：{{stage}}",
+    "completed": "環境建立完成"
+  },
+  "errorStates": {
+    "internal": {
+      "title": "環境檢查失敗",
+      "message": "無法完成 preflight 檢查，請稍後再試。"
+    },
+    "render": {
+      "title": "環境檢查初始化失敗",
+      "message": "Preflight UI 初始化時發生錯誤。"
+    },
+    "stuck": {
+      "title": "環境檢查未完成",
+      "message": "Preflight 在預期時間內沒有完成，請點擊重新檢查，或重新啟動 app。"
+    }
+  },
+  "checks": {
+    "configJson": {
+      "okTitle": "設定檔已載入",
+      "okMessage": "config.json 已成功載入。",
+      "errorTitle": "設定檔無法讀取",
+      "errorMessage": "config.json 無法讀取或格式錯誤。"
+    },
+    "whisperflowPackage": {
+      "okTitle": "WhisperFlow 核心已就緒",
+      "okMessage": "內建的 whisperflow Python 套件已安裝。",
+      "errorTitle": "WhisperFlow 核心不存在",
+      "errorMessage": "找不到內建的 whisperflow Python 套件，應用程式資源可能已損毀。"
+    },
+    "ffmpeg": {
+      "okTitle": "ffmpeg / ffprobe 已就緒",
+      "okMessage": "音訊解碼工具可正常使用。",
+      "missingTitle": "找不到 {{tools}}",
+      "missingMessage": "WhisperFlow Studio 需要 ffmpeg 解碼音訊檔。點擊下方按鈕自動偵測並安裝。"
+    },
+    "bundledPython": {
+      "okTitle": "Python 環境已就緒",
+      "okMessage": "使用應用程式內建的虛擬環境執行轉錄。",
+      "notFoundTitle": "找不到 Python 3",
+      "notFoundMessage": "找不到系統 Python 3 來建立虛擬環境。請安裝 Python 3.10 以上版本，或在 Settings 指定 python 可執行檔路徑。",
+      "venvMissingTitle": "Python 虛擬環境尚未建立",
+      "venvMissingMessage": "第一次執行轉錄時會自動建立虛擬環境並安裝依賴（約數百 MB）。"
+    },
+    "pythonPath": {
+      "okTitleDefault": "Python 已就緒",
+      "okMessageAuto": "將使用自動偵測到的系統 Python 建立虛擬環境。",
+      "okMessageExplicit": "將使用你指定的 Python 路徑建立虛擬環境。",
+      "notExistTitle": "Python 路徑不存在",
+      "notExistMessage": "指定的 Python 可執行檔不存在，請重新選擇或清空此欄位以使用自動偵測。",
+      "notFoundTitle": "找不到 Python 3",
+      "notFoundMessage": "找不到 Python 3.10+。請安裝後重試，或在這裡指定 python 可執行檔路徑。"
+    },
+    "mediaRootPath": {
+      "okTitle": "Media Directory 已就緒",
+      "okMessage": "媒體掃描資料夾有效。",
+      "unsetTitle": "Media Directory 尚未設定",
+      "unsetMessage": "請先選擇要掃描的媒體資料夾。",
+      "missingTitle": "Media Directory 不存在",
+      "missingMessage": "目前設定的媒體資料夾不存在，請重新選擇。"
+    },
+    "scanScript": {
+      "okTitle": "掃描腳本 已就緒",
+      "okMessage": "掃描腳本 存在。",
+      "missingTitle": "掃描腳本 缺失",
+      "missingMessage": "掃描腳本 不存在，請確認應用程式資源是否完整。"
+    },
+    "cliScript": {
+      "okTitle": "CLI 腳本 已就緒",
+      "okMessage": "CLI 腳本 存在。",
+      "missingTitle": "CLI 腳本 缺失",
+      "missingMessage": "CLI 腳本 不存在，請確認應用程式資源是否完整。"
+    }
+  }
+}

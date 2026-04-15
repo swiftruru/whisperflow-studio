@@ -9,6 +9,19 @@ import {
   subscribeQueueViewState,
 } from './queue-view-state.js';
 import { showToast } from './toast.js';
+import { t } from '../lib/i18n.js';
+
+/**
+ * Localize a job's `stageMessage`.  Main process stores both a
+ * raw English string (stable, shown as fallback and saved to the
+ * transcript log) and an optional i18n key with params; we pick the
+ * key when present so the UI matches the current language.
+ */
+function localizeStageMessage(job) {
+  if (!job) return '';
+  if (job.stageMessageKey) return t(job.stageMessageKey, job.stageMessageParams || undefined);
+  return job.stageMessage || '';
+}
 
 const foundCard = document.getElementById('found-card');
 const foundFilename = document.getElementById('found-filename');
@@ -42,41 +55,37 @@ let latestQueueState = getQueueState();
 let latestViewState = getQueueViewState();
 
 function stageLabel(stage) {
-  switch (stage) {
-    case 'scanning': return 'Scanning';
-    case 'ready': return 'Ready';
-    case 'running': return 'Running';
-    case 'paused': return 'Paused';
-    case 'completed': return 'Done';
-    case 'error': return 'Error';
-    case 'preparing': return 'Preparing';
-    case 'loading-model': return 'Loading Model';
-    case 'vad': return 'Running VAD';
-    case 'transcribing': return 'Transcribing';
-    case 'writing-subtitle': return 'Writing Subtitle';
-    case 'finalizing': return 'Finalizing';
-    case 'failed': return 'Failed';
-    case 'skipped': return 'Skipped';
-    case 'skipping': return 'Skipping';
-    case 'stopping': return 'Stopping';
-    default: return 'Idle';
-  }
+  const keyMap = {
+    'scanning': 'scanning',
+    'ready': 'ready',
+    'running': 'running',
+    'paused': 'paused',
+    'completed': 'completed',
+    'error': 'error',
+    'preparing': 'preparing',
+    'loading-model': 'loadingModel',
+    'vad': 'vad',
+    'transcribing': 'transcribing',
+    'writing-subtitle': 'writingSubtitle',
+    'finalizing': 'finalizing',
+    'failed': 'failed',
+    'skipped': 'skipped',
+    'skipping': 'skipping',
+    'stopping': 'stopping',
+  };
+  return t(`progress:stage.${keyMap[stage] || 'idle'}`);
 }
 
 function jobStatusLabel(status) {
-  switch (status) {
-    case 'pending': return 'Pending';
-    case 'running': return 'Running';
-    case 'paused': return 'Paused';
-    case 'done': return 'Done';
-    case 'failed': return 'Failed';
-    case 'skipped': return 'Skipped';
-    default: return status;
+  const validKeys = ['pending', 'running', 'paused', 'done', 'failed', 'skipped'];
+  if (validKeys.includes(status)) {
+    return t(`progress:jobStatus.${status}`);
   }
+  return status;
 }
 
 function getJobStageLabel(job) {
-  if (!job) return 'Idle';
+  if (!job) return t('progress:stage.idle');
   if (job.stage && job.stage !== 'idle') {
     return stageLabel(job.stage);
   }
@@ -241,7 +250,7 @@ function renderFoundCard(state) {
 
   foundFilename.textContent = currentJob.fileName;
   foundFilepath.textContent = currentJob.filePath;
-  missingCountBadge.textContent = `剩餘 ${remaining} 個`;
+  missingCountBadge.textContent = t('queue:nextCard.remainingBadge', { count: remaining });
   missingCountBadge.hidden = false;
   foundCard.hidden = false;
 }
@@ -264,10 +273,12 @@ function renderProgress(state) {
   progressBarFill.style.width = `${getDisplayProgressPercent(state).toFixed(1)}%`;
 
   if (state.stats.total === 0) {
-    progressHeadline.textContent = 'No missing subtitles found';
-    progressStats.textContent =
-      `Scanned ${state.scanSummary.scannedFiles} files in ${state.scanSummary.scannedDirectories} folders`;
-    progressCurrent.textContent = '目前沒有待處理的轉錄佇列';
+    progressHeadline.textContent = t('progress:batchCard.noMissing');
+    progressStats.textContent = t('progress:batchCard.scanSummary', {
+      files: state.scanSummary.scannedFiles,
+      dirs: state.scanSummary.scannedDirectories,
+    });
+    progressCurrent.textContent = t('queue:panel.emptyPending');
     progressTiming.hidden = true;
     progressTiming.textContent = '';
     progressMessage.hidden = true;
@@ -305,7 +316,7 @@ function renderProgress(state) {
   // "Subtitle files generated" (from the just-finished file) onto the
   // display of the next pending file — misleading.
   const stageMessage = state.currentJob && state.currentJob.status === 'running'
-    ? (state.currentJob.stageMessage || '')
+    ? localizeStageMessage(state.currentJob)
     : '';
   progressMessage.hidden = !stageMessage;
   progressMessage.textContent = stageMessage;
@@ -398,11 +409,12 @@ function renderQueueList(state, viewState) {
       info.appendChild(progressLine);
     }
 
-    if (job.stageMessage) {
-      const stageMessage = document.createElement('div');
-      stageMessage.className = 'queue-item-stage-message';
-      stageMessage.textContent = job.stageMessage;
-      info.appendChild(stageMessage);
+    const localizedStage = localizeStageMessage(job);
+    if (localizedStage) {
+      const stageMessageEl = document.createElement('div');
+      stageMessageEl.className = 'queue-item-stage-message';
+      stageMessageEl.textContent = localizedStage;
+      info.appendChild(stageMessageEl);
     }
 
     const status = document.createElement('span');
@@ -613,6 +625,11 @@ function initQueuePanel() {
   subscribeQueueViewState((viewState) => {
     latestViewState = viewState;
     renderQueueState(latestQueueState, viewState);
+  });
+  // Stage labels and job status pills are resolved at render time via
+  // t(), so a language switch just needs one re-render to refresh.
+  window.addEventListener('app:language-changed', () => {
+    renderQueueState(latestQueueState, latestViewState);
   });
   renderQueueState(latestQueueState, latestViewState);
 }

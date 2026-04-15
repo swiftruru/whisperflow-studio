@@ -1,0 +1,45 @@
+{
+  "batchCard": {
+    "label": "批次進度",
+    "stageIdle": "待機",
+    "noMissing": "找不到缺字幕的檔案",
+    "scanSummary": "已掃描 {{files}} 個檔案、{{dirs}} 個資料夾"
+  },
+  "stage": {
+    "idle": "待機",
+    "scanning": "掃描中",
+    "ready": "就緒",
+    "running": "執行中",
+    "paused": "已暫停",
+    "completed": "完成",
+    "done": "完成",
+    "error": "錯誤",
+    "preparing": "準備中",
+    "loadingModel": "載入模型",
+    "vad": "執行 VAD",
+    "transcribing": "轉錄中",
+    "writingSubtitle": "寫入字幕",
+    "finalizing": "收尾中",
+    "failed": "失敗",
+    "skipped": "已跳過",
+    "skipping": "跳過中",
+    "stopping": "停止中"
+  },
+  "jobStatus": {
+    "pending": "待處理",
+    "running": "執行中",
+    "paused": "已暫停",
+    "done": "完成",
+    "failed": "失敗",
+    "skipped": "已跳過"
+  },
+  "history": {
+    "title": "最近轉錄",
+    "clear": "清除",
+    "unknownFile": "未知檔案",
+    "justNow": "剛剛",
+    "minutesAgo": "{{count}} 分鐘前",
+    "hoursAgo": "{{count}} 小時前",
+    "daysAgo": "{{count}} 天前"
+  }
+}

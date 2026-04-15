@@ -8,6 +8,7 @@ import { showToast } from './toast.js';
 import { invalidateDynamicModelNames } from './settings-panel.js';
 import { confirmDialog } from '../lib/confirm-dialog.js';
 import { initializeVenvWithProgress, VENV_INITIALIZED_EVENT } from '../lib/venv-bootstrap.js';
+import { t } from '../lib/i18n.js';
 
 const modelsSubscribers = new Set();
 let cachedState = {
@@ -113,7 +114,7 @@ function renderRow(entry) {
   if (entry.installed) {
     const installedBadge = document.createElement('span');
     installedBadge.className = 'model-row-badge installed';
-    installedBadge.textContent = '已安裝';
+    installedBadge.textContent = t('models:actions.installed');
     topLine.appendChild(installedBadge);
   }
 
@@ -123,7 +124,15 @@ function renderRow(entry) {
 
   const descLine = document.createElement('div');
   descLine.className = 'model-row-description';
-  descLine.textContent = entry.description || '';
+  // Prefer the localized registry blurb when the model name matches a
+  // known key; fall back to whatever the Python registry sent so custom
+  // / future models still render a description even before translations
+  // are added.  i18next's `defaultValue` option short-circuits to the
+  // fallback when the key is missing, which is how we stay robust
+  // across model additions that beat the translation file.
+  descLine.textContent = t(`models:registry.${entry.name}.description`, {
+    defaultValue: entry.description || '',
+  });
 
   info.appendChild(topLine);
   info.appendChild(repoLine);
@@ -141,13 +150,13 @@ function renderRow(entry) {
   if (entry.installed) {
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'btn-secondary model-row-btn';
-    deleteBtn.textContent = '刪除';
+    deleteBtn.textContent = t('models:actions.delete');
     deleteBtn.addEventListener('click', () => handleDelete(entry.name));
     actions.appendChild(deleteBtn);
   } else {
     const downloadBtn = document.createElement('button');
     downloadBtn.className = 'btn-primary model-row-btn';
-    downloadBtn.textContent = '下載';
+    downloadBtn.textContent = t('models:actions.download');
     downloadBtn.addEventListener('click', () => handleDownload(entry.name));
     actions.appendChild(downloadBtn);
   }
@@ -162,7 +171,7 @@ function render() {
   if (!els.panel) return;
 
   if (els.dirLabel) {
-    els.dirLabel.textContent = cachedState.modelsDir || '（尚未設定）';
+    els.dirLabel.textContent = cachedState.modelsDir || t('models:toolbar.dirUnset');
     els.dirLabel.title = cachedState.modelsDir || '';
   }
 
@@ -174,7 +183,7 @@ function render() {
 
   if (cachedState.loading) {
     els.emptyMsg.hidden = false;
-    els.emptyMsg.textContent = '正在載入模型清單…';
+    els.emptyMsg.textContent = t('models:list.loading');
     return;
   }
 
@@ -187,13 +196,13 @@ function render() {
 
   if (cachedState.error) {
     els.emptyMsg.hidden = false;
-    els.emptyMsg.textContent = `載入失敗：${cachedState.error}`;
+    els.emptyMsg.textContent = t('models:list.loadFailed', { error: cachedState.error });
     return;
   }
 
   if (!cachedState.models.length) {
     els.emptyMsg.hidden = false;
-    els.emptyMsg.textContent = '找不到任何可用模型。';
+    els.emptyMsg.textContent = t('models:list.empty');
     return;
   }
 
@@ -206,15 +215,15 @@ function render() {
 function renderVenvCta(container) {
   const title = document.createElement('div');
   title.className = 'models-cta-title';
-  title.textContent = 'Python 虛擬環境尚未建立';
+  title.textContent = t('models:venvRequired.title');
 
   const desc = document.createElement('div');
   desc.className = 'models-cta-desc';
-  desc.textContent = '需要先建立 python/.venv/ 並安裝依賴（faster-whisper、torch 等，約數百 MB）才能列出或下載模型。';
+  desc.textContent = t('models:venvRequired.description');
 
   const btn = document.createElement('button');
   btn.className = 'btn-primary models-cta-btn';
-  btn.textContent = '立即建立環境';
+  btn.textContent = t('models:venvRequired.initializeButton');
 
   const stageLine = document.createElement('div');
   stageLine.className = 'models-cta-stage';
@@ -222,24 +231,24 @@ function renderVenvCta(container) {
 
   btn.addEventListener('click', async () => {
     btn.disabled = true;
-    btn.textContent = '建立中…';
+    btn.textContent = t('models:venvRequired.initializing');
     stageLine.hidden = false;
-    stageLine.textContent = '正在啟動 Python 子程序…';
-    showToast('正在建立 Python 虛擬環境並安裝依賴（可能需要數分鐘）…', 'info', 5000);
+    stageLine.textContent = t('preflight:venvBootstrap.starting');
+    showToast(t('toasts:venv.creating'), 'info', 5000);
     try {
       await initializeVenvWithProgress({
         onStage: (stage) => {
-          stageLine.textContent = `目前階段：${stage}`;
+          stageLine.textContent = t('preflight:venvBootstrap.stage', { stage });
         },
       });
-      stageLine.textContent = '環境建立完成';
-      showToast('Python 環境建立完成', 'success', 3000);
+      stageLine.textContent = t('preflight:venvBootstrap.completed');
+      showToast(t('toasts:venv.success'), 'success', 3000);
       await refreshModelManager();
     } catch (error) {
       btn.disabled = false;
-      btn.textContent = '立即建立環境';
+      btn.textContent = t('models:venvRequired.initializeButton');
       stageLine.hidden = true;
-      showToast(`環境建立失敗：${error?.message || error}`, 'error', 6000);
+      showToast(t('toasts:venv.failed', { error: error?.message || error }), 'error', 6000);
     }
   });
 
@@ -254,42 +263,42 @@ async function handleDownload(name) {
   const btn = row?.querySelector('.model-row-btn');
   if (btn) {
     btn.disabled = true;
-    btn.textContent = '下載中…';
+    btn.textContent = t('models:actions.downloading');
   }
-  showToast(`開始下載 ${name}（可能需要數分鐘，取決於網路速度）`, 'info', 4000);
+  showToast(t('models:toast.downloadStarted', { name }), 'info', 4000);
   try {
     await window.electronAPI.downloadModel(name);
-    showToast(`${name} 下載完成`, 'success', 3500);
+    showToast(t('models:toast.downloadSuccess', { name }), 'success', 3500);
     invalidateDynamicModelNames();
     await fetchModels();
     render();
   } catch (error) {
     if (btn) {
       btn.disabled = false;
-      btn.textContent = '下載';
+      btn.textContent = t('models:actions.download');
     }
-    showToast(`下載失敗：${error?.message || error}`, 'error', 6000);
+    showToast(t('models:toast.downloadFailed', { error: error?.message || error }), 'error', 6000);
   }
 }
 
 async function handleDelete(name) {
   const confirmed = await confirmDialog({
-    title: '刪除模型',
-    message: `確定要刪除模型 "${name}" 嗎？已下載的權重會從磁碟上移除，下次使用時需要重新下載或從系統 HuggingFace 快取匯入。`,
-    confirmText: '刪除',
-    cancelText: '取消',
+    title: t('models:confirmDelete.title'),
+    message: t('models:confirmDelete.message', { name }),
+    confirmText: t('models:confirmDelete.confirmText'),
+    cancelText: t('models:confirmDelete.cancelText'),
     destructive: true,
   });
   if (!confirmed) return;
 
   try {
     await window.electronAPI.deleteModel(name);
-    showToast(`${name} 已刪除`, 'success', 2500);
+    showToast(t('models:toast.deleteSuccess', { name }), 'success', 2500);
     invalidateDynamicModelNames();
     await fetchModels();
     render();
   } catch (error) {
-    showToast(`刪除失敗：${error?.message || error}`, 'error', 5000);
+    showToast(t('models:toast.deleteFailed', { error: error?.message || error }), 'error', 5000);
   }
 }
 
@@ -319,6 +328,13 @@ function initModelManager() {
   // real model list.
   window.addEventListener(VENV_INITIALIZED_EVENT, () => {
     refreshModelManager();
+  });
+
+  // Re-render rows in the new language without re-fetching — all the
+  // user-facing strings come from i18n keys, not from cachedState, so
+  // a plain render() is enough.
+  window.addEventListener('app:language-changed', () => {
+    render();
   });
 
   // Refresh whenever the user actually switches to the Models tab; otherwise

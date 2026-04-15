@@ -1,17 +1,21 @@
 /* ── Tokens ──────────────────────────────────────────────────────────────────── */
 :root {
-  /* Cream yellow pastel — light is primary */
+  /* Cream yellow pastel — light is primary.  Text tokens tuned for
+     WCAG AA on a cream background: subtext0 / overlay0 / overlay1
+     used to be a hair above the base colour which made card labels
+     ("MEDIA DIRECTORY", "BATCH PROGRESS"), inactive tab buttons, and
+     status badges hard to read at a glance. */
   --crust:    #f7f2e3;
   --mantle:   #fbf8ef;
   --base:     #fefcf4;
   --surface0: #ffffff;
   --surface1: #fdfaf0;
   --surface2: #f5eed8;
-  --overlay0: #c4b07a;
-  --overlay1: #d4c49a;
+  --overlay0: #8a6d1a;
+  --overlay1: #a68432;
   --text:     #1e1a0e;
-  --subtext1: #44390f;
-  --subtext0: #756238;
+  --subtext1: #362c08;
+  --subtext0: #594612;
 
   /* Soft pastel accent — NOT deep amber, more like warm lemon */
   --yellow:   #f5d45a;   /* pastel lemon yellow — main accent */
@@ -28,8 +32,8 @@
   --danger:   var(--red);
   --success:  var(--green);
 
-  --border:       rgba(200,170,70,0.16);
-  --border-modal: rgba(200,170,70,0.24);
+  --border:       rgba(160,125,30,0.28);
+  --border-modal: rgba(160,125,30,0.38);
 
   --radius-sm:  8px;
   --radius:     12px;
@@ -60,11 +64,11 @@ html:not([data-theme="light"]) {
   --surface0: #302c1e;
   --surface1: #3c3828;
   --surface2: #4c4732;
-  --overlay0: #857248;
-  --overlay1: #a08e60;
-  --text:     #f8f0d0;
-  --subtext1: #ddd0a0;
-  --subtext0: #c0af78;
+  --overlay0: #bfa466;
+  --overlay1: #d4bd84;
+  --text:     #faf3d8;
+  --subtext1: #ebdcaa;
+  --subtext0: #d6c384;
 
   --yellow:   #f0d060;
   --amber:    #e8c040;
@@ -75,8 +79,8 @@ html:not([data-theme="light"]) {
   --blue:     #70a8f0;
   --sapphire: #50c0d8;
 
-  --border:       rgba(220,190,80,0.14);
-  --border-modal: rgba(220,190,80,0.22);
+  --border:       rgba(220,190,80,0.25);
+  --border-modal: rgba(220,190,80,0.34);
 
   --shadow-xs:  0 1px 3px rgba(0,0,0,0.3);
   --shadow-sm:  0 2px 10px rgba(0,0,0,0.38), 0 1px 4px rgba(0,0,0,0.22);
@@ -218,6 +222,40 @@ html:not([data-platform="darwin"]) .titlebar-logo {
   background: color-mix(in srgb, var(--yellow) 8%, var(--surface1));
 }
 
+/* Language toggle — titlebar pill next to theme toggle.  Labels and
+   aria-label come from i18n (sidebar:titlebar.langToggleTip) so users
+   on zh-TW or en both see locale-appropriate hover tooltips. */
+.btn-language-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface1);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  -webkit-app-region: no-drag;
+  flex-shrink: 0;
+  font-family: inherit;
+}
+
+.btn-language-toggle:hover {
+  color: var(--yellow);
+  border-color: color-mix(in srgb, var(--yellow) 45%, transparent);
+  background: color-mix(in srgb, var(--yellow) 8%, var(--surface1));
+}
+
+.btn-language-toggle:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 /* Status */
 .status-dot {
   width: 7px;
@@ -241,8 +279,8 @@ html:not([data-platform="darwin"]) .titlebar-logo {
   50%       { box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 10%, transparent); }
 }
 
-.status-label { font-size: 11px; color: var(--overlay0); min-width: 30px; transition: color 0.3s; }
-.status-label.running { color: var(--green); font-weight: 500; }
+.status-label { font-size: 11px; color: var(--subtext0); font-weight: 600; min-width: 30px; transition: color 0.3s; }
+.status-label.running { color: var(--green); font-weight: 600; }
 .status-label.error   { color: var(--red); }
 
 /* ── Left Panel ──────────────────────────────────────────────────────────────── */
@@ -273,9 +311,9 @@ html:not([data-platform="darwin"]) .titlebar-logo {
   border-radius: var(--radius-sm);
   border: none;
   background: transparent;
-  color: var(--overlay0);
+  color: var(--subtext0);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: color 0.15s, background 0.15s;
   font-family: var(--font-ui);
@@ -341,7 +379,7 @@ html:not([data-platform="darwin"]) .titlebar-logo {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -925,8 +963,9 @@ html:not([data-platform="darwin"]) .titlebar-logo {
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--surface1);
-  color: var(--subtext0);
+  color: var(--subtext1);
   font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
   font-family: var(--font-ui);
@@ -1345,15 +1384,33 @@ html:not([data-theme="light"]) .btn-primary {
 
 .field-row {
   display: grid;
-  grid-template-columns: 120px 1fr;
-  gap: 6px;
-  align-items: center;
-  padding: 4px 14px;
+  grid-template-columns: 110px 1fr;
+  gap: 12px;
+  /* `start` (not `center`) keeps the label pinned to the top of the
+     cell so it visually belongs to the input directly to its right,
+     even when the description below the input makes the row tall. */
+  align-items: start;
+  padding: 14px 16px;
+  /* Dashed bottom border clearly delimits each setting.  We use
+     dashed (not solid) because the section already has a solid
+     header/footer and we want the per-row divider to read as a
+     secondary separator, not a harder break. */
+  border-bottom: 1px dashed var(--border);
+}
+
+.field-row:last-child {
+  border-bottom: none;
 }
 
 .field-row label {
+  /* Nudge the label down so its text baseline lines up with the
+     input's padded text (7px top padding inside the input minus the
+     label's own visual offset).  Without this the label sits a pixel
+     too high and looks disconnected from the field. */
+  padding-top: 7px;
   font-size: 11px;
-  color: var(--overlay1);
+  font-weight: 600;
+  color: var(--subtext1);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1363,7 +1420,7 @@ html:not([data-theme="light"]) .btn-primary {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -1438,6 +1495,35 @@ select { appearance: auto; cursor: pointer; }
   background: color-mix(in srgb, var(--yellow) 6%, var(--surface1));
 }
 
+/* pythonPath "Detect now" button — wider than the browse button
+   because its label is a word, not an ellipsis.  Same family as
+   btn-field-browse so they read as siblings in the input row. */
+.btn-field-detect {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--yellow) 40%, var(--border));
+  background: color-mix(in srgb, var(--yellow) 7%, var(--surface1));
+  color: var(--gold);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  font-family: var(--font-ui);
+}
+
+.btn-field-detect:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--yellow) 65%, transparent);
+  background: color-mix(in srgb, var(--yellow) 15%, var(--surface1));
+  color: var(--amber);
+}
+
+.btn-field-detect:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .btn-inline-action {
   flex-shrink: 0;
   padding: 5px 10px;
@@ -1475,6 +1561,27 @@ select { appearance: auto; cursor: pointer; }
 
 .field-hint.error {
   color: var(--red);
+}
+
+/* Per-field description — rendered under every settings input that
+   has a `settings:fields.<key>.description` i18n entry.  Styled as a
+   left-bordered callout box so it clearly reads as metadata
+   *belonging to the input above it*, not as a stray line of text
+   floating between rows.  Before this fix (v1.6.0 dev) the gap-only
+   separation caused the description of row N to visually touch the
+   input of row N+1 — see the v1.6.0 UX feedback for why we moved to
+   a bordered/tinted block. */
+.field-description {
+  margin-top: 2px;
+  padding: 8px 11px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--subtext0);
+  background: color-mix(in srgb, var(--yellow) 5%, var(--surface1));
+  border-left: 2px solid color-mix(in srgb, var(--yellow) 45%, transparent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 /* ── Right Panel: Console ────────────────────────────────────────────────────── */
@@ -2027,9 +2134,9 @@ kbd {
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--surface1);
-  color: var(--subtext0);
+  color: var(--subtext1);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   font-family: var(--font-ui);
   transition: background 0.15s, border-color 0.15s, color 0.15s;
@@ -2041,7 +2148,7 @@ kbd {
   background: color-mix(in srgb, var(--yellow) 6%, var(--surface1));
 }
 
-.btn-secondary:disabled { opacity: 0.35; cursor: default; }
+.btn-secondary:disabled { opacity: 0.55; cursor: default; }
 
 /* ── Model Manager tab ──────────────────────────────────────────────────────── */
 .models-toolbar {

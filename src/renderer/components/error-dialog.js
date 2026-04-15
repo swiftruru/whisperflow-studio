@@ -3,6 +3,12 @@
 import { subscribeErrorState } from './error-state.js';
 import { getActionLabel, performErrorAction } from './error-actions.js';
 import { showToast } from './toast.js';
+import { t } from '../lib/i18n.js';
+
+function localizeField(key, params, fallback) {
+  if (key) return t(key, params || undefined);
+  return fallback || '';
+}
 
 const overlay = document.getElementById('error-dialog');
 const severityBadge = document.getElementById('error-dialog-severity');
@@ -38,10 +44,14 @@ function renderDialog() {
   overlay.hidden = false;
   overlay.dataset.severity = dialogError.severity || 'error';
   severityBadge.textContent = (dialogError.severity || 'error').toUpperCase();
-  title.textContent = dialogError.title || '執行失敗';
-  code.textContent = dialogError.code ? `Error code: ${dialogError.code}` : 'Error code: UNKNOWN_RUNTIME_ERROR';
-  message.textContent = dialogError.message || '發生未預期錯誤。';
-  details.textContent = dialogError.details || '沒有額外技術細節。';
+  title.textContent = localizeField(dialogError.titleKey, dialogError.titleParams, dialogError.title)
+    || t('dialogs:errorDialog.defaultTitle');
+  code.textContent = dialogError.code
+    ? t('dialogs:errorDialog.codePrefix', { code: dialogError.code })
+    : t('dialogs:errorDialog.codePrefix', { code: t('dialogs:errorDialog.unknownCode') });
+  message.textContent = localizeField(dialogError.messageKey, dialogError.messageParams, dialogError.message)
+    || t('dialogs:errorDialog.defaultMessage');
+  details.textContent = dialogError.details || t('dialogs:errorDialog.noDetails');
 
   const actionLabel = dialogError.suggestedAction === 'dismiss-error'
     ? ''
@@ -68,9 +78,9 @@ async function copyErrorDetails() {
 
   try {
     await navigator.clipboard.writeText(formatErrorDetails(dialogError));
-    showToast('錯誤資訊已複製', 'success', 1800);
+    showToast(t('toasts:error.copySuccess'), 'success', 1800);
   } catch (_) {
-    showToast('無法複製錯誤資訊', 'error');
+    showToast(t('toasts:error.copyFailed'), 'error');
   }
 }
 
@@ -111,6 +121,12 @@ function initErrorDialog() {
       dialogError = error;
       renderDialog();
     }
+  });
+
+  // Re-render when the language changes so the already-open dialog
+  // swaps its title/message/details live.
+  window.addEventListener('app:language-changed', () => {
+    if (dialogOpen) renderDialog();
   });
 }
 

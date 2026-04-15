@@ -174,6 +174,13 @@ function createQueueManager({
       progress: Number.isFinite(Number(job?.progress)) ? Number(job.progress) : 0,
       error: job?.error || null,
       stageMessage: job?.stageMessage || '',
+      // i18n: when the renderer displays a job's stage message it first
+      // looks at stageMessageKey and falls back to the plain
+      // stageMessage string.  Main process stores raw English text in
+      // stageMessage as the fallback and attaches a key for everything
+      // it knows how to localize.
+      stageMessageKey: job?.stageMessageKey || '',
+      stageMessageParams: job?.stageMessageParams || null,
       startedAt: job?.startedAt || null,
       finishedAt: job?.finishedAt || null,
       elapsedSeconds: job?.elapsedSeconds ?? null,
@@ -187,6 +194,8 @@ function createQueueManager({
       normalized.progress = 0;
       normalized.error = 'Interrupted by app restart';
       normalized.stageMessage = 'Running job was interrupted by app restart';
+      normalized.stageMessageKey = 'events:queue.runningInterrupted';
+      normalized.stageMessageParams = null;
       normalized.finishedAt = nowIso;
       normalized.elapsedSeconds = normalized.elapsedSeconds ?? calculateElapsedSeconds(normalized.startedAt, nowIso);
       normalized.etaSeconds = null;
@@ -197,6 +206,8 @@ function createQueueManager({
       normalized.progress = 0;
       normalized.error = null;
       normalized.stageMessage = 'Paused job restored to queue after app restart';
+      normalized.stageMessageKey = 'events:queue.pausedRestored';
+      normalized.stageMessageParams = null;
       normalized.startedAt = null;
       normalized.finishedAt = null;
       normalized.elapsedSeconds = null;
@@ -442,6 +453,8 @@ function createQueueManager({
           progress: 0,
           error: null,
           stageMessage: '',
+          stageMessageKey: '',
+          stageMessageParams: null,
           startedAt: null,
           finishedAt: null,
           elapsedSeconds: null,
@@ -490,6 +503,8 @@ function createQueueManager({
     job.progress = 5;
     job.error = null;
     job.stageMessage = 'Queued job is preparing to start';
+    job.stageMessageKey = 'events:queue.queuedPreparing';
+    job.stageMessageParams = null;
     job.startedAt = new Date().toISOString();
     job.finishedAt = null;
     job.elapsedSeconds = 0;
@@ -540,6 +555,14 @@ function createQueueManager({
 
     if (event.message) {
       job.stageMessage = event.message;
+    }
+    // Propagate Python's i18n hints onto the job so the renderer can
+    // localize at display time.  Clearing the key when no new key
+    // arrived lets heuristic stages (set by handleRunnerOutput) show
+    // their English fallback instead of a stale key from a prior event.
+    if (event.messageKey) {
+      job.stageMessageKey = event.messageKey;
+      job.stageMessageParams = event.messageParams || null;
     }
 
     const fallbackProgress = event.stage ? getStageProgress(event.stage) : null;
@@ -659,6 +682,8 @@ function createQueueManager({
     job.elapsedSeconds = job.elapsedSeconds ?? calculateElapsedSeconds(job.startedAt, job.finishedAt);
     job.etaSeconds = success ? 0 : null;
     job.stageMessage = success ? 'Subtitle files generated' : 'Transcription failed';
+    job.stageMessageKey = success ? 'events:queue.finishedSuccess' : 'events:queue.finishedFailed';
+    job.stageMessageParams = null;
 
     state.lastFinishedJob = {
       id: job.id,
@@ -692,6 +717,8 @@ function createQueueManager({
     job.elapsedSeconds = job.elapsedSeconds ?? calculateElapsedSeconds(job.startedAt, job.finishedAt);
     job.etaSeconds = null;
     job.stageMessage = 'Stopped by user';
+    job.stageMessageKey = 'events:queue.stoppedByUser';
+    job.stageMessageParams = null;
 
     state.lastFinishedJob = {
       id: job.id,
@@ -725,6 +752,8 @@ function createQueueManager({
     job.elapsedSeconds = job.elapsedSeconds ?? calculateElapsedSeconds(job.startedAt, job.finishedAt);
     job.etaSeconds = null;
     job.stageMessage = 'Skipped by user';
+    job.stageMessageKey = 'events:queue.skippedByUser';
+    job.stageMessageParams = null;
 
     state.lastFinishedJob = {
       id: job.id,
@@ -755,6 +784,8 @@ function createQueueManager({
     job.stage = 'skipping';
     job.etaSeconds = null;
     job.stageMessage = 'Skipping current file. Waiting for process to exit before moving on.';
+    job.stageMessageKey = 'events:queue.skippingWait';
+    job.stageMessageParams = null;
     emitState();
     return buildSnapshot();
   }
@@ -768,6 +799,8 @@ function createQueueManager({
     job.stage = 'stopping';
     job.etaSeconds = null;
     job.stageMessage = 'Stopping current batch. Waiting for process to exit.';
+    job.stageMessageKey = 'events:queue.stoppingWait';
+    job.stageMessageParams = null;
     emitState();
     return buildSnapshot();
   }

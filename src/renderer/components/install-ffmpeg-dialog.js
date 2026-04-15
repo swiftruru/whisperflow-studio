@@ -2,6 +2,7 @@
 
 import { showToast } from './toast.js';
 import { refreshPreflight } from './preflight-panel.js';
+import { t } from '../lib/i18n.js';
 
 const overlay = document.getElementById('install-ffmpeg-dialog');
 const listEl = document.getElementById('install-ffmpeg-list');
@@ -45,11 +46,11 @@ function renderManagerRow(manager) {
   const status = document.createElement('div');
   status.className = 'install-ffmpeg-row-status';
   if (!manager.available) {
-    status.textContent = '尚未安裝';
+    status.textContent = t('dialogs:installFfmpeg.statusNotInstalled');
   } else if (manager.needsAdmin) {
-    status.textContent = '需要管理員權限 — 請在自己的終端機執行';
+    status.textContent = t('dialogs:installFfmpeg.statusNeedsAdmin');
   } else {
-    status.textContent = '可用，可一鍵安裝';
+    status.textContent = t('dialogs:installFfmpeg.statusAvailable');
   }
   info.appendChild(status);
   row.appendChild(info);
@@ -61,10 +62,10 @@ function renderManagerRow(manager) {
     const docsBtn = document.createElement('button');
     docsBtn.type = 'button';
     docsBtn.className = 'btn-secondary';
-    docsBtn.textContent = '前往安裝指南';
+    docsBtn.textContent = t('dialogs:installFfmpeg.openDocsButton');
     docsBtn.addEventListener('click', () => {
       window.electronAPI.openExternal(manager.installDocsUrl).catch((err) => {
-        showToast(`無法開啟網址：${err?.message || err}`, 'error');
+        showToast(t('dialogs:installFfmpeg.openDocsFailed', { error: err?.message || err }), 'error');
       });
     });
     actions.appendChild(docsBtn);
@@ -72,14 +73,14 @@ function renderManagerRow(manager) {
     const copyBtn = document.createElement('button');
     copyBtn.type = 'button';
     copyBtn.className = 'btn-secondary';
-    copyBtn.textContent = '複製指令';
+    copyBtn.textContent = t('dialogs:installFfmpeg.copyCommand');
     copyBtn.addEventListener('click', async () => {
       const cmd = buildAdminCommand(manager.id, currentPackage);
       try {
         await navigator.clipboard.writeText(cmd);
-        showToast(`已複製：${cmd}`, 'success', 2400);
+        showToast(t('dialogs:installFfmpeg.commandCopied', { command: cmd }), 'success', 2400);
       } catch (_) {
-        showToast('無法複製指令', 'error');
+        showToast(t('dialogs:installFfmpeg.copyCommandFailed'), 'error');
       }
     });
     actions.appendChild(copyBtn);
@@ -87,7 +88,7 @@ function renderManagerRow(manager) {
     const installBtn = document.createElement('button');
     installBtn.type = 'button';
     installBtn.className = 'btn-primary';
-    installBtn.textContent = `用 ${manager.label} 安裝`;
+    installBtn.textContent = t('dialogs:installFfmpeg.installWith', { manager: manager.label });
     installBtn.addEventListener('click', () => runInstall(manager, installBtn));
     actions.appendChild(installBtn);
   }
@@ -103,20 +104,29 @@ async function runInstall(manager, triggerBtn) {
   const allButtons = listEl.querySelectorAll('button');
   allButtons.forEach((btn) => { btn.disabled = true; });
   const originalLabel = triggerBtn.textContent;
-  triggerBtn.textContent = '安裝中…';
+  triggerBtn.textContent = t('dialogs:installFfmpeg.installing');
 
   logEl.hidden = false;
-  logEl.textContent = `[${manager.label}] 開始安裝 ${currentPackage}…\n`;
+  logEl.textContent = t('dialogs:installFfmpeg.installStart', {
+    manager: manager.label,
+    package: currentPackage,
+  }) + '\n';
 
   try {
     await window.electronAPI.installPackage(manager.id, currentPackage);
-    appendLog(`\n[${manager.label}] 安裝完成。\n`);
-    showToast(`${currentPackage} 安裝完成`, 'success', 3000);
-    triggerBtn.textContent = '已安裝';
+    appendLog('\n');
+    showToast(t('dialogs:installFfmpeg.installSuccess', { package: currentPackage }), 'success', 3000);
+    triggerBtn.textContent = t('dialogs:installFfmpeg.installed');
     await refreshPreflight();
   } catch (error) {
-    appendLog(`\n[${manager.label}] 安裝失敗：${error?.message || error}\n`);
-    showToast(`安裝失敗：${error?.message || error}`, 'error', 5000);
+    appendLog('\n' + t('dialogs:installFfmpeg.installFailed', {
+      manager: manager.label,
+      error: error?.message || error,
+    }) + '\n');
+    showToast(t('dialogs:installFfmpeg.installFailed', {
+      manager: manager.label,
+      error: error?.message || error,
+    }), 'error', 5000);
     triggerBtn.textContent = originalLabel;
     allButtons.forEach((btn) => { btn.disabled = false; });
   } finally {
@@ -135,7 +145,7 @@ async function openInstallFfmpegDialog(packageName = 'ffmpeg') {
 
   const loading = document.createElement('div');
   loading.className = 'install-ffmpeg-row-status';
-  loading.textContent = '偵測可用的套件管理器…';
+  loading.textContent = t('dialogs:installFfmpeg.detecting');
   listEl.appendChild(loading);
 
   try {
@@ -145,7 +155,7 @@ async function openInstallFfmpegDialog(packageName = 'ffmpeg') {
     if (!Array.isArray(managers) || managers.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'install-ffmpeg-row-status';
-      empty.textContent = '找不到這個平台支援的套件管理器。';
+      empty.textContent = t('dialogs:installFfmpeg.noManagers');
       listEl.appendChild(empty);
       return;
     }
@@ -161,7 +171,7 @@ async function openInstallFfmpegDialog(packageName = 'ffmpeg') {
     listEl.innerHTML = '';
     const fail = document.createElement('div');
     fail.className = 'install-ffmpeg-row-status';
-    fail.textContent = `偵測失敗：${error?.message || error}`;
+    fail.textContent = t('dialogs:installFfmpeg.detectFailed', { error: error?.message || error });
     listEl.appendChild(fail);
   }
 }

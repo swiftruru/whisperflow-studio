@@ -97,11 +97,22 @@ class Transcriber:
 
         self._model_manager.ensure_dirs()
 
-        self._emitter.stage(STAGE_PREPARING, "Preparing model and VAD", progress=5)
+        self._emitter.stage(
+            STAGE_PREPARING,
+            message="Preparing model and VAD",
+            message_key="events:stage.preparing",
+            progress=5,
+        )
 
         backend = self._build_backend()
 
-        self._emitter.stage(STAGE_LOADING_MODEL, f"Loading model {cfg.model}", progress=15)
+        self._emitter.stage(
+            STAGE_LOADING_MODEL,
+            message=f"Loading model {cfg.model}",
+            message_key="events:stage.loadingModel",
+            message_params={"model": cfg.model},
+            progress=15,
+        )
         backend.get_model()  # force eager load so subsequent progress is VAD time only
 
         prompt_strategy = self._build_prompt_strategy()
@@ -113,12 +124,22 @@ class Transcriber:
             **decode_options,
         )
 
-        self._emitter.stage(STAGE_TRANSCRIBING, "Running VAD and Whisper", progress=30)
+        self._emitter.stage(
+            STAGE_TRANSCRIBING,
+            message="Running VAD and Whisper",
+            message_key="events:stage.transcribing",
+            progress=30,
+        )
         perf_start = time.perf_counter()
         result = self._run_vad(str(input_path), callback)
         _log.info("whisper + VAD took %.2fs", time.perf_counter() - perf_start)
 
-        self._emitter.stage(STAGE_WRITING_SUBTITLE, "Writing subtitle files", progress=92)
+        self._emitter.stage(
+            STAGE_WRITING_SUBTITLE,
+            message="Writing subtitle files",
+            message_key="events:stage.writingSubtitle",
+            progress=92,
+        )
         outputs = self._write_outputs(result, input_path)
 
         self._emitter.completed()

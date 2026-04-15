@@ -7,6 +7,8 @@ const path = require('path');
 const fs = require('fs');
 const { getAppRuntimeConfig } = require('./config-metadata');
 const { registerHandlers } = require('./ipc-handlers');
+const { initMainI18n, resolveLanguage, t } = require('./i18n');
+const { registerLocaleIpcHandlers } = require('./locale-ipc');
 
 // ── Path Resolution ───────────────────────────────────────────────────────────
 // In development:  ELECTRON_APP_ROOT = <project>/
@@ -182,12 +184,15 @@ function createWindow() {
     e.preventDefault();
     dialog.showMessageBox(mainWindow, {
       type: 'warning',
-      buttons: ['繼續等待', '強制關閉'],
+      buttons: [
+        t('dialogs:closeWhileRunning.buttonWait'),
+        t('dialogs:closeWhileRunning.buttonForce'),
+      ],
       defaultId: 0,
       cancelId: 0,
-      title: 'WhisperFlow Studio',
-      message: '轉錄正在進行中',
-      detail: '強制關閉將會中斷目前的轉錄作業，確定要關閉嗎？',
+      title: t('dialogs:closeWhileRunning.title'),
+      message: t('dialogs:closeWhileRunning.message'),
+      detail: t('dialogs:closeWhileRunning.detail'),
     }).then(({ response }) => {
       if (response !== 1) return;
       if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -207,12 +212,26 @@ function createWindow() {
 function setIsRunning(val) { isRunning = val; }
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Expose userData path to the path-resolver so it can flush Python
   // detection traces to disk when a resolution attempt fails.  Users can
   // send us this log when they hit "找不到 Python 3" and we can see
   // exactly which resolver step failed.
   process.env.WHISPERFLOW_USER_DATA_DIR = app.getPath('userData');
+
+  // Initialize main-process i18n before any IPC handler or preflight
+  // check runs, so every user-facing string is localized from the very
+  // first frame.  Language resolution precedence:
+  //   settings.json :: uiLanguage (if 'zh-TW' | 'en') → explicit
+  //   settings.json :: uiLanguage === 'auto' or missing → app.getLocale()
+  //   Any zh-* → zh-TW, any en-* → en, everything else → zh-TW
+  const persistedSettings = readLocalSettings() || {};
+  const resolvedLang = resolveLanguage(persistedSettings.uiLanguage, app.getLocale());
+  await initMainI18n({
+    localesRoot: path.join(APP_SOURCE_ROOT, 'locales'),
+    initialLanguage: resolvedLang,
+  });
+  registerLocaleIpcHandlers({ readLocalSettings, writeLocalSettings });
 
   if (process.platform === 'darwin') {
     const macIcon = nativeImage.createFromPath(path.join(ELECTRON_APP_ROOT, 'assets', 'icon-mac.png'));

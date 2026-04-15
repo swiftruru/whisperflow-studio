@@ -6,7 +6,8 @@
       "vad": ["none", "silero-vad", "silero-vad-expand-into-gaps", "silero-vad-skip-gaps", "periodic-vad"],
       "initial_prompt_mode": ["prepend_all_segments", "prepend_first_segment", "json_prompt_mode"],
       "device": ["auto", "cpu", "cuda"],
-      "compute_type": ["auto", "float16", "float32", "int8", "int8_float16", "int8_float32"]
+      "compute_type": ["auto", "float16", "float32", "int8", "int8_float16", "int8_float32"],
+      "uiLanguage": ["auto", "zh-TW", "en"]
     },
     "languagePrompts": {
       "Chinese": "台灣繁體中文",

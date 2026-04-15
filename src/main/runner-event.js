@@ -26,6 +26,14 @@ function normalizeRunnerEvent(raw = {}) {
     type,
     stage,
     message: raw.message ? String(raw.message) : '',
+    // Python emits { messageKey, messageParams } alongside the plain
+    // message for i18n.  Renderer's queue-state consumer looks at the
+    // key first and falls back to the raw message, so we just pass
+    // them through here without re-translating on the main side.
+    messageKey: raw.messageKey ? String(raw.messageKey) : '',
+    messageParams: raw.messageParams && typeof raw.messageParams === 'object'
+      ? raw.messageParams
+      : null,
     progress: toNullableNumber(raw.progress),
     elapsedSeconds: toNullableNumber(raw.elapsedSeconds),
     etaSeconds: toNullableNumber(raw.etaSeconds),

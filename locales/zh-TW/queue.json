@@ -1,0 +1,41 @@
+{
+  "mediaCard": {
+    "label": "媒體資料夾",
+    "browse": "瀏覽…"
+  },
+  "actions": {
+    "scan": "掃描缺字幕的檔案",
+    "run": "開始轉錄",
+    "pause": "暫停",
+    "resume": "繼續",
+    "skipCurrent": "跳過目前",
+    "stopBatch": "停止批次",
+    "autoLoop": "自動循環模式"
+  },
+  "stepGuide": {
+    "step1": "選擇媒體資料夾",
+    "step2": "點擊 Scan 掃描缺字幕檔案",
+    "step3": "點擊 Run 開始轉錄"
+  },
+  "nextCard": {
+    "label": "下一個待轉錄",
+    "remainingBadge": "剩餘 {{count}} 個",
+    "revealInFinder": "在 Finder 中顯示"
+  },
+  "panel": {
+    "label": "佇列",
+    "searchPlaceholder": "搜尋檔名或路徑…",
+    "emptyPending": "目前沒有待處理的轉錄佇列",
+    "retryFailed": "重試失敗項目",
+    "clearFinished": "清除已完成"
+  },
+  "filters": {
+    "all": "全部",
+    "pending": "待處理",
+    "running": "執行中",
+    "paused": "已暫停",
+    "failed": "失敗",
+    "done": "完成",
+    "skipped": "已跳過"
+  }
+}

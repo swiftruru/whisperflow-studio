@@ -1,0 +1,53 @@
+{
+  "shortcuts": {
+    "title": "Keyboard Shortcuts",
+    "saveSettings": "Save settings (Settings tab)",
+    "clearConsole": "Clear Console",
+    "searchConsole": "Search Console",
+    "closeSearch": "Close search",
+    "showHelp": "Show this help",
+    "close": "Close"
+  },
+  "errorDialog": {
+    "defaultTitle": "Execution failed",
+    "defaultMessage": "An unexpected error occurred.",
+    "codePrefix": "Error code: {{code}}",
+    "unknownCode": "UNKNOWN_RUNTIME_ERROR",
+    "noDetails": "No additional technical details.",
+    "copyDetails": "Copy Details",
+    "close": "Close"
+  },
+  "installFfmpeg": {
+    "title": "Install ffmpeg",
+    "description": "WhisperFlow Studio needs ffmpeg to decode audio. Pick a package manager below, or open the vendor site.",
+    "close": "Close",
+    "detecting": "Detecting available package managers…",
+    "detectFailed": "Detection failed: {{error}}",
+    "noManagers": "No supported package manager found for this platform.",
+    "statusNotInstalled": "Not installed",
+    "statusNeedsAdmin": "Requires admin — run in your own terminal",
+    "statusAvailable": "Available — one-click install",
+    "installWith": "Install with {{manager}}",
+    "installing": "Installing…",
+    "installed": "Installed",
+    "installFailed": "[{{manager}}] install failed: {{error}}",
+    "installStart": "[{{manager}}] Installing {{package}}…",
+    "installSuccess": "{{package}} installed",
+    "openDocsButton": "Open install guide",
+    "copyCommand": "Copy command",
+    "openDocsFailed": "Failed to open URL: {{error}}",
+    "commandCopied": "Copied: {{command}}",
+    "copyCommandFailed": "Failed to copy command"
+  },
+  "confirm": {
+    "confirmLabel": "Confirm",
+    "cancelLabel": "Cancel"
+  },
+  "closeWhileRunning": {
+    "title": "WhisperFlow Studio",
+    "message": "Transcription in progress",
+    "detail": "Force-closing will abort the current transcription job. Close anyway?",
+    "buttonWait": "Keep waiting",
+    "buttonForce": "Force close"
+  }
+}

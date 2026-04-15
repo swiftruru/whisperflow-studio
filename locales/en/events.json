@@ -1,0 +1,20 @@
+{
+  "stage": {
+    "preparing": "Preparing model and VAD",
+    "loadingModel": "Loading model {{model}}…",
+    "transcribing": "Running VAD and Whisper",
+    "writingSubtitle": "Writing subtitle files",
+    "completed": "Subtitle files generated"
+  },
+  "queue": {
+    "queuedPreparing": "Queued job is preparing to start",
+    "runningInterrupted": "Running job was interrupted by app restart",
+    "pausedRestored": "Paused job restored to queue after app restart",
+    "finishedSuccess": "Subtitle files generated",
+    "finishedFailed": "Transcription failed",
+    "stoppedByUser": "Stopped by user",
+    "skippedByUser": "Skipped by user",
+    "skippingWait": "Skipping current file. Waiting for process to exit before moving on.",
+    "stoppingWait": "Stopping current batch. Waiting for process to exit."
+  }
+}

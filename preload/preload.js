@@ -6,6 +6,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── Environment ──────────────────────────────────────────────────────────
   platform: process.platform,
 
+  // ── i18n ────────────────────────────────────────────────────────────────
+  i18n: {
+    getInitial:  ()        => ipcRenderer.invoke('i18n:get-initial'),
+    setLanguage: (lang)    => ipcRenderer.invoke('i18n:set-language', lang),
+    onLanguageChanged: (cb) => {
+      const handler = (_e, lang) => cb(lang);
+      ipcRenderer.on('i18n:language-changed', handler);
+      return () => ipcRenderer.removeListener('i18n:language-changed', handler);
+    },
+  },
+
   // ── Config ───────────────────────────────────────────────────────────────
   readConfig:    ()              => ipcRenderer.invoke('config:read'),
   readConfigMetadata: ()         => ipcRenderer.invoke('config:metadata:read'),

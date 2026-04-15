@@ -7,6 +7,9 @@ import { initErrorState } from './components/error-state.js';
 import { initErrorBanner } from './components/error-banner.js';
 import { initErrorDialog } from './components/error-dialog.js';
 import { initInstallFfmpegDialog } from './components/install-ffmpeg-dialog.js';
+import { initLanguageToggle } from './components/language-toggle.js';
+import { initRendererI18n } from './lib/i18n.js';
+import { applyTranslations } from './lib/i18n-dom.js';
 import { initQueueState } from './components/queue-state.js';
 import { initQueuePanel } from './components/queue-panel.js';
 import { initModelManager } from './components/model-manager.js';
@@ -253,6 +256,16 @@ function initKeyboardShortcuts() {
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 async function init() {
+  // i18n must be ready before any component renders, because components
+  // call t() synchronously.  Awaiting here keeps the init flow simple
+  // and adds <50ms to boot (one IPC round-trip + JSON parse).
+  await initRendererI18n();
+  applyTranslations(document.body);
+  window.addEventListener('app:language-changed', () => {
+    applyTranslations(document.body);
+  });
+  initLanguageToggle();
+
   initTheme();
   initTabs();
   initBrowseDir();

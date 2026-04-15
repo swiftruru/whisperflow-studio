@@ -1,0 +1,12 @@
+{
+  "tabs": {
+    "main": "Main",
+    "models": "Models",
+    "settings": "Settings"
+  },
+  "titlebar": {
+    "appName": "WhisperFlow Studio",
+    "themeToggleTip": "Toggle theme",
+    "langToggleTip": "Switch interface language"
+  }
+}

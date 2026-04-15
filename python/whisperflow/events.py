@@ -47,14 +47,29 @@ class EventEmitter:
         *,
         stage: str = "",
         message: str = "",
+        message_key: str = "",
+        message_params: Optional[dict[str, Any]] = None,
         progress: Optional[float] = None,
         eta_seconds: Optional[float] = None,
         extra: Optional[dict[str, Any]] = None,
     ) -> None:
+        """Emit a structured event to Electron.
+
+        ``message_key`` / ``message_params`` are the i18n contract:
+        Electron's runner-event parser prefers them over the raw
+        ``message`` field when present, and the renderer translates
+        into the user's current language.  The plain ``message`` field
+        is kept as a fallback (for environments where Electron hasn't
+        loaded the event key yet, or for log-only surfaces that don't
+        care about localization) and as the stable text that gets
+        written into the Console transcript.
+        """
         payload: dict[str, Any] = {
             "type": event_type,
             "stage": stage,
             "message": message,
+            "messageKey": message_key,
+            "messageParams": message_params or {},
             "progress": progress,
             "elapsedSeconds": int(max(0, time.monotonic() - self.start_time)),
             "etaSeconds": int(eta_seconds) if eta_seconds is not None else None,
@@ -71,8 +86,23 @@ class EventEmitter:
 
     # --- convenience helpers --------------------------------------------
 
-    def stage(self, stage: str, message: str, progress: Optional[float] = None) -> None:
-        self.emit("stage", stage=stage, message=message, progress=progress)
+    def stage(
+        self,
+        stage: str,
+        message: str = "",
+        progress: Optional[float] = None,
+        *,
+        message_key: str = "",
+        message_params: Optional[dict[str, Any]] = None,
+    ) -> None:
+        self.emit(
+            "stage",
+            stage=stage,
+            message=message,
+            message_key=message_key,
+            message_params=message_params,
+            progress=progress,
+        )
 
     def warning(self, message: str, *, stage: str = "", progress: Optional[float] = None) -> None:
         self.emit("warning", stage=stage, message=message, progress=progress)
@@ -80,8 +110,21 @@ class EventEmitter:
     def error(self, message: str, *, stage: str = STAGE_FAILED, extra: Optional[dict[str, Any]] = None) -> None:
         self.emit("error", stage=stage, message=message, extra=extra)
 
-    def completed(self, message: str = "Subtitle files generated") -> None:
-        self.emit("completed", stage=STAGE_COMPLETED, message=message, progress=100)
+    def completed(
+        self,
+        message: str = "Subtitle files generated",
+        *,
+        message_key: str = "events:stage.completed",
+        message_params: Optional[dict[str, Any]] = None,
+    ) -> None:
+        self.emit(
+            "completed",
+            stage=STAGE_COMPLETED,
+            message=message,
+            message_key=message_key,
+            message_params=message_params,
+            progress=100,
+        )
 
 
 def _utc_now_isoformat() -> str:

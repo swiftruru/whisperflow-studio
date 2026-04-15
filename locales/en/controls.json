@@ -1,0 +1,62 @@
+{
+  "status": {
+    "idle": "Idle",
+    "checking": "Checking",
+    "setup": "Setup",
+    "running": "Running",
+    "paused": "Paused",
+    "skipping": "Skipping",
+    "stopping": "Stopping",
+    "error": "Error"
+  },
+  "docTitle": {
+    "default": "WhisperFlow Studio",
+    "running": "● Running — WhisperFlow Studio",
+    "paused": "❚❚ Paused — WhisperFlow Studio",
+    "skipping": "↷ Skipping — WhisperFlow Studio",
+    "stopping": "■ Stopping — WhisperFlow Studio"
+  },
+  "actionState": {
+    "pause": "Pause",
+    "resume": "Resume"
+  },
+  "tooltip": {
+    "scanDefault": "Scan for missing subtitles",
+    "runDefault": "Run transcription",
+    "pauseWait": "Please wait while the current process exits",
+    "pauseHint": "Pause the current transcription",
+    "resumeHint": "Resume the current transcription",
+    "skipWait": "Already waiting for the current process to exit",
+    "skipHint": "Skip the current file and move on",
+    "skipNoActive": "No active job to skip",
+    "stopWait": "Already waiting for the current process to exit",
+    "stopHint": "Stop the current batch run",
+    "stopNoActive": "No active job to stop"
+  },
+  "blocking": {
+    "checking": "Checking environment…"
+  },
+  "guard": {
+    "scanNeedsMediaRoot": "Please set a valid media folder before scanning",
+    "runNeedsEnv": "Please fix the environment issues before running"
+  },
+  "toast": {
+    "scanFound": "Found: {{fileName}} ({{total}} total)",
+    "scanLoopEnvBlocked": "Scan complete, but fix the environment before running",
+    "loopCompleteAllDone": "Auto-loop done: all files transcribed",
+    "scanNoMissing": "No media files missing subtitles",
+    "transcriptionComplete": "Transcription complete!",
+    "loopNextFile": "Auto-loop: processing next file…",
+    "loopQueueDone": "Auto-loop done: queue finished",
+    "skippedCurrent": "Current file skipped",
+    "loopSkipNext": "Auto-loop: skipping to next file…",
+    "stoppedCurrent": "Current batch stopped",
+    "transcriptionFailed": "Transcription failed"
+  },
+  "notify": {
+    "title": "WhisperFlow Studio",
+    "allFilesDone": "All files transcribed!",
+    "transcribeSuccess": "Transcription complete — subtitles generated.",
+    "transcribeFailed": "Transcription failed — check the Console for details."
+  }
+}

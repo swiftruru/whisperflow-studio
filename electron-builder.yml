@@ -12,6 +12,7 @@ files:
   - src/**
   - preload/**
   - assets/**
+  - locales/**
   - settings.example.json
   - NOTICES.md
 extraResources:

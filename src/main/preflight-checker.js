@@ -67,8 +67,8 @@ function validateFfmpeg() {
     return createPreflightCheck({
       key: 'ffmpeg',
       status: 'ok',
-      title: 'ffmpeg / ffprobe 已就緒',
-      message: '音訊解碼工具可正常使用。',
+      titleKey: 'preflight:checks.ffmpeg.okTitle',
+      messageKey: 'preflight:checks.ffmpeg.okMessage',
     });
   }
 
@@ -76,8 +76,9 @@ function validateFfmpeg() {
     key: 'ffmpeg',
     code: ERROR_CODES.FFMPEG_NOT_FOUND,
     status: 'error',
-    title: `找不到 ${missing.join(' / ')}`,
-    message: 'WhisperFlow Studio 需要 ffmpeg 解碼音訊檔。點擊下方按鈕自動偵測並安裝。',
+    titleKey: 'preflight:checks.ffmpeg.missingTitle',
+    titleParams: { tools: missing.join(' / ') },
+    messageKey: 'preflight:checks.ffmpeg.missingMessage',
     // The renderer's preflight-panel picks this up and renders an
     // "安裝 ffmpeg" button that opens the themed install dialog.
     action: { type: 'install-ffmpeg', packageName: 'ffmpeg' },
@@ -111,8 +112,8 @@ function validateWhisperflowPackage(pythonDir) {
     return createPreflightCheck({
       key: 'whisperflow_package',
       status: 'ok',
-      title: 'WhisperFlow 核心已就緒',
-      message: '內建的 whisperflow Python 套件已安裝。',
+      titleKey: 'preflight:checks.whisperflowPackage.okTitle',
+      messageKey: 'preflight:checks.whisperflowPackage.okMessage',
       detail: packageInit,
     });
   }
@@ -121,8 +122,8 @@ function validateWhisperflowPackage(pythonDir) {
     key: 'whisperflow_package',
     code: ERROR_CODES.WHISPERFLOW_PACKAGE_MISSING,
     status: 'error',
-    title: 'WhisperFlow 核心不存在',
-    message: '找不到內建的 whisperflow Python 套件，應用程式資源可能已損毀。',
+    titleKey: 'preflight:checks.whisperflowPackage.errorTitle',
+    messageKey: 'preflight:checks.whisperflowPackage.errorMessage',
     detail: packageInit,
   });
 }
@@ -140,8 +141,8 @@ function validateBundledVenv({ venvRoot, configMetadataPath, userSettings }) {
     return createPreflightCheck({
       key: 'bundled_python',
       status: 'ok',
-      title: 'Python 環境已就緒',
-      message: '使用應用程式內建的虛擬環境執行轉錄。',
+      titleKey: 'preflight:checks.bundledPython.okTitle',
+      messageKey: 'preflight:checks.bundledPython.okMessage',
       detail: venvPython,
     });
   }
@@ -155,8 +156,8 @@ function validateBundledVenv({ venvRoot, configMetadataPath, userSettings }) {
       key: 'bundled_python',
       code: ERROR_CODES.BUNDLED_PYTHON_NOT_FOUND,
       status: 'error',
-      title: '找不到 Python 3',
-      message: '找不到系統 Python 3 來建立虛擬環境。請安裝 Python 3.10 以上版本，或在 Settings 指定 python 可執行檔路徑。',
+      titleKey: 'preflight:checks.bundledPython.notFoundTitle',
+      messageKey: 'preflight:checks.bundledPython.notFoundMessage',
       action: { type: 'open-settings', section: 'APP_SETTINGS', key: 'pythonPath' },
     });
   }
@@ -165,8 +166,8 @@ function validateBundledVenv({ venvRoot, configMetadataPath, userSettings }) {
     key: 'bundled_python',
     code: ERROR_CODES.VENV_NOT_INITIALIZED,
     status: 'warning',
-    title: 'Python 虛擬環境尚未建立',
-    message: '第一次執行轉錄時會自動建立虛擬環境並安裝依賴（約數百 MB）。',
+    titleKey: 'preflight:checks.bundledPython.venvMissingTitle',
+    messageKey: 'preflight:checks.bundledPython.venvMissingMessage',
     detail: venvRoot,
     action: { type: 'initialize-venv' },
   });
@@ -189,8 +190,8 @@ function validateSystemPythonField(value, configMetadataPath) {
       key: 'pythonPath',
       code: ERROR_CODES.BUNDLED_PYTHON_NOT_FOUND,
       status: 'error',
-      title: 'Python 路徑不存在',
-      message: '指定的 Python 可執行檔不存在，請重新選擇或清空此欄位以使用自動偵測。',
+      titleKey: 'preflight:checks.pythonPath.notExistTitle',
+      messageKey: 'preflight:checks.pythonPath.notExistMessage',
       detail: explicit,
       action: { type: 'open-settings', section: 'APP_SETTINGS', key: 'pythonPath' },
     });
@@ -202,8 +203,8 @@ function validateSystemPythonField(value, configMetadataPath) {
       key: 'pythonPath',
       code: ERROR_CODES.BUNDLED_PYTHON_NOT_FOUND,
       status: 'error',
-      title: '找不到 Python 3',
-      message: '找不到 Python 3.10+。請安裝後重試，或在這裡指定 python 可執行檔路徑。',
+      titleKey: 'preflight:checks.pythonPath.notFoundTitle',
+      messageKey: 'preflight:checks.pythonPath.notFoundMessage',
       action: { type: 'open-settings', section: 'APP_SETTINGS', key: 'pythonPath' },
     });
   }
@@ -211,10 +212,10 @@ function validateSystemPythonField(value, configMetadataPath) {
   return createPreflightCheck({
     key: 'pythonPath',
     status: 'ok',
-    title: 'Python 已就緒',
-    message: explicit
-      ? '將使用你指定的 Python 路徑建立虛擬環境。'
-      : '將使用自動偵測到的系統 Python 建立虛擬環境。',
+    titleKey: 'preflight:checks.pythonPath.okTitleDefault',
+    messageKey: explicit
+      ? 'preflight:checks.pythonPath.okMessageExplicit'
+      : 'preflight:checks.pythonPath.okMessageAuto',
     detail: resolved,
   });
 }
@@ -227,8 +228,8 @@ function validateMediaRootPath(value) {
       key: 'media_root_path',
       code: ERROR_CODES.MEDIA_ROOT_NOT_FOUND,
       status: 'error',
-      title: 'Media Directory 尚未設定',
-      message: '請先選擇要掃描的媒體資料夾。',
+      titleKey: 'preflight:checks.mediaRootPath.unsetTitle',
+      messageKey: 'preflight:checks.mediaRootPath.unsetMessage',
       action: { type: 'browse-media-root' },
     });
   }
@@ -238,8 +239,8 @@ function validateMediaRootPath(value) {
       key: 'media_root_path',
       code: ERROR_CODES.MEDIA_ROOT_NOT_FOUND,
       status: 'error',
-      title: 'Media Directory 不存在',
-      message: '目前設定的媒體資料夾不存在，請重新選擇。',
+      titleKey: 'preflight:checks.mediaRootPath.missingTitle',
+      messageKey: 'preflight:checks.mediaRootPath.missingMessage',
       detail: mediaRootPath,
       action: { type: 'browse-media-root' },
     });
@@ -248,19 +249,20 @@ function validateMediaRootPath(value) {
   return createPreflightCheck({
     key: 'media_root_path',
     status: 'ok',
-    title: 'Media Directory 已就緒',
-    message: '媒體掃描資料夾有效。',
+    titleKey: 'preflight:checks.mediaRootPath.okTitle',
+    messageKey: 'preflight:checks.mediaRootPath.okMessage',
     detail: mediaRootPath,
   });
 }
 
-function validateScriptPath(key, scriptPath, title) {
+function validateScriptPath(key, scriptPath) {
+  const keyPrefix = key === 'scan_script' ? 'preflight:checks.scanScript' : 'preflight:checks.cliScript';
   if (isExistingFile(scriptPath)) {
     return createPreflightCheck({
       key,
       status: 'ok',
-      title: `${title} 已就緒`,
-      message: `${title} 存在。`,
+      titleKey: `${keyPrefix}.okTitle`,
+      messageKey: `${keyPrefix}.okMessage`,
       detail: scriptPath,
     });
   }
@@ -269,8 +271,8 @@ function validateScriptPath(key, scriptPath, title) {
     key,
     code: key === 'scan_script' ? ERROR_CODES.SCAN_SCRIPT_NOT_FOUND : ERROR_CODES.CLI_ENTRY_NOT_FOUND,
     status: 'error',
-    title: `${title} 缺失`,
-    message: `${title} 不存在，請確認應用程式資源是否完整。`,
+    titleKey: `${keyPrefix}.missingTitle`,
+    messageKey: `${keyPrefix}.missingMessage`,
     detail: scriptPath,
   });
 }
@@ -313,8 +315,8 @@ function runPreflight({
     checks.push(createPreflightCheck({
       key: 'config_json',
       status: 'ok',
-      title: '設定檔已載入',
-      message: 'config.json 已成功載入。',
+      titleKey: 'preflight:checks.configJson.okTitle',
+      messageKey: 'preflight:checks.configJson.okMessage',
       detail: paths.configPath,
     }));
   } catch (error) {
@@ -322,8 +324,8 @@ function runPreflight({
       key: 'config_json',
       code: ERROR_CODES.CONFIG_JSON_INVALID,
       status: 'error',
-      title: '設定檔無法讀取',
-      message: 'config.json 無法讀取或格式錯誤。',
+      titleKey: 'preflight:checks.configJson.errorTitle',
+      messageKey: 'preflight:checks.configJson.errorMessage',
       detail: error.message,
     }));
   }
@@ -333,8 +335,8 @@ function runPreflight({
   checks.push(validateBundledVenv({ venvRoot, configMetadataPath, userSettings: appSettings }));
   checks.push(validateFfmpeg());
   checks.push(validateMediaRootPath(config?.SETTING?.media_root_path));
-  checks.push(validateScriptPath('scan_script', paths.scanScriptPath, '掃描腳本'));
-  checks.push(validateScriptPath('cli_script', paths.cliScriptPath, 'CLI 腳本'));
+  checks.push(validateScriptPath('scan_script', paths.scanScriptPath));
+  checks.push(validateScriptPath('cli_script', paths.cliScriptPath));
 
   const blockingChecks = checks.filter((check) => check.status === 'error');
 

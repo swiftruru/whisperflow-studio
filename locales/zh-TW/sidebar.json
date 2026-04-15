@@ -1,0 +1,12 @@
+{
+  "tabs": {
+    "main": "Main",
+    "models": "Models",
+    "settings": "Settings"
+  },
+  "titlebar": {
+    "appName": "WhisperFlow Studio",
+    "themeToggleTip": "切換明暗主題",
+    "langToggleTip": "切換介面語言"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "batchCard": {
+    "label": "Batch Progress",
+    "stageIdle": "Idle",
+    "noMissing": "No missing subtitles found",
+    "scanSummary": "Scanned {{files}} files in {{dirs}} folders"
+  },
+  "stage": {
+    "idle": "Idle",
+    "scanning": "Scanning",
+    "ready": "Ready",
+    "running": "Running",
+    "paused": "Paused",
+    "completed": "Done",
+    "done": "Done",
+    "error": "Error",
+    "preparing": "Preparing",
+    "loadingModel": "Loading Model",
+    "vad": "Running VAD",
+    "transcribing": "Transcribing",
+    "writingSubtitle": "Writing Subtitle",
+    "finalizing": "Finalizing",
+    "failed": "Failed",
+    "skipped": "Skipped",
+    "skipping": "Skipping",
+    "stopping": "Stopping"
+  },
+  "jobStatus": {
+    "pending": "Pending",
+    "running": "Running",
+    "paused": "Paused",
+    "done": "Done",
+    "failed": "Failed",
+    "skipped": "Skipped"
+  },
+  "history": {
+    "title": "Recent Transcripts",
+    "clear": "Clear",
+    "unknownFile": "Unknown file",
+    "justNow": "just now",
+    "minutesAgo": "{{count}} min ago",
+    "hoursAgo": "{{count}} hr ago",
+    "daysAgo": "{{count}} days ago"
+  }
+}

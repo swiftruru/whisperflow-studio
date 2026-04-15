@@ -1,17 +1,26 @@
 'use strict';
 
+import { t } from '../lib/i18n.js';
+
 const HISTORY_MAX = 10;
 
+/**
+ * Format "time ago" using i18n keys.  We deliberately don't use
+ * `Intl.RelativeTimeFormat` here — its output varies per locale in
+ * ways that conflict with the rest of the tight-vertical UI (the
+ * English form is "5 minutes ago" which is wider than the Chinese
+ * "5 分鐘前").  The i18n keys give us full control over abbreviations.
+ */
 function timeAgo(isoString) {
   const diff = Date.now() - new Date(isoString).getTime();
   const s = Math.floor(diff / 1000);
-  if (s < 60) return '剛剛';
+  if (s < 60) return t('progress:history.justNow');
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m} 分鐘前`;
+  if (m < 60) return t('progress:history.minutesAgo', { count: m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h} 小時前`;
+  if (h < 24) return t('progress:history.hoursAgo', { count: h });
   const d = Math.floor(h / 24);
-  return `${d} 天前`;
+  return t('progress:history.daysAgo', { count: d });
 }
 
 export async function addHistoryEntry({ fileName, filePath, success }) {
@@ -19,20 +28,29 @@ export async function addHistoryEntry({ fileName, filePath, success }) {
   entries.unshift({ fileName, filePath, success, timestamp: new Date().toISOString() });
   if (entries.length > HISTORY_MAX) entries.length = HISTORY_MAX;
   await window.electronAPI.writeHistory(entries);
+  _cachedEntries = entries;
   renderHistory(entries);
 }
 
+let _cachedEntries = [];
+
 export async function initHistory() {
-  const entries = await window.electronAPI.readHistory().catch(() => []);
-  renderHistory(entries);
+  _cachedEntries = await window.electronAPI.readHistory().catch(() => []);
+  renderHistory(_cachedEntries);
 
   const clearBtn = document.getElementById('btn-clear-history');
   if (clearBtn) {
     clearBtn.addEventListener('click', async () => {
       await window.electronAPI.writeHistory([]);
+      _cachedEntries = [];
       renderHistory([]);
     });
   }
+
+  // Re-render on language switch so the "time ago" labels update.
+  window.addEventListener('app:language-changed', () => {
+    renderHistory(_cachedEntries);
+  });
 }
 
 function renderHistory(entries) {
@@ -61,7 +79,7 @@ function renderHistory(entries) {
 
     const name = document.createElement('span');
     name.className = 'history-name';
-    name.textContent = entry.fileName || '未知檔案';
+    name.textContent = entry.fileName || t('progress:history.unknownFile');
     name.title = entry.filePath || '';
 
     const time = document.createElement('span');

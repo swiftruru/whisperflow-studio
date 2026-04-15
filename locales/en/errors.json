@@ -1,0 +1,74 @@
+{
+  "UNKNOWN_RUNTIME_ERROR": {
+    "title": "Execution failed",
+    "message": "An unexpected error occurred."
+  },
+  "SCAN_FAILED": {
+    "title": "Media scan failed",
+    "message": "An error occurred while scanning the media folder."
+  },
+  "PREFLIGHT_BLOCKED": {
+    "title": "Preflight failed",
+    "message": "Please fix the environment issues above before running."
+  },
+  "VENV_NOT_INITIALIZED": {
+    "title": "Python virtualenv not ready",
+    "message": "Please create the virtualenv before running (dependencies install automatically — a few hundred MB)."
+  },
+  "VENV_INIT_FAILED": {
+    "title": "Virtualenv creation failed",
+    "message": "Could not create the bundled Python virtual environment. See the Console for details."
+  },
+  "TRANSCRIPTION_FAILED": {
+    "title": "Transcription failed",
+    "message": "The transcription job for the current file failed."
+  },
+  "RUNNER_PAUSE_FAILED": {
+    "title": "Cannot pause transcription",
+    "message": "Unable to pause the current transcription on this platform or there is no active job."
+  },
+  "RUNNER_RESUME_FAILED": {
+    "title": "Cannot resume transcription",
+    "message": "Unable to resume the current transcription because no paused job was found."
+  },
+  "RUNNER_SKIP_FAILED": {
+    "title": "Cannot skip current file",
+    "message": "No active transcription is available to skip."
+  },
+  "RUNNER_STOP_FAILED": {
+    "title": "Cannot stop batch",
+    "message": "No active transcription is running."
+  },
+  "BUNDLED_PYTHON_NOT_FOUND": {
+    "title": "Python 3 not found",
+    "message": "No system Python 3 interpreter is available to bootstrap the venv. Please install Python 3.10+ or set one in Settings."
+  },
+  "PM_INSTALL_BAD_ARGS": {
+    "title": "Invalid arguments",
+    "message": "pm:install requires { managerId, packageName }."
+  },
+  "SHELL_OPEN_EXTERNAL_BAD_URL": {
+    "title": "Invalid URL",
+    "message": "shell:open-external only accepts http(s) URLs."
+  },
+  "MEDIA_ROOT_NOT_FOUND": {
+    "title": "Media Directory missing",
+    "message": "The configured media folder does not exist. Please choose another."
+  },
+  "actions": {
+    "openSettings": "Open Settings",
+    "rerunPreflight": "Re-check",
+    "retryRun": "Retry",
+    "retryScan": "Rescan",
+    "openFolder": "Open folder",
+    "dismiss": "Dismiss"
+  },
+  "toast": {
+    "preflightPassed": "System check passed",
+    "preflightStillFailing": "Environment still has unresolved issues",
+    "retryRunBlocked": "Cannot retry now — fix the environment or queue first.",
+    "retryScanBlocked": "Cannot re-scan now — check the media folder setting.",
+    "openFolderMissing": "No folder or file path available to open.",
+    "actionHandlerFailed": "An unexpected error occurred while handling this action."
+  }
+}

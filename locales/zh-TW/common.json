@@ -1,0 +1,33 @@
+{
+  "actions": {
+    "save": "儲存",
+    "cancel": "取消",
+    "close": "關閉",
+    "confirm": "確定",
+    "refresh": "重新整理",
+    "retry": "重試",
+    "delete": "刪除",
+    "browse": "瀏覽…",
+    "copy": "複製",
+    "open": "開啟",
+    "openSettings": "開啟設定",
+    "openFolder": "在 Finder 中顯示",
+    "showDetails": "查看詳細資訊",
+    "copyDetails": "複製錯誤資訊",
+    "clear": "清除"
+  },
+  "status": {
+    "idle": "待機",
+    "loading": "載入中…",
+    "ready": "就緒",
+    "running": "執行中",
+    "failed": "失敗",
+    "paused": "已暫停",
+    "completed": "已完成",
+    "notConfigured": "尚未設定"
+  },
+  "emptyState": {
+    "noData": "沒有資料",
+    "unknown": "未知"
+  }
+}

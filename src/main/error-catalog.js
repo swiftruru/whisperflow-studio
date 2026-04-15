@@ -43,14 +43,24 @@ function slugifyCodePart(value) {
 
 function createAppError({
   code = ERROR_CODES.UNKNOWN_RUNTIME_ERROR,
-  title = '執行失敗',
-  message = '發生未預期錯誤。',
+  title = '',
+  message = '',
   details = '',
   severity = 'error',
   suggestedAction = null,
   actionPayload = null,
   source = 'runtime',
   meta = null,
+  // i18n contract: callers SHOULD pass titleKey / messageKey; the
+  // legacy title / message strings are kept so half-migrated call sites
+  // still work during the rollout.  Renderer-side display code prefers
+  // the key when present.
+  titleKey = null,
+  titleParams = null,
+  messageKey = null,
+  messageParams = null,
+  detailsKey = null,
+  detailsParams = null,
 } = {}) {
   return {
     code,
@@ -62,6 +72,12 @@ function createAppError({
     actionPayload,
     source,
     meta,
+    titleKey,
+    titleParams,
+    messageKey,
+    messageParams,
+    detailsKey,
+    detailsParams,
   };
 }
 
@@ -86,14 +102,20 @@ function toAppError(value, fallback = {}) {
   return createAppError({
     ...fallback,
     code: value.code || fallback.code || ERROR_CODES.UNKNOWN_RUNTIME_ERROR,
-    title: value.title || fallback.title || '執行失敗',
-    message: value.message || fallback.message || '發生未預期錯誤。',
+    title: value.title || fallback.title || '',
+    message: value.message || fallback.message || '',
     details: value.details || value.detail || fallback.details || '',
     severity: value.severity || fallback.severity || (value.status === 'warning' ? 'warning' : 'error'),
     suggestedAction: value.suggestedAction || action?.type || fallback.suggestedAction || null,
     actionPayload: value.actionPayload || normalizeActionPayload(action) || fallback.actionPayload || null,
     source: value.source || fallback.source || 'runtime',
     meta: value.meta || fallback.meta || null,
+    titleKey: value.titleKey || fallback.titleKey || null,
+    titleParams: value.titleParams || fallback.titleParams || null,
+    messageKey: value.messageKey || fallback.messageKey || null,
+    messageParams: value.messageParams || fallback.messageParams || null,
+    detailsKey: value.detailsKey || fallback.detailsKey || null,
+    detailsParams: value.detailsParams || fallback.detailsParams || null,
   });
 }
 
@@ -104,13 +126,20 @@ function normalizeUnknownError(error, fallback = {}) {
     return toAppError(error, fallback);
   }
 
-  const message = error.message || fallback.message || '發生未預期錯誤。';
+  const message = error.message || fallback.message || '';
   const details = error.stack || error.message || String(error);
 
+  // If the caller tagged the Error with an i18nKey / i18nParams (the
+  // convention for `throw new Error(CODE)` inside ipc-handlers that
+  // wants a translated banner), propagate them into the app-error
+  // payload so the renderer can localize at display time.
   return createAppError({
     ...fallback,
     message,
     details,
+    messageKey: error.i18nKey || fallback.messageKey || null,
+    messageParams: error.i18nParams || fallback.messageParams || null,
+    code: error.code || fallback.code || ERROR_CODES.UNKNOWN_RUNTIME_ERROR,
   });
 }
 
@@ -123,6 +152,12 @@ function createPreflightCheck({
   detail = '',
   action = null,
   severity = null,
+  titleKey = null,
+  titleParams = null,
+  messageKey = null,
+  messageParams = null,
+  detailKey = null,
+  detailParams = null,
 }) {
   const checkSeverity = severity || (status === 'error' ? 'error' : status === 'warning' ? 'warning' : 'info');
   const appError = createAppError({
@@ -134,6 +169,12 @@ function createPreflightCheck({
     suggestedAction: action?.type || null,
     actionPayload: normalizeActionPayload(action),
     source: 'preflight',
+    titleKey,
+    titleParams,
+    messageKey,
+    messageParams,
+    detailsKey: detailKey,
+    detailsParams: detailParams,
   });
 
   return {
@@ -149,6 +190,12 @@ function createPreflightCheck({
     actionPayload: appError.actionPayload,
     details: appError.details,
     source: appError.source,
+    titleKey: appError.titleKey,
+    titleParams: appError.titleParams,
+    messageKey: appError.messageKey,
+    messageParams: appError.messageParams,
+    detailKey: appError.detailsKey,
+    detailParams: appError.detailsParams,
   };
 }
 

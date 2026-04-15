@@ -97,7 +97,7 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 - **Structured runner events** — the bridge emits machine-readable stage events (`preparing`, `loading-model`, `transcribing`, `writing-subtitle`, `completed`, `failed`) that drive the progress UI
 - **Multi-GPU parallel transcription** — preserved from the upstream architecture, fans work across CUDA devices on Linux/Windows
 - **Preflight checks** — validates the bundled Python environment, `whisperflow` package, `ffmpeg` / `ffprobe`, and media root before running; ffmpeg can be installed in one click via the detected system package manager
-- **Settings panel** — edit model, language, VAD, initial prompt, device, and compute type in-app
+- **Settings panel** — edit model, language, VAD, initial prompt, device, and compute type in-app, with per-parameter inline descriptions in your UI language
 
 ### UX
 
@@ -124,6 +124,16 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 
 - **Light / dark theme toggle** — pastel cream yellow (light) and warm dark (dark); persisted
 - **System theme detection** — defaults to OS preference on first launch
+
+### Internationalization (zh-TW / en)
+
+- **Production-grade i18n architecture** — built on [i18next](https://www.i18next.com/) with 13 namespaces split by feature area (`common`, `sidebar`, `preflight`, `settings`, `queue`, `progress`, `models`, `console`, `controls`, `dialogs`, `errors`, `events`, `toasts`). Over 370 keys per locale.
+- **Titlebar language toggle** — one-click flip between Traditional Chinese and English; all static HTML, dynamic components, Python runner events, and Electron native dialogs switch live without restart
+- **Auto-detect on first launch** — reads `app.getLocale()` and picks `zh-TW` for any Chinese system, `en` for English, with `zh-TW` as the fallback
+- **Key-based main→renderer contract** — `createAppError` / `createPreflightCheck` / Python `[WhisperFlowEvent]` all carry `messageKey` + `messageParams` instead of raw strings, so the renderer can localize at display time and switching language updates already-visible error banners / preflight checks
+- **Data-attribute DOM binding** — static HTML uses `data-i18n="ns:key"` / `data-i18n-attr="placeholder=ns:key"`, walked by a small 80-line translator module on every language change
+- **Per-field parameter descriptions** — every config in the Settings tab ships with a concise inline explanation (localized) so non-expert users understand what each knob does
+- **i18n lint in CI** — `npm run i18n:lint` compares every JSON namespace across locales and fails the build on any missing/structurally mismatched key, so we can't ship an incomplete translation
 
 ### Keyboard shortcuts
 | Shortcut | Action |
@@ -431,6 +441,18 @@ python3 -m venv .venv-test
 ```
 
 The same suite runs on every release in CI — see [`.github/workflows/release.yml`](.github/workflows/release.yml).
+
+### Adding a translation
+
+The `locales/` tree is split by feature namespace (`common.json`, `preflight.json`, …) with parallel `zh-TW/` and `en/` subdirectories.  To add a new key or a new language:
+
+1. Add the key to BOTH locales (e.g. `locales/zh-TW/settings.json` and `locales/en/settings.json`) — `npm run i18n:lint` will reject a build that has a key on only one side.
+2. In HTML, wire it up with `data-i18n="ns:key.path"` (for textContent) or `data-i18n-attr="placeholder=ns:key"` (for attributes).
+3. In JS, import `t` from `../lib/i18n.js` and call `t('ns:key.path', { params })`.
+4. Dynamic components should register `window.addEventListener('app:language-changed', rerender)` so they refresh when the user flips the titlebar toggle.
+5. Run `npm run i18n:lint` to verify the key set is balanced across locales.
+
+See [locales/zh-TW/](locales/zh-TW/) and [src/renderer/lib/i18n.js](src/renderer/lib/i18n.js) for the full pattern.
 
 ---
 

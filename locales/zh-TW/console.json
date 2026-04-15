@@ -1,0 +1,19 @@
+{
+  "search": {
+    "placeholder": "搜尋…",
+    "close": "關閉"
+  },
+  "filters": {
+    "all": "全部",
+    "error": "錯誤",
+    "warn": "警告",
+    "ok": "正常"
+  },
+  "tools": {
+    "autoScroll": "自動捲動",
+    "copy": "複製",
+    "saveLog": "儲存 Log",
+    "clear": "清除"
+  },
+  "bootMessage": "[WhisperFlow Studio] 已就緒。請選擇媒體資料夾並點擊 Scan。"
+}

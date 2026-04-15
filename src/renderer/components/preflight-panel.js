@@ -3,6 +3,20 @@
 import { showToast } from './toast.js';
 import { initializeVenvWithProgress, VENV_INITIALIZED_EVENT } from '../lib/venv-bootstrap.js';
 import { openInstallFfmpegDialog } from './install-ffmpeg-dialog.js';
+import { t } from '../lib/i18n.js';
+
+/**
+ * Translate a main-process payload (`{ titleKey, titleParams, title }`
+ * shape) into a display string.  The payload ships both the i18n key
+ * and a legacy raw string fallback so half-migrated call sites still
+ * render something during the rollout — once every caller is on keys
+ * the fallback becomes dead code and can be removed.
+ */
+function resolveI18nField(keyField, paramsField, fallbackField, obj) {
+  const key = obj?.[keyField];
+  if (key) return t(key, obj?.[paramsField] || undefined);
+  return obj?.[fallbackField] || '';
+}
 
 const panel = document.getElementById('preflight-panel');
 const summaryEl = document.getElementById('preflight-summary');
@@ -93,27 +107,27 @@ async function handleCheckAction(action) {
 async function runVenvInitializeFromButton(button, bodyEl) {
   const stageLine = document.createElement('div');
   stageLine.className = 'preflight-item-stage';
-  stageLine.textContent = '正在啟動 Python 子程序…';
+  stageLine.textContent = t('preflight:venvBootstrap.starting');
   bodyEl?.appendChild(stageLine);
 
   button.disabled = true;
   const originalLabel = button.textContent;
-  button.textContent = '建立中…';
-  showToast('正在建立 Python 虛擬環境並安裝依賴（可能需要數分鐘）…', 'info', 5000);
+  button.textContent = t('preflight:actionButtons.initializingVenv');
+  showToast(t('toasts:venv.creating'), 'info', 5000);
 
   try {
     await initializeVenvWithProgress({
       onStage: (stage) => {
-        stageLine.textContent = `目前階段：${stage}`;
+        stageLine.textContent = t('preflight:venvBootstrap.stage', { stage });
       },
     });
-    stageLine.textContent = '環境建立完成';
-    showToast('Python 環境建立完成', 'success', 3000);
+    stageLine.textContent = t('preflight:venvBootstrap.completed');
+    showToast(t('toasts:venv.success'), 'success', 3000);
   } catch (error) {
     button.disabled = false;
     button.textContent = originalLabel;
     stageLine.remove();
-    showToast(`環境建立失敗：${error?.message || error}`, 'error', 6000);
+    showToast(t('toasts:venv.failed', { error: error?.message || error }), 'error', 6000);
     throw error;
   }
 }
@@ -126,13 +140,13 @@ function createActionButton(check, rowEl) {
   button.type = 'button';
 
   if (check.action.type === 'open-settings') {
-    button.textContent = '前往設定';
+    button.textContent = t('preflight:actionButtons.openSettings');
   } else if (check.action.type === 'browse-media-root') {
-    button.textContent = '選擇資料夾';
+    button.textContent = t('preflight:actionButtons.browseMediaRoot');
   } else if (check.action.type === 'initialize-venv') {
-    button.textContent = '立即建立環境';
+    button.textContent = t('preflight:actionButtons.initializeVenv');
   } else if (check.action.type === 'install-ffmpeg') {
-    button.textContent = '安裝 ffmpeg';
+    button.textContent = t('preflight:actionButtons.installFfmpeg');
   } else {
     return null;
   }
@@ -158,8 +172,8 @@ function createActionButton(check, rowEl) {
 function renderChecks() {
   if (state.pending) {
     panel.hidden = false;
-    countEl.textContent = '檢查中';
-    summaryEl.textContent = '正在檢查目前環境與設定…';
+    countEl.textContent = t('preflight:panel.countChip.checking');
+    summaryEl.textContent = t('preflight:panel.summary.checking');
     listEl.innerHTML = '';
     return;
   }
@@ -173,11 +187,11 @@ function renderChecks() {
 
   panel.hidden = false;
   if (state.blockingChecks.length > 0) {
-    countEl.textContent = `${state.blockingChecks.length} 項阻擋`;
-    summaryEl.textContent = `還有 ${state.blockingChecks.length} 個環境問題需要先修正。`;
+    countEl.textContent = t('preflight:panel.countChip.blocking', { count: state.blockingChecks.length });
+    summaryEl.textContent = t('preflight:panel.summary.blockingCount', { count: state.blockingChecks.length });
   } else {
-    countEl.textContent = `${visibleChecks.length} 項提醒`;
-    summaryEl.textContent = `有 ${visibleChecks.length} 個環境提醒，可以先設定再執行。`;
+    countEl.textContent = t('preflight:panel.countChip.warning', { count: visibleChecks.length });
+    summaryEl.textContent = t('preflight:panel.summary.warningCount', { count: visibleChecks.length });
   }
   listEl.innerHTML = '';
 
@@ -194,11 +208,11 @@ function renderChecks() {
 
     const title = document.createElement('div');
     title.className = 'preflight-item-title';
-    title.textContent = check.title;
+    title.textContent = resolveI18nField('titleKey', 'titleParams', 'title', check);
 
     const message = document.createElement('div');
     message.className = 'preflight-item-message';
-    message.textContent = check.message;
+    message.textContent = resolveI18nField('messageKey', 'messageParams', 'message', check);
 
     body.appendChild(title);
     body.appendChild(message);
@@ -248,8 +262,8 @@ async function refreshPreflight() {
             {
               key: 'preflight_internal_error',
               status: 'error',
-              title: '環境檢查失敗',
-              message: '無法完成 preflight 檢查，請稍後再試。',
+              titleKey: 'preflight:errorStates.internal.title',
+              messageKey: 'preflight:errorStates.internal.message',
               detail: error.message,
             },
           ],
@@ -271,8 +285,8 @@ async function refreshPreflight() {
         {
           key: 'preflight_render_error',
           status: 'error',
-          title: '環境檢查初始化失敗',
-          message: 'Preflight UI 初始化時發生錯誤。',
+          titleKey: 'preflight:errorStates.render.title',
+          messageKey: 'preflight:errorStates.render.message',
           detail: error.message,
         },
       ],
@@ -309,6 +323,13 @@ function initPreflightPanel(options = {}) {
     refreshPreflight();
   });
 
+  // Re-render so the currently-shown check titles/messages switch to
+  // the new language.  The underlying state still carries keys + params,
+  // so we just re-run the renderer.
+  window.addEventListener('app:language-changed', () => {
+    renderChecks();
+  });
+
   renderChecks();
   queueMicrotask(() => {
     if (state.pending) refreshPreflight();
@@ -320,8 +341,8 @@ function initPreflightPanel(options = {}) {
           {
             key: 'preflight_stuck_timeout',
             status: 'error',
-            title: '環境檢查未完成',
-            message: 'Preflight 在預期時間內沒有完成，請點擊重新檢查，或重新啟動 app。',
+            titleKey: 'preflight:errorStates.stuck.title',
+            messageKey: 'preflight:errorStates.stuck.message',
             detail: `UI watchdog exceeded ${PREFLIGHT_TIMEOUT_MS}ms`,
           },
         ],

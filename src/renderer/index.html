@@ -19,7 +19,8 @@
       <span class="titlebar-title">WhisperFlow Studio</span>
     </div>
     <div class="titlebar-right">
-      <button class="btn-theme-toggle" id="btn-theme-toggle" title="Toggle theme">
+      <button class="btn-language-toggle" id="btn-language-toggle" type="button" data-i18n-attr="title=sidebar:titlebar.langToggleTip" title="Switch interface language" aria-label="Switch interface language">中 / EN</button>
+      <button class="btn-theme-toggle" id="btn-theme-toggle" data-i18n-attr="title=sidebar:titlebar.themeToggleTip">
         <svg id="theme-icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
           <path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"/>
         </svg>
@@ -36,7 +37,7 @@
         </svg>
       </button>
       <span class="status-dot" id="status-dot"></span>
-      <span class="status-label" id="status-badge">Idle</span>
+      <span class="status-label" id="status-badge" data-i18n="common:status.idle">Idle</span>
     </div>
   </header>
 
@@ -48,9 +49,9 @@
 
       <!-- Tab Nav -->
       <nav class="tab-nav" role="tablist">
-        <button class="tab-btn active" data-tab="main" role="tab">Main</button>
-        <button class="tab-btn" data-tab="models" role="tab">Models</button>
-        <button class="tab-btn" data-tab="settings" role="tab">Settings</button>
+        <button class="tab-btn active" data-tab="main" role="tab" data-i18n="sidebar:tabs.main">Main</button>
+        <button class="tab-btn" data-tab="models" role="tab" data-i18n="sidebar:tabs.models">Models</button>
+        <button class="tab-btn" data-tab="settings" role="tab" data-i18n="sidebar:tabs.settings">Settings</button>
         <div class="tab-indicator" id="tab-indicator"></div>
       </nav>
 
@@ -66,13 +67,13 @@
             <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
               <path d="M8 1.333l6.167 11.334A1 1 0 0113.3 14H2.7a1 1 0 01-.867-1.333L8 1.333zm0 3.5a.75.75 0 00-.75.75v3.167a.75.75 0 001.5 0V5.583A.75.75 0 008 4.833zm0 6.25a.917.917 0 100 1.834.917.917 0 000-1.834z"/>
             </svg>
-            System Check
+            <span data-i18n="preflight:panel.title">System Check</span>
             <span class="preflight-count" id="preflight-count"></span>
           </div>
-          <div class="preflight-summary" id="preflight-summary">正在檢查目前環境與設定…</div>
+          <div class="preflight-summary" id="preflight-summary" data-i18n="preflight:panel.summary.checking">正在檢查目前環境與設定…</div>
           <div class="preflight-list" id="preflight-list"></div>
           <div class="preflight-actions">
-            <button class="btn-browse" id="btn-preflight-recheck">重新檢查</button>
+            <button class="btn-browse" id="btn-preflight-recheck" data-i18n="preflight:panel.summary.recheck">重新檢查</button>
           </div>
         </div>
 
@@ -82,12 +83,12 @@
             <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
               <path d="M1.5 3A1.5 1.5 0 000 4.5v8A1.5 1.5 0 001.5 14h13a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H7.621a1.5 1.5 0 01-1.06-.44L5.439 2.94A1.5 1.5 0 004.379 2.5H1.5z"/>
             </svg>
-            Media Directory
+            <span data-i18n="queue:mediaCard.label">Media Directory</span>
           </div>
           <div class="dir-path-box" id="dir-path-box">
-            <span class="dir-path-text" id="dir-path-text">Not configured</span>
+            <span class="dir-path-text" id="dir-path-text" data-i18n="common:status.notConfigured">Not configured</span>
           </div>
-          <button class="btn-browse" id="btn-browse-dir">Browse…</button>
+          <button class="btn-browse" id="btn-browse-dir" data-i18n="queue:mediaCard.browse">Browse…</button>
         </div>
 
         <!-- Action buttons -->
@@ -98,7 +99,7 @@
               <path d="M3 9V5a2 2 0 012-2h4M15 3h4a2 2 0 012 2v4M21 15v4a2 2 0 01-2 2h-4M9 21H5a2 2 0 01-2-2v-4"/>
               <circle cx="12" cy="12" r="3"/>
             </svg>
-            Scan for Missing Subtitles
+            <span data-i18n="queue:actions.scan">Scan for Missing Subtitles</span>
           </button>
 
           <button class="btn-primary" id="btn-run-cli">
@@ -109,22 +110,22 @@
               <rect x="15.5" y="7" width="2.5" height="10" rx="1.25"/>
               <rect x="20" y="10" width="2.5" height="4" rx="1.25"/>
             </svg>
-            Run Transcription
+            <span data-i18n="queue:actions.run">Run Transcription</span>
           </button>
 
           <div class="action-hint" id="action-hint" hidden></div>
 
           <label class="auto-loop-toggle">
             <input type="checkbox" id="chk-auto-loop" />
-            <span>自動循環模式</span>
+            <span data-i18n="queue:actions.autoLoop">自動循環模式</span>
           </label>
 
           <div class="action-row">
-            <button class="btn-secondary action-mini-btn" id="btn-pause-resume" disabled>
+            <button class="btn-secondary action-mini-btn" id="btn-pause-resume" disabled data-i18n="queue:actions.pause">
               Pause
             </button>
 
-            <button class="btn-secondary action-mini-btn action-skip-btn" id="btn-skip-current" disabled>
+            <button class="btn-secondary action-mini-btn action-skip-btn" id="btn-skip-current" disabled data-i18n="queue:actions.skipCurrent">
               Skip Current
             </button>
 
@@ -133,7 +134,7 @@
                 <line x1="18" y1="6" x2="6" y2="18"/>
                 <line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
-              Stop Batch
+              <span data-i18n="queue:actions.stopBatch">Stop Batch</span>
             </button>
           </div>
 
@@ -146,15 +147,15 @@
         <div class="step-guide" id="step-guide">
           <div class="step-guide-item">
             <span class="step-num">1</span>
-            <span>選擇媒體資料夾</span>
+            <span data-i18n="queue:stepGuide.step1">選擇媒體資料夾</span>
           </div>
           <div class="step-guide-item">
             <span class="step-num">2</span>
-            <span>點擊 Scan 掃描缺字幕檔案</span>
+            <span data-i18n="queue:stepGuide.step2">點擊 Scan 掃描缺字幕檔案</span>
           </div>
           <div class="step-guide-item">
             <span class="step-num">3</span>
-            <span>點擊 Run 開始轉錄</span>
+            <span data-i18n="queue:stepGuide.step3">點擊 Run 開始轉錄</span>
           </div>
         </div>
 
@@ -164,7 +165,7 @@
             <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
               <path d="M9.293 0H4a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4.707A1 1 0 0013.707 4L10 .293A1 1 0 009.293 0zM9.5 3.5v-2l3 3h-2a1 1 0 01-1-1z"/>
             </svg>
-            Next to Transcribe
+            <span data-i18n="queue:nextCard.label">Next to Transcribe</span>
             <span class="missing-count-badge" id="missing-count-badge" hidden></span>
           </div>
           <div class="found-filename" id="found-filename"></div>
@@ -176,7 +177,7 @@
               <line x1="9.5" y1="13.5" x2="12" y2="11"/>
               <line x1="14.5" y1="13.5" x2="12" y2="11"/>
             </svg>
-            在 Finder 中顯示
+            <span data-i18n="queue:nextCard.revealInFinder">在 Finder 中顯示</span>
           </button>
         </div>
 
@@ -185,8 +186,8 @@
             <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
               <path d="M8 1.5a6.5 6.5 0 106.5 6.5A6.508 6.508 0 008 1.5zm0 1.5a5 5 0 11-5 5 5.006 5.006 0 015-5zm-.75 1.5v3.81l2.74 1.64.76-1.23-2-1.2V4.5z"/>
             </svg>
-            Batch Progress
-            <span class="queue-stage-chip" id="queue-stage-chip">Idle</span>
+            <span data-i18n="progress:batchCard.label">Batch Progress</span>
+            <span class="queue-stage-chip" id="queue-stage-chip" data-i18n="common:status.idle">Idle</span>
           </div>
           <div class="queue-progress-headline" id="queue-progress-headline"></div>
           <div class="queue-progress-stats" id="queue-progress-stats"></div>
@@ -197,8 +198,8 @@
             <span class="queue-progress-bar-fill" id="queue-progress-bar-fill"></span>
           </div>
           <div class="queue-actions" id="queue-actions">
-            <button class="btn-secondary btn-queue-action" id="btn-queue-retry-failed" hidden>Retry Failed</button>
-            <button class="btn-secondary btn-queue-action" id="btn-queue-clear-finished" hidden>Clear Finished</button>
+            <button class="btn-secondary btn-queue-action" id="btn-queue-retry-failed" hidden data-i18n="queue:panel.retryFailed">Retry Failed</button>
+            <button class="btn-secondary btn-queue-action" id="btn-queue-clear-finished" hidden data-i18n="queue:panel.clearFinished">Clear Finished</button>
           </div>
         </div>
 
@@ -207,7 +208,7 @@
             <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
               <path d="M2 3.75A1.75 1.75 0 013.75 2h8.5A1.75 1.75 0 0114 3.75v8.5A1.75 1.75 0 0112.25 14h-8.5A1.75 1.75 0 012 12.25zm2.25-.25a.75.75 0 000 1.5h7.5a.75.75 0 000-1.5zm0 3.5a.75.75 0 000 1.5h7.5a.75.75 0 000-1.5zm0 3.5a.75.75 0 000 1.5h4.5a.75.75 0 000-1.5z"/>
             </svg>
-            Queue
+            <span data-i18n="queue:panel.label">Queue</span>
             <span class="queue-total-badge" id="queue-total-badge"></span>
           </div>
           <div class="queue-toolbar">
@@ -215,19 +216,20 @@
               type="text"
               class="queue-search-input"
               id="queue-search-input"
+              data-i18n-attr="placeholder=queue:panel.searchPlaceholder"
               placeholder="搜尋檔名或路徑…"
               autocomplete="off"
               spellcheck="false"
             />
           </div>
           <div class="queue-filter-chips" id="queue-filter-chips">
-            <button class="queue-filter-chip active" type="button" data-filter="all">All</button>
-            <button class="queue-filter-chip" type="button" data-filter="pending">Pending</button>
-            <button class="queue-filter-chip" type="button" data-filter="running">Running</button>
-            <button class="queue-filter-chip" type="button" data-filter="paused">Paused</button>
-            <button class="queue-filter-chip" type="button" data-filter="failed">Failed</button>
-            <button class="queue-filter-chip" type="button" data-filter="done">Done</button>
-            <button class="queue-filter-chip" type="button" data-filter="skipped">Skipped</button>
+            <button class="queue-filter-chip active" type="button" data-filter="all" data-i18n="queue:filters.all">All</button>
+            <button class="queue-filter-chip" type="button" data-filter="pending" data-i18n="queue:filters.pending">Pending</button>
+            <button class="queue-filter-chip" type="button" data-filter="running" data-i18n="queue:filters.running">Running</button>
+            <button class="queue-filter-chip" type="button" data-filter="paused" data-i18n="queue:filters.paused">Paused</button>
+            <button class="queue-filter-chip" type="button" data-filter="failed" data-i18n="queue:filters.failed">Failed</button>
+            <button class="queue-filter-chip" type="button" data-filter="done" data-i18n="queue:filters.done">Done</button>
+            <button class="queue-filter-chip" type="button" data-filter="skipped" data-i18n="queue:filters.skipped">Skipped</button>
           </div>
           <div class="queue-view-summary" id="queue-view-summary"></div>
           <div class="queue-list" id="queue-list"></div>
@@ -236,8 +238,8 @@
         <!-- Transcription history (hidden until first entry) -->
         <div class="history-section" id="history-section" hidden>
           <div class="history-header">
-            <span class="history-title">最近轉錄</span>
-            <button class="history-clear-btn" id="btn-clear-history">清除</button>
+            <span class="history-title" data-i18n="progress:history.title">最近轉錄</span>
+            <button class="history-clear-btn" id="btn-clear-history" data-i18n="progress:history.clear">清除</button>
           </div>
           <div class="history-list" id="history-list"></div>
         </div>
@@ -248,13 +250,13 @@
       <div class="tab-pane" id="tab-models">
         <div class="models-toolbar">
           <div class="models-toolbar-left">
-            <span class="models-toolbar-label">Model Manager</span>
+            <span class="models-toolbar-label" data-i18n="models:toolbar.label">Model Manager</span>
             <span class="models-dir-label" id="models-dir-label">—</span>
           </div>
-          <button class="btn-secondary" id="btn-models-refresh">Refresh</button>
+          <button class="btn-secondary" id="btn-models-refresh" data-i18n="models:toolbar.refresh">Refresh</button>
         </div>
         <div class="models-panel-body">
-          <div class="models-empty-msg" id="models-empty-msg">正在載入模型清單…</div>
+          <div class="models-empty-msg" id="models-empty-msg" data-i18n="models:list.loading">正在載入模型清單…</div>
           <div class="models-list" id="models-list"></div>
         </div>
       </div><!-- /tab-models -->
@@ -262,11 +264,11 @@
       <!-- ── Tab: Settings ──────────────────────────────────────────────── -->
       <div class="tab-pane" id="tab-settings">
         <div class="settings-toolbar">
-          <span class="settings-toolbar-label">Config Settings</span>
-          <button class="btn-save" id="btn-save-settings">Save</button>
+          <span class="settings-toolbar-label" data-i18n="settings:toolbar.label">Config Settings</span>
+          <button class="btn-save" id="btn-save-settings" data-i18n="settings:toolbar.save">Save</button>
         </div>
         <div id="settings-content">
-          <p class="loading-msg">Loading config…</p>
+          <p class="loading-msg" data-i18n="settings:loading">Loading config…</p>
         </div>
       </div>
 
@@ -275,9 +277,9 @@
     <!-- ── Right Panel: Console ───────────────────────────────────────── -->
     <section class="right-panel">
       <div class="console-search" id="console-search" hidden>
-        <input type="text" id="console-search-input" placeholder="搜尋…" autocomplete="off" spellcheck="false" />
+        <input type="text" id="console-search-input" data-i18n-attr="placeholder=console:search.placeholder" placeholder="搜尋…" autocomplete="off" spellcheck="false" />
         <span class="console-search-count" id="console-search-count"></span>
-        <button class="tool-btn" id="btn-search-close" title="Close">✕</button>
+        <button class="tool-btn" id="btn-search-close" data-i18n-attr="title=console:search.close">✕</button>
       </div>
       <div class="error-banner" id="error-banner" hidden>
         <div class="error-banner-copy">
@@ -290,26 +292,26 @@
         </div>
         <div class="error-banner-actions">
           <button class="tool-btn error-banner-btn" id="btn-error-banner-action" hidden></button>
-          <button class="tool-btn error-banner-btn" id="btn-error-banner-details">查看詳細資訊</button>
-          <button class="tool-btn error-banner-btn" id="btn-error-banner-dismiss">關閉</button>
+          <button class="tool-btn error-banner-btn" id="btn-error-banner-details" data-i18n="common:actions.showDetails">查看詳細資訊</button>
+          <button class="tool-btn error-banner-btn" id="btn-error-banner-dismiss" data-i18n="common:actions.close">關閉</button>
         </div>
       </div>
       <div class="console-header">
         <div class="console-filters">
-          <button class="filter-btn active" data-filter="">All</button>
-          <button class="filter-btn" data-filter="error">Error</button>
-          <button class="filter-btn" data-filter="warn">Warn</button>
-          <button class="filter-btn" data-filter="ok">OK</button>
+          <button class="filter-btn active" data-filter="" data-i18n="console:filters.all">All</button>
+          <button class="filter-btn" data-filter="error" data-i18n="console:filters.error">Error</button>
+          <button class="filter-btn" data-filter="warn" data-i18n="console:filters.warn">Warn</button>
+          <button class="filter-btn" data-filter="ok" data-i18n="console:filters.ok">OK</button>
         </div>
         <div class="console-tools">
-          <button class="tool-btn" id="btn-scroll-lock" title="Auto-scroll">&#x21D3;</button>
-          <button class="tool-btn" id="btn-copy-log" title="Copy">Copy</button>
-          <button class="tool-btn" id="btn-save-log" title="Save Log">Save Log</button>
-          <button class="tool-btn" id="btn-clear-log" title="Clear">Clear</button>
+          <button class="tool-btn" id="btn-scroll-lock" data-i18n-attr="title=console:tools.autoScroll">&#x21D3;</button>
+          <button class="tool-btn" id="btn-copy-log" data-i18n="console:tools.copy" data-i18n-attr="title=console:tools.copy">Copy</button>
+          <button class="tool-btn" id="btn-save-log" data-i18n="console:tools.saveLog" data-i18n-attr="title=console:tools.saveLog">Save Log</button>
+          <button class="tool-btn" id="btn-clear-log" data-i18n="console:tools.clear" data-i18n-attr="title=console:tools.clear">Clear</button>
         </div>
       </div>
       <div class="console-output" id="console-output">
-        <span class="log-line info">[WhisperFlow Studio] Ready. Select a media directory and click Scan.</span>
+        <span class="log-line info" data-i18n="console:bootMessage">[WhisperFlow Studio] Ready. Select a media directory and click Scan.</span>
       </div>
     </section>
 
@@ -326,16 +328,16 @@
           <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M10 14h4"/>
         </svg>
       </div>
-      <h2>鍵盤快捷鍵</h2>
+      <h2 data-i18n="dialogs:shortcuts.title">鍵盤快捷鍵</h2>
       <div class="shortcuts-list">
-        <div class="shortcut-row"><kbd>⌘ S</kbd><span>儲存設定（Settings tab）</span></div>
-        <div class="shortcut-row"><kbd>⌘ K</kbd><span>清除 Console</span></div>
-        <div class="shortcut-row"><kbd>⌘ F</kbd><span>搜尋 Console</span></div>
-        <div class="shortcut-row"><kbd>Esc</kbd><span>關閉搜尋</span></div>
-        <div class="shortcut-row"><kbd>?</kbd><span>顯示此說明</span></div>
+        <div class="shortcut-row"><kbd>⌘ S</kbd><span data-i18n="dialogs:shortcuts.saveSettings">儲存設定（Settings tab）</span></div>
+        <div class="shortcut-row"><kbd>⌘ K</kbd><span data-i18n="dialogs:shortcuts.clearConsole">清除 Console</span></div>
+        <div class="shortcut-row"><kbd>⌘ F</kbd><span data-i18n="dialogs:shortcuts.searchConsole">搜尋 Console</span></div>
+        <div class="shortcut-row"><kbd>Esc</kbd><span data-i18n="dialogs:shortcuts.closeSearch">關閉搜尋</span></div>
+        <div class="shortcut-row"><kbd>?</kbd><span data-i18n="dialogs:shortcuts.showHelp">顯示此說明</span></div>
       </div>
       <div class="modal-actions" style="margin-top:20px;">
-        <button class="btn-primary" id="btn-shortcuts-close">關閉</button>
+        <button class="btn-primary" id="btn-shortcuts-close" data-i18n="dialogs:shortcuts.close">關閉</button>
       </div>
     </div>
   </div>
@@ -345,7 +347,7 @@
       <div class="error-dialog-header">
         <span class="error-dialog-severity" id="error-dialog-severity">ERROR</span>
         <div class="error-dialog-title-block">
-          <h2 id="error-dialog-title">執行失敗</h2>
+          <h2 id="error-dialog-title" data-i18n="dialogs:errorDialog.defaultTitle">執行失敗</h2>
           <p class="error-dialog-code" id="error-dialog-code">Error code: UNKNOWN_RUNTIME_ERROR</p>
         </div>
       </div>
@@ -353,8 +355,8 @@
       <pre class="error-dialog-details" id="error-dialog-details"></pre>
       <div class="error-dialog-actions">
         <button class="btn-secondary" id="btn-error-dialog-action" hidden></button>
-        <button class="btn-secondary" id="btn-error-dialog-copy">Copy Details</button>
-        <button class="btn-primary" id="btn-error-dialog-close">Close</button>
+        <button class="btn-secondary" id="btn-error-dialog-copy" data-i18n="dialogs:errorDialog.copyDetails">Copy Details</button>
+        <button class="btn-primary" id="btn-error-dialog-close" data-i18n="dialogs:errorDialog.close">Close</button>
       </div>
     </div>
   </div>
@@ -369,12 +371,12 @@
           <path d="M5 21h14"/>
         </svg>
       </div>
-      <h2>安裝 ffmpeg</h2>
-      <p>WhisperFlow Studio 需要 ffmpeg 來解碼音訊檔。請從下方選擇一個套件管理器安裝，或前往官網下載。</p>
+      <h2 data-i18n="dialogs:installFfmpeg.title">安裝 ffmpeg</h2>
+      <p data-i18n="dialogs:installFfmpeg.description">WhisperFlow Studio 需要 ffmpeg 來解碼音訊檔。請從下方選擇一個套件管理器安裝，或前往官網下載。</p>
       <div class="install-ffmpeg-list" id="install-ffmpeg-list"></div>
       <div class="install-ffmpeg-log" id="install-ffmpeg-log" hidden></div>
       <div class="modal-actions install-ffmpeg-actions">
-        <button class="btn-secondary" id="btn-install-ffmpeg-close">關閉</button>
+        <button class="btn-secondary" id="btn-install-ffmpeg-close" data-i18n="dialogs:installFfmpeg.close">關閉</button>
       </div>
     </div>
   </div>

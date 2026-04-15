@@ -1,0 +1,99 @@
+{
+  "panel": {
+    "title": "System Check",
+    "summary": {
+      "checking": "Checking your environment and settings…",
+      "blockingCount": "{{count}} environment issues must be fixed first.",
+      "warningCount": "{{count}} environment hints — you can still proceed.",
+      "recheck": "Re-check"
+    },
+    "countChip": {
+      "checking": "Checking",
+      "blocking": "{{count}} blocking",
+      "warning": "{{count}} hint"
+    }
+  },
+  "actionButtons": {
+    "openSettings": "Open Settings",
+    "browseMediaRoot": "Choose folder",
+    "initializeVenv": "Create environment now",
+    "initializingVenv": "Creating…",
+    "installFfmpeg": "Install ffmpeg"
+  },
+  "venvBootstrap": {
+    "starting": "Starting Python subprocess…",
+    "stage": "Stage: {{stage}}",
+    "completed": "Environment ready"
+  },
+  "errorStates": {
+    "internal": {
+      "title": "Preflight check failed",
+      "message": "Could not complete the preflight check. Please try again."
+    },
+    "render": {
+      "title": "Preflight UI init failed",
+      "message": "The preflight UI failed to initialize."
+    },
+    "stuck": {
+      "title": "Preflight did not complete",
+      "message": "Preflight did not finish in the expected time. Click Re-check or restart the app."
+    }
+  },
+  "checks": {
+    "configJson": {
+      "okTitle": "Config file loaded",
+      "okMessage": "config.json loaded successfully.",
+      "errorTitle": "Cannot read config file",
+      "errorMessage": "config.json is missing or malformed."
+    },
+    "whisperflowPackage": {
+      "okTitle": "WhisperFlow core ready",
+      "okMessage": "Bundled whisperflow Python package is installed.",
+      "errorTitle": "WhisperFlow core missing",
+      "errorMessage": "The bundled whisperflow Python package was not found — app resources may be damaged."
+    },
+    "ffmpeg": {
+      "okTitle": "ffmpeg / ffprobe ready",
+      "okMessage": "Audio decoding tools are available.",
+      "missingTitle": "{{tools}} not found",
+      "missingMessage": "WhisperFlow Studio needs ffmpeg to decode audio. Click the button below to detect and install automatically."
+    },
+    "bundledPython": {
+      "okTitle": "Python environment ready",
+      "okMessage": "Using the app's bundled virtual environment for transcription.",
+      "notFoundTitle": "Python 3 not found",
+      "notFoundMessage": "No system Python 3 is available to bootstrap the venv. Please install Python 3.10+, or specify a python path in Settings.",
+      "venvMissingTitle": "Python virtualenv not yet created",
+      "venvMissingMessage": "A virtualenv will be created on first transcription (a few hundred MB)."
+    },
+    "pythonPath": {
+      "okTitleDefault": "Python ready",
+      "okMessageAuto": "Will use auto-detected system Python to bootstrap the venv.",
+      "okMessageExplicit": "Will use your specified Python path to bootstrap the venv.",
+      "notExistTitle": "Python path does not exist",
+      "notExistMessage": "The specified Python executable does not exist. Please pick a different one or clear this field to use auto-detection.",
+      "notFoundTitle": "Python 3 not found",
+      "notFoundMessage": "Python 3.10+ was not found. Please install it and try again, or specify a python path here."
+    },
+    "mediaRootPath": {
+      "okTitle": "Media Directory ready",
+      "okMessage": "Media scan folder is valid.",
+      "unsetTitle": "Media Directory not configured",
+      "unsetMessage": "Please choose a media folder to scan first.",
+      "missingTitle": "Media Directory does not exist",
+      "missingMessage": "The currently configured media folder does not exist. Please choose another."
+    },
+    "scanScript": {
+      "okTitle": "Scan script ready",
+      "okMessage": "Scan script found.",
+      "missingTitle": "Scan script missing",
+      "missingMessage": "Scan script not found — please verify that app resources are intact."
+    },
+    "cliScript": {
+      "okTitle": "CLI script ready",
+      "okMessage": "CLI script found.",
+      "missingTitle": "CLI script missing",
+      "missingMessage": "CLI script not found — please verify that app resources are intact."
+    }
+  }
+}

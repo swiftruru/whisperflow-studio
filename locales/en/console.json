@@ -1,0 +1,19 @@
+{
+  "search": {
+    "placeholder": "Search…",
+    "close": "Close"
+  },
+  "filters": {
+    "all": "All",
+    "error": "Error",
+    "warn": "Warn",
+    "ok": "OK"
+  },
+  "tools": {
+    "autoScroll": "Auto-scroll",
+    "copy": "Copy",
+    "saveLog": "Save Log",
+    "clear": "Clear"
+  },
+  "bootMessage": "[WhisperFlow Studio] Ready. Select a media directory and click Scan."
+}

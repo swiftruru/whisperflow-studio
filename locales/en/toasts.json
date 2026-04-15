@@ -1,0 +1,15 @@
+{
+  "venv": {
+    "creating": "Creating Python virtualenv and installing dependencies (may take a few minutes)…",
+    "success": "Python environment ready",
+    "failed": "Environment creation failed: {{error}}"
+  },
+  "error": {
+    "copySuccess": "Error info copied",
+    "copyFailed": "Failed to copy error info"
+  },
+  "generic": {
+    "copySuccess": "Copied",
+    "copyFailed": "Copy failed"
+  }
+}

@@ -3,6 +3,12 @@
 import { clearActiveError, subscribeErrorState } from './error-state.js';
 import { getActionLabel, performErrorAction } from './error-actions.js';
 import { openErrorDialog } from './error-dialog.js';
+import { t } from '../lib/i18n.js';
+
+function localizeField(key, params, fallback) {
+  if (key) return t(key, params || undefined);
+  return fallback || '';
+}
 
 const banner = document.getElementById('error-banner');
 const badge = document.getElementById('error-banner-badge');
@@ -28,8 +34,10 @@ function render(error) {
   banner.hidden = false;
   banner.dataset.severity = error.severity || 'error';
   badge.textContent = (error.severity || 'error').toUpperCase();
-  title.textContent = error.title || '執行失敗';
-  message.textContent = error.message || '發生未預期錯誤。';
+  title.textContent = localizeField(error.titleKey, error.titleParams, error.title)
+    || t('dialogs:errorDialog.defaultTitle');
+  message.textContent = localizeField(error.messageKey, error.messageParams, error.message)
+    || t('dialogs:errorDialog.defaultMessage');
   code.textContent = error.code ? `Code: ${error.code}` : '';
   code.hidden = !error.code;
 
@@ -64,6 +72,12 @@ function initErrorBanner() {
   });
 
   subscribeErrorState(render);
+
+  // Re-render on language switch so an already-visible banner swaps
+  // title/message without needing the user to re-trigger the error.
+  window.addEventListener('app:language-changed', () => {
+    if (currentError) render(currentError);
+  });
 }
 
 export {

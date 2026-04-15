@@ -12,6 +12,8 @@ function normalizeJob(job = null) {
     ...job,
     progress: Number.isFinite(Number(job?.progress)) ? Number(job.progress) : 0,
     stageMessage: job?.stageMessage || '',
+    stageMessageKey: job?.stageMessageKey || '',
+    stageMessageParams: job?.stageMessageParams || null,
     startedAt: job?.startedAt || null,
     finishedAt: job?.finishedAt || null,
     elapsedSeconds: job?.elapsedSeconds ?? null,

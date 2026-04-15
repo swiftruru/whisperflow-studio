@@ -1,0 +1,74 @@
+{
+  "UNKNOWN_RUNTIME_ERROR": {
+    "title": "執行失敗",
+    "message": "發生未預期錯誤。"
+  },
+  "SCAN_FAILED": {
+    "title": "媒體掃描失敗",
+    "message": "掃描媒體資料夾時發生錯誤。"
+  },
+  "PREFLIGHT_BLOCKED": {
+    "title": "環境檢查未通過",
+    "message": "請先修正上方的環境問題再執行。"
+  },
+  "VENV_NOT_INITIALIZED": {
+    "title": "Python 虛擬環境尚未建立",
+    "message": "第一次執行前請先建立虛擬環境（會自動安裝依賴，約數百 MB）。"
+  },
+  "VENV_INIT_FAILED": {
+    "title": "虛擬環境建立失敗",
+    "message": "無法建立內建的 Python 虛擬環境。請查看 Console 的詳細訊息。"
+  },
+  "TRANSCRIPTION_FAILED": {
+    "title": "轉錄失敗",
+    "message": "目前檔案的轉錄流程失敗。"
+  },
+  "RUNNER_PAUSE_FAILED": {
+    "title": "無法暫停轉錄",
+    "message": "目前的轉錄無法暫停，或沒有正在執行中的任務。"
+  },
+  "RUNNER_RESUME_FAILED": {
+    "title": "無法恢復轉錄",
+    "message": "找不到已暫停的轉錄任務可供恢復。"
+  },
+  "RUNNER_SKIP_FAILED": {
+    "title": "無法跳過目前檔案",
+    "message": "沒有正在執行中的轉錄可以跳過。"
+  },
+  "RUNNER_STOP_FAILED": {
+    "title": "無法停止批次",
+    "message": "目前沒有正在執行中的轉錄任務。"
+  },
+  "BUNDLED_PYTHON_NOT_FOUND": {
+    "title": "找不到 Python 3",
+    "message": "找不到可用的系統 Python 3 來建立虛擬環境。請安裝 Python 3.10+ 或在 Settings 指定路徑。"
+  },
+  "PM_INSTALL_BAD_ARGS": {
+    "title": "參數錯誤",
+    "message": "pm:install 需要 { managerId, packageName } 兩個參數。"
+  },
+  "SHELL_OPEN_EXTERNAL_BAD_URL": {
+    "title": "無效的 URL",
+    "message": "shell:open-external 只接受 http(s) 網址。"
+  },
+  "MEDIA_ROOT_NOT_FOUND": {
+    "title": "Media Directory 不存在",
+    "message": "目前設定的媒體資料夾不存在，請重新選擇。"
+  },
+  "actions": {
+    "openSettings": "前往設定",
+    "rerunPreflight": "重新檢查",
+    "retryRun": "重新執行",
+    "retryScan": "重新掃描",
+    "openFolder": "開啟資料夾",
+    "dismiss": "關閉提示"
+  },
+  "toast": {
+    "preflightPassed": "系統檢查已通過",
+    "preflightStillFailing": "仍有環境設定需要修正",
+    "retryRunBlocked": "目前無法重新執行，請先修正環境設定或確認佇列內容。",
+    "retryScanBlocked": "目前無法重新掃描，請先確認媒體資料夾設定。",
+    "openFolderMissing": "找不到可開啟的資料夾或檔案路徑。",
+    "actionHandlerFailed": "執行錯誤處理動作時發生未預期錯誤。"
+  }
+}

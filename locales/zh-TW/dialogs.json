@@ -1,0 +1,53 @@
+{
+  "shortcuts": {
+    "title": "鍵盤快捷鍵",
+    "saveSettings": "儲存設定（Settings tab）",
+    "clearConsole": "清除 Console",
+    "searchConsole": "搜尋 Console",
+    "closeSearch": "關閉搜尋",
+    "showHelp": "顯示此說明",
+    "close": "關閉"
+  },
+  "errorDialog": {
+    "defaultTitle": "執行失敗",
+    "defaultMessage": "發生未預期錯誤。",
+    "codePrefix": "Error code: {{code}}",
+    "unknownCode": "UNKNOWN_RUNTIME_ERROR",
+    "noDetails": "沒有額外技術細節。",
+    "copyDetails": "複製錯誤資訊",
+    "close": "關閉"
+  },
+  "installFfmpeg": {
+    "title": "安裝 ffmpeg",
+    "description": "WhisperFlow Studio 需要 ffmpeg 來解碼音訊檔。請從下方選擇一個套件管理器安裝，或前往官網下載。",
+    "close": "關閉",
+    "detecting": "偵測可用的套件管理器…",
+    "detectFailed": "偵測失敗：{{error}}",
+    "noManagers": "找不到這個平台支援的套件管理器。",
+    "statusNotInstalled": "尚未安裝",
+    "statusNeedsAdmin": "需要管理員權限 — 請在自己的終端機執行",
+    "statusAvailable": "可用，可一鍵安裝",
+    "installWith": "用 {{manager}} 安裝",
+    "installing": "安裝中…",
+    "installed": "已安裝",
+    "installFailed": "[{{manager}}] 安裝失敗：{{error}}",
+    "installStart": "[{{manager}}] 開始安裝 {{package}}…",
+    "installSuccess": "{{package}} 安裝完成",
+    "openDocsButton": "前往安裝指南",
+    "copyCommand": "複製指令",
+    "openDocsFailed": "無法開啟網址：{{error}}",
+    "commandCopied": "已複製：{{command}}",
+    "copyCommandFailed": "無法複製指令"
+  },
+  "confirm": {
+    "confirmLabel": "確定",
+    "cancelLabel": "取消"
+  },
+  "closeWhileRunning": {
+    "title": "WhisperFlow Studio",
+    "message": "轉錄正在進行中",
+    "detail": "強制關閉將會中斷目前的轉錄作業，確定要關閉嗎？",
+    "buttonWait": "繼續等待",
+    "buttonForce": "強制關閉"
+  }
+}

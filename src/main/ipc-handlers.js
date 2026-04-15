@@ -283,8 +283,8 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
     } catch (error) {
       sendRunError(error, {
         code: ERROR_CODES.SCAN_FAILED,
-        title: '媒體掃描失敗',
-        message: '掃描媒體資料夾時發生錯誤。',
+        titleKey: 'errors:SCAN_FAILED.title',
+        messageKey: 'errors:SCAN_FAILED.message',
         suggestedAction: 'retry-scan',
         source: 'scan',
       });
@@ -304,8 +304,8 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
       sendRunError(
         preflight.blockingChecks[0] || createAppError({
           code: ERROR_CODES.PREFLIGHT_BLOCKED,
-          title: '環境檢查未通過',
-          message: 'Preflight failed. Please review your settings.',
+          titleKey: 'errors:PREFLIGHT_BLOCKED.title',
+          messageKey: 'errors:PREFLIGHT_BLOCKED.message',
           suggestedAction: 'rerun-preflight',
           source: 'run',
         }),
@@ -321,8 +321,8 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
     if (!venvPython || !isVenvInitialized(venvRoot)) {
       sendRunError(createAppError({
         code: ERROR_CODES.VENV_NOT_INITIALIZED,
-        title: 'Python 虛擬環境尚未建立',
-        message: '第一次執行前請先建立虛擬環境（會自動安裝依賴，約數百 MB）。',
+        titleKey: 'errors:VENV_NOT_INITIALIZED.title',
+        messageKey: 'errors:VENV_NOT_INITIALIZED.message',
         suggestedAction: 'initialize-venv',
         source: 'run',
       }));
@@ -374,7 +374,12 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
               || `Process exited with code ${code}`;
             sendRunError(createAppError({
               code: ERROR_CODES.TRANSCRIPTION_FAILED,
-              title: '轉錄失敗',
+              titleKey: 'errors:TRANSCRIPTION_FAILED.title',
+              // Python-side message is already localized via messageKey
+              // when the structured event carries one.  When it doesn't,
+              // `message` holds the raw error text from ffmpeg/torch/etc
+              // — we pass it through verbatim so the user sees the real
+              // cause, not a generic translated banner.
               message: realMessage,
               details: lastStructuredError?.meta?.reason
                 ? `${lastStructuredError.meta.reason}: ${realMessage}\n\n${stderrBuffer.trim()}`.trim()
@@ -401,8 +406,8 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
     if (!paused) {
       sendRunError(createAppError({
         code: ERROR_CODES.RUNNER_PAUSE_FAILED,
-        title: '無法暫停轉錄',
-        message: 'Unable to pause the current transcription on this platform or there is no active job.',
+        titleKey: 'errors:RUNNER_PAUSE_FAILED.title',
+        messageKey: 'errors:RUNNER_PAUSE_FAILED.message',
         suggestedAction: 'dismiss-error',
         source: 'run',
       }));
@@ -418,8 +423,8 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
     if (!resumed) {
       sendRunError(createAppError({
         code: ERROR_CODES.RUNNER_RESUME_FAILED,
-        title: '無法恢復轉錄',
-        message: 'Unable to resume the current transcription because no paused job was found.',
+        titleKey: 'errors:RUNNER_RESUME_FAILED.title',
+        messageKey: 'errors:RUNNER_RESUME_FAILED.message',
         suggestedAction: 'dismiss-error',
         source: 'run',
       }));
@@ -435,8 +440,8 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
     if (!skipped) {
       sendRunError(createAppError({
         code: ERROR_CODES.RUNNER_SKIP_FAILED,
-        title: '無法跳過目前檔案',
-        message: 'No active transcription is available to skip.',
+        titleKey: 'errors:RUNNER_SKIP_FAILED.title',
+        messageKey: 'errors:RUNNER_SKIP_FAILED.message',
         suggestedAction: 'dismiss-error',
         source: 'run',
       }));
@@ -462,7 +467,10 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
   ipcMain.handle('pm:install', async (_event, payload = {}) => {
     const { managerId, packageName } = payload;
     if (!managerId || !packageName) {
-      throw new Error('pm:install requires { managerId, packageName }');
+      const err = new Error('pm:install requires { managerId, packageName }');
+      err.i18nKey = 'errors:PM_INSTALL_BAD_ARGS.message';
+      err.code = 'PM_INSTALL_BAD_ARGS';
+      throw err;
     }
     sendLog(`[WhisperFlow] Installing ${packageName} via ${managerId}…\n`);
     try {
@@ -481,7 +489,10 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
 
   ipcMain.handle('shell:open-external', async (_event, url) => {
     if (typeof url !== 'string' || !/^https?:\/\//.test(url)) {
-      throw new Error('shell:open-external only accepts http(s) URLs');
+      const err = new Error('shell:open-external only accepts http(s) URLs');
+      err.i18nKey = 'errors:SHELL_OPEN_EXTERNAL_BAD_URL.message';
+      err.code = 'SHELL_OPEN_EXTERNAL_BAD_URL';
+      throw err;
     }
     await shell.openExternal(url);
     return { ok: true };
@@ -501,7 +512,10 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
     const { venvRoot } = getPaths();
     const systemPython = resolveSystemPython(getLocalSettings()?.pythonPath, CONFIG_METADATA_PATH);
     if (!systemPython) {
-      throw new Error('No system Python 3 interpreter found. Please install Python 3.10+ or set one in Settings.');
+      const err = new Error('No system Python 3 interpreter found. Please install Python 3.10+ or set one in Settings.');
+      err.i18nKey = 'errors:BUNDLED_PYTHON_NOT_FOUND.message';
+      err.code = 'BUNDLED_PYTHON_NOT_FOUND';
+      throw err;
     }
 
     // Make sure models_dir is in config.json BEFORE the venv finishes — that
@@ -520,7 +534,10 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
     } catch (error) {
       sendRunError(createAppError({
         code: ERROR_CODES.VENV_INIT_FAILED,
-        title: '虛擬環境建立失敗',
+        titleKey: 'errors:VENV_INIT_FAILED.title',
+        // Keep the raw exception message as fallback; it's typically the
+        // python subprocess's own stderr and often contains actionable
+        // detail (e.g. "pip can't reach pypi.org").
         message: error.message || 'Failed to initialize the bundled Python virtual environment.',
         details: error.stack || '',
         source: 'venv',
@@ -581,8 +598,8 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
     if (!stopped) {
       sendRunError(createAppError({
         code: ERROR_CODES.RUNNER_STOP_FAILED,
-        title: '無法停止批次',
-        message: 'No active transcription is running.',
+        titleKey: 'errors:RUNNER_STOP_FAILED.title',
+        messageKey: 'errors:RUNNER_STOP_FAILED.message',
         suggestedAction: 'dismiss-error',
         source: 'run',
       }));

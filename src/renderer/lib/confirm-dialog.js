@@ -1,18 +1,18 @@
 'use strict';
 
+import { t } from './i18n.js';
+
 // Themed replacement for the browser's blocking `window.confirm()`.
 // Returns a Promise<boolean>: resolves to `true` if the user clicks the
 // confirm button, `false` if they cancel, hit Escape, or click the
 // backdrop.  Reuses the existing `.modal-overlay` / `.modal` styles so
 // it inherits the app's pastel-cream theme automatically.
 //
-// Usage:
-//   const ok = await confirmDialog({
-//     title: '刪除模型',
-//     message: '確定要刪除嗎？',
-//     confirmText: '刪除',
-//     destructive: true,
-//   });
+// Default button labels come from the `dialogs:confirm.*` i18n namespace
+// so every caller that omits them still gets a localized UI.  Pass
+// explicit confirmText/cancelText when the context wants a verb other
+// than the generic "Confirm / Cancel" (e.g. "Delete" for destructive
+// actions — see model-manager.js:handleDelete).
 
 /**
  * @typedef {Object} ConfirmDialogOptions
@@ -30,10 +30,12 @@
 export function confirmDialog({
   title,
   message = '',
-  confirmText = '確定',
-  cancelText = '取消',
+  confirmText,
+  cancelText,
   destructive = false,
 } = {}) {
+  const resolvedConfirm = confirmText || t('dialogs:confirm.confirmLabel');
+  const resolvedCancel = cancelText || t('dialogs:confirm.cancelLabel');
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
@@ -60,14 +62,14 @@ export function confirmDialog({
     const cancelBtn = document.createElement('button');
     cancelBtn.type = 'button';
     cancelBtn.className = 'btn-secondary confirm-dialog-btn';
-    cancelBtn.textContent = cancelText;
+    cancelBtn.textContent = resolvedCancel;
 
     const confirmBtn = document.createElement('button');
     confirmBtn.type = 'button';
     confirmBtn.className = destructive
       ? 'btn-primary confirm-dialog-btn confirm-dialog-btn--danger'
       : 'btn-primary confirm-dialog-btn';
-    confirmBtn.textContent = confirmText;
+    confirmBtn.textContent = resolvedConfirm;
 
     actions.appendChild(cancelBtn);
     actions.appendChild(confirmBtn);

@@ -1,0 +1,65 @@
+{
+  "toolbar": {
+    "label": "Model Manager",
+    "refresh": "Refresh",
+    "dirUnset": "(not configured)"
+  },
+  "list": {
+    "loading": "Loading model list…",
+    "empty": "No models available.",
+    "loadFailed": "Load failed: {{error}}"
+  },
+  "actions": {
+    "download": "Download",
+    "delete": "Delete",
+    "installed": "Installed"
+  },
+  "venvRequired": {
+    "title": "Python virtualenv not yet created",
+    "description": "python/.venv/ must be created first and dependencies installed (faster-whisper, torch, a few hundred MB) before models can be listed or downloaded.",
+    "initializeButton": "Create environment now",
+    "initializing": "Creating…"
+  },
+  "actions": {
+    "download": "Download",
+    "delete": "Delete",
+    "installed": "Installed",
+    "downloading": "Downloading…"
+  },
+  "toast": {
+    "downloadStarted": "Downloading {{name}} (may take a few minutes depending on network)",
+    "downloadSuccess": "{{name}} downloaded",
+    "downloadFailed": "Download failed: {{error}}",
+    "deleteSuccess": "{{name}} deleted",
+    "deleteFailed": "Delete failed: {{error}}"
+  },
+  "confirmDelete": {
+    "title": "Delete model",
+    "message": "Delete model \"{{name}}\"? The downloaded weights will be removed from disk. Next use will require a re-download or a system HuggingFace cache import.",
+    "confirmText": "Delete",
+    "cancelText": "Cancel"
+  },
+  "registry": {
+    "tiny": {
+      "description": "Fastest, lowest accuracy. Good for quick previews."
+    },
+    "base": {
+      "description": "Small & fast. Usable for simple English speech."
+    },
+    "small": {
+      "description": "Balanced. Handles most clean speech well."
+    },
+    "medium": {
+      "description": "Good accuracy for a wide range of languages."
+    },
+    "large-v1": {
+      "description": "Legacy large model."
+    },
+    "large-v2": {
+      "description": "High accuracy. Recommended for Chinese/Japanese."
+    },
+    "large-v3": {
+      "description": "Newest large model. Best general accuracy."
+    }
+  }
+}

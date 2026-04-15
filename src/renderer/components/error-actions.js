@@ -5,6 +5,7 @@ import { refreshPreflight } from './preflight-panel.js';
 import { getQueueState } from './queue-state.js';
 import { triggerRun, triggerScan } from './controls-bar.js';
 import { showToast } from './toast.js';
+import { t } from '../lib/i18n.js';
 
 function normalizeActionInput(actionOrError, payload = null) {
   if (!actionOrError) return { actionType: null, actionPayload: payload };
@@ -27,17 +28,17 @@ function normalizeActionInput(actionOrError, payload = null) {
 function getActionLabel(actionType) {
   switch (actionType) {
     case 'open-settings':
-      return '前往設定';
+      return t('errors:actions.openSettings');
     case 'rerun-preflight':
-      return '重新檢查';
+      return t('errors:actions.rerunPreflight');
     case 'retry-run':
-      return '重新執行';
+      return t('errors:actions.retryRun');
     case 'retry-scan':
-      return '重新掃描';
+      return t('errors:actions.retryScan');
     case 'open-folder':
-      return '開啟資料夾';
+      return t('errors:actions.openFolder');
     case 'dismiss-error':
-      return '關閉提示';
+      return t('errors:actions.dismiss');
     default:
       return '';
   }
@@ -69,7 +70,7 @@ async function rerunPreflight() {
 
   if (result.ok) {
     clearActiveError();
-    showToast('系統檢查已通過', 'success', 1800);
+    showToast(t('errors:toast.preflightPassed'), 'success', 1800);
     return {
       handled: true,
       shouldCloseDialog: true,
@@ -78,13 +79,13 @@ async function rerunPreflight() {
 
   setActiveError(result.blockingChecks[0] || {
     code: 'PREFLIGHT_BLOCKED',
-    title: '環境檢查未通過',
-    message: '請先修正環境設定後再執行。',
+    titleKey: 'errors:PREFLIGHT_BLOCKED.title',
+    messageKey: 'errors:PREFLIGHT_BLOCKED.message',
     suggestedAction: 'open-settings',
     source: 'preflight',
   });
 
-  showToast('仍有環境設定需要修正', 'info', 2200);
+  showToast(t('errors:toast.preflightStillFailing'), 'info', 2200);
   return {
     handled: true,
     shouldCloseDialog: false,
@@ -99,7 +100,7 @@ async function retryRun() {
 
   const started = await triggerRun();
   if (!started) {
-    showToast('目前無法重新執行，請先修正環境設定或確認佇列內容。', 'error');
+    showToast(t('errors:toast.retryRunBlocked'), 'error');
     return {
       handled: false,
       shouldCloseDialog: false,
@@ -116,7 +117,7 @@ async function retryRun() {
 async function retryScan() {
   const started = await triggerScan();
   if (!started) {
-    showToast('目前無法重新掃描，請先確認媒體資料夾設定。', 'error');
+    showToast(t('errors:toast.retryScanBlocked'), 'error');
     return {
       handled: false,
       shouldCloseDialog: false,
@@ -133,7 +134,7 @@ async function retryScan() {
 async function openFolder(actionPayload = {}) {
   const path = actionPayload.filePath || actionPayload.path || actionPayload.dirPath || '';
   if (!path) {
-    showToast('找不到可開啟的資料夾或檔案路徑。', 'error');
+    showToast(t('errors:toast.openFolderMissing'), 'error');
     return {
       handled: false,
       shouldCloseDialog: false,
@@ -185,7 +186,7 @@ async function performErrorAction(actionOrError, payload = null) {
         };
     }
   } catch (error) {
-    const message = error?.message || '執行錯誤處理動作時發生未預期錯誤。';
+    const message = error?.message || t('errors:toast.actionHandlerFailed');
     showToast(message, 'error');
     return {
       handled: false,

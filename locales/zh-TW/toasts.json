@@ -1,0 +1,15 @@
+{
+  "venv": {
+    "creating": "正在建立 Python 虛擬環境並安裝依賴（可能需要數分鐘）…",
+    "success": "Python 環境建立完成",
+    "failed": "環境建立失敗：{{error}}"
+  },
+  "error": {
+    "copySuccess": "錯誤資訊已複製",
+    "copyFailed": "無法複製錯誤資訊"
+  },
+  "generic": {
+    "copySuccess": "已複製",
+    "copyFailed": "複製失敗"
+  }
+}

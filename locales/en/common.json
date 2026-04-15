@@ -1,0 +1,33 @@
+{
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "confirm": "Confirm",
+    "refresh": "Refresh",
+    "retry": "Retry",
+    "delete": "Delete",
+    "browse": "Browse…",
+    "copy": "Copy",
+    "open": "Open",
+    "openSettings": "Open settings",
+    "openFolder": "Show in Finder",
+    "showDetails": "Show details",
+    "copyDetails": "Copy details",
+    "clear": "Clear"
+  },
+  "status": {
+    "idle": "Idle",
+    "loading": "Loading…",
+    "ready": "Ready",
+    "running": "Running",
+    "failed": "Failed",
+    "paused": "Paused",
+    "completed": "Completed",
+    "notConfigured": "Not configured"
+  },
+  "emptyState": {
+    "noData": "No data",
+    "unknown": "Unknown"
+  }
+}

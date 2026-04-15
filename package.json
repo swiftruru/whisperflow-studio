@@ -1,7 +1,7 @@
 {
   "name": "whisperflow-studio",
   "productName": "WhisperFlow Studio",
-  "version": "1.4.5",
+  "version": "1.5.0",
   "description": "WhisperFlow Studio - self-contained faster-whisper desktop transcription app",
   "main": "src/main/main.js",
   "scripts": {
@@ -9,14 +9,16 @@
     "dev": "ELECTRON_RUN_AS_NODE='' electron .",
     "postinstall": "node scripts/postinstall.js",
     "clean": "node scripts/clean-dist.js",
-    "prebuild:mac": "node scripts/clean-dist.js",
-    "prebuild:win": "node scripts/clean-dist.js",
-    "prebuild:linux": "node scripts/clean-dist.js",
+    "i18n:lint": "node scripts/i18n-lint.js",
+    "prebuild:mac": "node scripts/clean-dist.js && node scripts/i18n-lint.js",
+    "prebuild:win": "node scripts/clean-dist.js && node scripts/i18n-lint.js",
+    "prebuild:linux": "node scripts/clean-dist.js && node scripts/i18n-lint.js",
     "build:mac": "electron-builder --mac",
     "build:win": "electron-builder --win",
     "build:linux": "electron-builder --linux"
   },
   "dependencies": {
+    "i18next": "^26.0.4",
     "strip-ansi": "6.0.1"
   },
   "devDependencies": {

@@ -6,6 +6,19 @@ import { showToast } from './toast.js';
 import { addHistoryEntry } from './history.js';
 import { getPreflightState, refreshPreflight, subscribePreflight } from './preflight-panel.js';
 import { getQueueState, subscribeQueueState } from './queue-state.js';
+import { t } from '../lib/i18n.js';
+
+/**
+ * Localize a preflight check's message for the controls hint strip.
+ * Preflight checks in Phase 2+ ship as { titleKey, titleParams, messageKey,
+ * messageParams }, but some legacy callers may still send raw strings.
+ * This helper accepts both.
+ */
+function localizeCheckMessage(check) {
+  if (!check) return '';
+  if (check.messageKey) return t(check.messageKey, check.messageParams || undefined);
+  return check.message || '';
+}
 
 const btnScan = document.getElementById('btn-scan');
 const btnCli = document.getElementById('btn-run-cli');
@@ -25,15 +38,15 @@ function getCheck(key) {
 
 function getScanBlockingMessage() {
   const preflight = getPreflightState();
-  if (preflight.pending) return '正在檢查環境設定…';
+  if (preflight.pending) return t('controls:blocking.checking');
   const mediaRootCheck = getCheck('media_root_path');
-  return mediaRootCheck?.status === 'error' ? mediaRootCheck.message : '';
+  return mediaRootCheck?.status === 'error' ? localizeCheckMessage(mediaRootCheck) : '';
 }
 
 function getRunBlockingMessage() {
   const preflight = getPreflightState();
-  if (preflight.pending) return '正在檢查環境設定…';
-  return preflight.blockingChecks[0]?.message || '';
+  if (preflight.pending) return t('controls:blocking.checking');
+  return localizeCheckMessage(preflight.blockingChecks[0]);
 }
 
 function syncActionState() {
@@ -48,7 +61,9 @@ function syncActionState() {
   btnScan.disabled = isRunning || scanBlocked;
   btnCli.disabled = isRunning || runBlocked;
   btnPauseResume.disabled = !hasActiveJob || queueTransitioning;
-  btnPauseResume.textContent = queuePaused ? 'Resume' : 'Pause';
+  btnPauseResume.textContent = queuePaused
+    ? t('controls:actionState.resume')
+    : t('controls:actionState.pause');
   btnSkipCurrent.disabled = !hasActiveJob || queueTransitioning;
   btnStop.disabled = !hasActiveJob || queueTransitioning;
   btnScan.classList.toggle('spinning', isRunning && lastAction === 'scan');
@@ -58,39 +73,41 @@ function syncActionState() {
     actionHint.hidden = !reason;
     actionHint.textContent = reason;
   }
-  btnScan.title = getScanBlockingMessage() || 'Scan for missing subtitles';
-  btnCli.title = getRunBlockingMessage() || 'Run transcription';
+  btnScan.title = getScanBlockingMessage() || t('controls:tooltip.scanDefault');
+  btnCli.title = getRunBlockingMessage() || t('controls:tooltip.runDefault');
   btnPauseResume.title = queueTransitioning
-    ? 'Please wait while the current process exits'
+    ? t('controls:tooltip.pauseWait')
     : queuePaused
-      ? 'Resume the current transcription'
-      : 'Pause the current transcription';
+      ? t('controls:tooltip.resumeHint')
+      : t('controls:tooltip.pauseHint');
   btnSkipCurrent.title = queueTransitioning
-    ? 'Already waiting for the current process to exit'
+    ? t('controls:tooltip.skipWait')
     : hasActiveJob
-      ? 'Skip the current file and move on'
-      : 'No active job to skip';
+      ? t('controls:tooltip.skipHint')
+      : t('controls:tooltip.skipNoActive');
   btnStop.title = queueTransitioning
-    ? 'Already waiting for the current process to exit'
+    ? t('controls:tooltip.stopWait')
     : hasActiveJob
-      ? 'Stop the current batch run'
-      : 'No active job to stop';
+      ? t('controls:tooltip.stopHint')
+      : t('controls:tooltip.stopNoActive');
 
   if (!isRunning) {
-    setStatus(preflight.pending ? 'Checking' : (preflight.ok ? 'Idle' : 'Setup'));
-    document.title = 'WhisperFlow Studio';
+    setStatus(preflight.pending
+      ? t('controls:status.checking')
+      : (preflight.ok ? t('controls:status.idle') : t('controls:status.setup')));
+    document.title = t('controls:docTitle.default');
   } else if (queueState.stage === 'skipping') {
-    setStatus('Skipping');
-    document.title = '↷ Skipping — WhisperFlow Studio';
+    setStatus(t('controls:status.skipping'));
+    document.title = t('controls:docTitle.skipping');
   } else if (queueState.stage === 'stopping') {
-    setStatus('Stopping');
-    document.title = '■ Stopping — WhisperFlow Studio';
+    setStatus(t('controls:status.stopping'));
+    document.title = t('controls:docTitle.stopping');
   } else if (queuePaused) {
-    setStatus('Paused');
-    document.title = '❚❚ Paused — WhisperFlow Studio';
+    setStatus(t('controls:status.paused'));
+    document.title = t('controls:docTitle.paused');
   } else {
-    setStatus('Running');
-    document.title = '● Running — WhisperFlow Studio';
+    setStatus(t('controls:status.running'));
+    document.title = t('controls:docTitle.running');
   }
 }
 
@@ -99,8 +116,8 @@ function setRunning(running) {
   window.electronAPI.setRunning(running);
 
   if (running) {
-    setStatus('Running');
-    document.title = '● Running — WhisperFlow Studio';
+    setStatus(t('controls:status.running'));
+    document.title = t('controls:docTitle.running');
   }
 
   syncActionState();
@@ -113,7 +130,7 @@ async function ensureScanReady() {
 
   if (mediaRootCheck?.status !== 'error') return true;
 
-  showToast('請先設定有效的媒體資料夾後再掃描', 'error');
+  showToast(t('controls:guard.scanNeedsMediaRoot'), 'error');
   syncActionState();
   return false;
 }
@@ -123,7 +140,7 @@ async function ensureRunReady() {
   const preflight = await refreshPreflight();
   if (preflight.ok) return true;
 
-  showToast('請先修正環境設定後再執行', 'error');
+  showToast(t('controls:guard.runNeedsEnv'), 'error');
   syncActionState();
   return false;
 }
@@ -226,7 +243,10 @@ window.electronAPI.onRunDone(async (code) => {
     const preflight = getPreflightState();
 
     if (queueState.stats.total > 0 && queueState.currentJob) {
-      showToast(`找到：${queueState.currentJob.fileName}（共 ${queueState.stats.total} 個）`, 'success');
+      showToast(t('controls:toast.scanFound', {
+        fileName: queueState.currentJob.fileName,
+        total: queueState.stats.total,
+      }), 'success');
       if (chkLoop.checked && preflight.ok) {
         lastAction = 'cli';
         setRunning(true);
@@ -234,14 +254,17 @@ window.electronAPI.onRunDone(async (code) => {
         return;
       }
       if (chkLoop.checked && !preflight.ok) {
-        showToast('掃描完成，但轉錄前仍需先修正環境設定', 'info');
+        showToast(t('controls:toast.scanLoopEnvBlocked'), 'info');
       }
     } else {
       if (chkLoop.checked) {
-        showToast('自動循環完成：所有檔案已轉錄', 'success');
-        window.electronAPI.notify({ title: 'WhisperFlow Studio', body: '所有檔案已轉錄完成！' });
+        showToast(t('controls:toast.loopCompleteAllDone'), 'success');
+        window.electronAPI.notify({
+          title: t('controls:notify.title'),
+          body: t('controls:notify.allFilesDone'),
+        });
       } else {
-        showToast('未找到缺字幕的媒體檔案', 'info');
+        showToast(t('controls:toast.scanNoMissing'), 'info');
       }
     }
 
@@ -254,8 +277,11 @@ window.electronAPI.onRunDone(async (code) => {
     const finishedJob = queueState.lastFinishedJob;
 
     if (code === 0) {
-      showToast('Transcription complete!', 'success');
-      window.electronAPI.notify({ title: 'WhisperFlow Studio', body: '轉錄完成！字幕已生成。' });
+      showToast(t('controls:toast.transcriptionComplete'), 'success');
+      window.electronAPI.notify({
+        title: t('controls:notify.title'),
+        body: t('controls:notify.transcribeSuccess'),
+      });
 
       if (finishedJob?.fileName) {
         addHistoryEntry({
@@ -266,27 +292,30 @@ window.electronAPI.onRunDone(async (code) => {
       }
 
       if (chkLoop.checked && queueState.stats.pending > 0) {
-        showToast('自動循環：處理下一個檔案…', 'info', 2000);
+        showToast(t('controls:toast.loopNextFile'), 'info', 2000);
         lastAction = 'cli';
         setRunning(true);
         window.electronAPI.runCli();
       } else if (chkLoop.checked) {
-        showToast('自動循環完成：佇列已全部處理', 'success');
+        showToast(t('controls:toast.loopQueueDone'), 'success');
       }
     } else if (code === -3) {
-      showToast('已跳過目前檔案', 'info');
+      showToast(t('controls:toast.skippedCurrent'), 'info');
 
       if (chkLoop.checked && queueState.stats.pending > 0) {
-        showToast('自動循環：跳到下一個檔案…', 'info', 2000);
+        showToast(t('controls:toast.loopSkipNext'), 'info', 2000);
         lastAction = 'cli';
         setRunning(true);
         window.electronAPI.runCli();
       }
     } else if (code === -2) {
-      showToast('已停止目前批次', 'info');
+      showToast(t('controls:toast.stoppedCurrent'), 'info');
     } else if (code !== -2) {
-      showToast('Transcription failed', 'error');
-      window.electronAPI.notify({ title: 'WhisperFlow Studio', body: '轉錄失敗，請查看 Console 的錯誤訊息。' });
+      showToast(t('controls:toast.transcriptionFailed'), 'error');
+      window.electronAPI.notify({
+        title: t('controls:notify.title'),
+        body: t('controls:notify.transcribeFailed'),
+      });
 
       if (finishedJob?.fileName) {
         addHistoryEntry({
@@ -302,5 +331,11 @@ window.electronAPI.onRunDone(async (code) => {
 });
 
 syncActionState();
+
+// On language switch, re-run syncActionState so the status label,
+// tooltips, and hint strip all pick up the new locale immediately.
+window.addEventListener('app:language-changed', () => {
+  syncActionState();
+});
 
 export { setRunning, triggerRun, triggerScan };

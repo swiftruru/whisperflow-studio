@@ -1,0 +1,65 @@
+{
+  "toolbar": {
+    "label": "模型管理",
+    "refresh": "重新整理",
+    "dirUnset": "（尚未設定）"
+  },
+  "list": {
+    "loading": "正在載入模型清單…",
+    "empty": "找不到任何可用模型。",
+    "loadFailed": "載入失敗：{{error}}"
+  },
+  "actions": {
+    "download": "下載",
+    "delete": "刪除",
+    "installed": "已安裝"
+  },
+  "venvRequired": {
+    "title": "Python 虛擬環境尚未建立",
+    "description": "需要先建立 python/.venv/ 並安裝依賴（faster-whisper、torch 等，約數百 MB）才能列出或下載模型。",
+    "initializeButton": "立即建立環境",
+    "initializing": "建立中…"
+  },
+  "actions": {
+    "download": "下載",
+    "delete": "刪除",
+    "installed": "已安裝",
+    "downloading": "下載中…"
+  },
+  "toast": {
+    "downloadStarted": "開始下載 {{name}}（可能需要數分鐘，取決於網路速度）",
+    "downloadSuccess": "{{name}} 下載完成",
+    "downloadFailed": "下載失敗：{{error}}",
+    "deleteSuccess": "{{name}} 已刪除",
+    "deleteFailed": "刪除失敗：{{error}}"
+  },
+  "confirmDelete": {
+    "title": "刪除模型",
+    "message": "確定要刪除模型 \"{{name}}\" 嗎？已下載的權重會從磁碟上移除，下次使用時需要重新下載或從系統 HuggingFace 快取匯入。",
+    "confirmText": "刪除",
+    "cancelText": "取消"
+  },
+  "registry": {
+    "tiny": {
+      "description": "最快、準確度最低。適合快速預覽。"
+    },
+    "base": {
+      "description": "小巧快速。可用於簡單的英文語音。"
+    },
+    "small": {
+      "description": "平衡。可處理大多數清晰語音。"
+    },
+    "medium": {
+      "description": "對多種語言都有不錯的準確度。"
+    },
+    "large-v1": {
+      "description": "舊版大型模型。"
+    },
+    "large-v2": {
+      "description": "高準確度。推薦用於中文／日文。"
+    },
+    "large-v3": {
+      "description": "最新的大型模型，綜合準確度最佳。"
+    }
+  }
+}

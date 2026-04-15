@@ -1,6 +1,7 @@
 'use strict';
 
 import { showToast } from './toast.js';
+import { t } from '../lib/i18n.js';
 import { refreshPreflight } from './preflight-panel.js';
 import { VENV_INITIALIZED_EVENT } from '../lib/venv-bootstrap.js';
 
@@ -160,12 +161,73 @@ function buildField(section, key, value) {
     inputRow.appendChild(btn);
   }
 
+  // pythonPath gets an extra "Detect now" button that re-runs the
+  // resolver from scratch.  Useful when the user installed Python AFTER
+  // the app booted (first-launch auto-detect missed it) and wants to
+  // re-discover without restarting the whole app.  We clear whatever's
+  // in the field first so `resolveSystemPython` walks the full detection
+  // chain (known paths → pyenv-win → self-report → PATH); if it still
+  // fails the field ends up empty + field-hint shows the error message.
+  if (key === 'pythonPath') {
+    const detectBtn = document.createElement('button');
+    detectBtn.className = 'btn-field-detect';
+    detectBtn.type = 'button';
+    detectBtn.textContent = t('settings:fields.pythonPath.detectButton');
+    detectBtn.title = t('settings:fields.pythonPath.detectButton');
+    detectBtn.addEventListener('click', async () => {
+      const originalLabel = detectBtn.textContent;
+      detectBtn.disabled = true;
+      detectBtn.textContent = t('settings:fields.pythonPath.detecting');
+      // Clear so the validator runs an unconstrained lookup; mark as
+      // not-auto-resolved so a subsequent failure doesn't leave a
+      // stale path in the field.
+      input.value = '';
+      input.dataset.autoResolved = 'false';
+      input.dataset.autoResolvedValue = '';
+      try {
+        await validateFieldElement(input);
+        // Main-tab preflight's "找不到 Python 3" banner uses the same
+        // resolver, so refresh it now — otherwise the user sees a
+        // successful detect here but a stale error on the Main tab.
+        await refreshPreflight();
+
+        if (input.value && input.value.trim()) {
+          showToast(
+            t('settings:fields.pythonPath.detectSuccess', { path: input.value.trim() }),
+            'success',
+            3000,
+          );
+        } else {
+          showToast(t('settings:fields.pythonPath.detectFailed'), 'error', 4000);
+        }
+      } finally {
+        detectBtn.disabled = false;
+        detectBtn.textContent = originalLabel;
+      }
+    });
+    inputRow.appendChild(detectBtn);
+  }
+
   const hint = document.createElement('div');
   hint.className = 'field-hint';
   hint.hidden = true;
 
   controlWrap.appendChild(inputRow);
   controlWrap.appendChild(hint);
+
+  // Per-field description: render a translated explanation below the
+  // input so non-expert users understand what each setting actually
+  // does.  Looked up via i18n key `settings:fields.<key>.description`
+  // and silently skipped when missing (keeps the form compact for
+  // fields we haven't documented yet — e.g. one-off debug params).
+  const descriptionText = t(`settings:fields.${key}.description`, { defaultValue: '' });
+  if (descriptionText) {
+    const descEl = document.createElement('div');
+    descEl.className = 'field-description';
+    descEl.textContent = descriptionText;
+    controlWrap.appendChild(descEl);
+  }
+
   row.appendChild(controlWrap);
   return row;
 }
@@ -202,18 +264,41 @@ function splitFormValues(data) {
   const nextAppSettings = { ...(nextConfig[APP_SETTINGS_SECTION] || {}) };
   delete nextConfig[APP_SETTINGS_SECTION];
 
+  // Re-inject any app-setting keys that exist on disk but were
+  // deliberately hidden from the form (e.g. uiLanguage, which is
+  // owned by the titlebar toggle).  Without this the form save would
+  // silently delete those keys every time the user clicks Save.
+  const preserved = {};
+  for (const hiddenKey of HIDDEN_APP_SETTING_KEYS) {
+    if (appSettingsObj && hiddenKey in appSettingsObj) {
+      preserved[hiddenKey] = appSettingsObj[hiddenKey];
+    }
+  }
+
   return {
     configData: nextConfig,
     appSettings: {
+      ...preserved,
       ...nextAppSettings,
       pythonPath: nextAppSettings.pythonPath?.trim() ? nextAppSettings.pythonPath.trim() : null,
     },
   };
 }
 
+// Keys that exist in settings.json but are NOT rendered as form fields.
+// `uiLanguage` is set from the titlebar toggle and the Settings form
+// would just duplicate that control, so we hide it here while still
+// preserving the value on disk via the save-side merge below.
+const HIDDEN_APP_SETTING_KEYS = new Set(['uiLanguage']);
+
 function getRenderedSections() {
+  const visibleAppSettings = {};
+  for (const [k, v] of Object.entries(appSettingsObj || {})) {
+    if (HIDDEN_APP_SETTING_KEYS.has(k)) continue;
+    visibleAppSettings[k] = v;
+  }
   return [
-    [APP_SETTINGS_SECTION, appSettingsObj || {}],
+    [APP_SETTINGS_SECTION, visibleAppSettings],
     ...Object.entries(configObj || {}),
   ];
 }
@@ -330,7 +415,7 @@ function initFieldValidation() {
 
 async function renderSettings() {
   const container = document.getElementById('settings-content');
-  container.innerHTML = '<p class="loading-msg">Loading config...</p>';
+  container.innerHTML = `<p class="loading-msg">${t('settings:loading')}</p>`;
 
   try {
     [configMetadata, configObj, appSettingsObj] = await Promise.all([
@@ -488,6 +573,12 @@ async function saveSettings() {
     mergedConfig = configData;
   }
 
+  // NOTE: uiLanguage no longer lives in this form — the titlebar
+  // language toggle owns it and pushes through i18n:set-language
+  // directly.  splitFormValues() re-injects the current value from
+  // `appSettingsObj` so writeAppSettings doesn't drop the key; no
+  // post-save language flip is needed here.
+
   await Promise.all([
     window.electronAPI.writeConfig(mergedConfig),
     window.electronAPI.writeAppSettings(appSettings),
@@ -515,9 +606,9 @@ const saveBtn = document.getElementById('btn-save-settings');
 saveBtn.addEventListener('click', async () => {
   await saveSettings();
   const original = saveBtn.textContent;
-  saveBtn.textContent = 'Saved ✓';
+  saveBtn.textContent = t('settings:toolbar.saved');
   saveBtn.disabled = true;
-  showToast('設定已儲存', 'success', 2000);
+  showToast(t('settings:toast.saved'), 'success', 2000);
   setTimeout(() => {
     saveBtn.textContent = original;
     saveBtn.disabled = false;
@@ -530,6 +621,20 @@ window.addEventListener(VENV_INITIALIZED_EVENT, () => {
   refreshAfterVenvInit().catch((error) => {
     console.error('[WhisperFlow Studio] Failed to refresh settings after venv init:', error);
   });
+});
+
+// Re-render the whole settings form on language switch so all the
+// field-description strings pick up the new locale.  renderSettings()
+// is idempotent and already handles re-reading config, so we just
+// call it — cheaper than surgically patching every description node.
+window.addEventListener('app:language-changed', () => {
+  // Only re-render if the form is already populated; pre-init switches
+  // are handled by the initial render.
+  if (document.getElementById('settings-content')?.children.length > 0) {
+    renderSettings().catch((error) => {
+      console.error('[WhisperFlow Studio] Failed to re-render settings on language change:', error);
+    });
+  }
 });
 
 export {

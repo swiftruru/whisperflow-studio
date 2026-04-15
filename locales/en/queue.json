@@ -1,0 +1,41 @@
+{
+  "mediaCard": {
+    "label": "Media Directory",
+    "browse": "Browse…"
+  },
+  "actions": {
+    "scan": "Scan for Missing Subtitles",
+    "run": "Run Transcription",
+    "pause": "Pause",
+    "resume": "Resume",
+    "skipCurrent": "Skip Current",
+    "stopBatch": "Stop Batch",
+    "autoLoop": "Auto-loop mode"
+  },
+  "stepGuide": {
+    "step1": "Choose a media folder",
+    "step2": "Click Scan to find files missing subtitles",
+    "step3": "Click Run to start transcription"
+  },
+  "nextCard": {
+    "label": "Next to Transcribe",
+    "remainingBadge": "{{count}} remaining",
+    "revealInFinder": "Show in Finder"
+  },
+  "panel": {
+    "label": "Queue",
+    "searchPlaceholder": "Search filename or path…",
+    "emptyPending": "No pending transcription jobs in the queue",
+    "retryFailed": "Retry Failed",
+    "clearFinished": "Clear Finished"
+  },
+  "filters": {
+    "all": "All",
+    "pending": "Pending",
+    "running": "Running",
+    "paused": "Paused",
+    "failed": "Failed",
+    "done": "Done",
+    "skipped": "Skipped"
+  }
+}

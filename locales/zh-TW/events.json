@@ -1,0 +1,20 @@
+{
+  "stage": {
+    "preparing": "準備模型與 VAD",
+    "loadingModel": "載入模型 {{model}} 中…",
+    "transcribing": "執行 VAD 與 Whisper",
+    "writingSubtitle": "寫入字幕檔",
+    "completed": "字幕檔已產生"
+  },
+  "queue": {
+    "queuedPreparing": "佇列任務準備執行中",
+    "runningInterrupted": "應用程式重啟，執行中任務已中斷",
+    "pausedRestored": "應用程式重啟，已暫停的任務已回到佇列",
+    "finishedSuccess": "字幕檔已產生",
+    "finishedFailed": "轉錄失敗",
+    "stoppedByUser": "使用者已停止",
+    "skippedByUser": "使用者已跳過",
+    "skippingWait": "正在跳過目前檔案，等待程序結束…",
+    "stoppingWait": "正在停止目前批次，等待程序結束…"
+  }
+}
