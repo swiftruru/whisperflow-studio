@@ -14,6 +14,7 @@ const {
   resolveSystemPython,
 } = require('./path-resolver');
 const { initializeBundledVenv, isVenvInitialized } = require('./venv-installer');
+const { detectAvailableManagers, installPackage } = require('./package-manager');
 const { ERROR_CODES, createAppError, normalizeUnknownError, toAppError } = require('./error-catalog');
 
 let activeQueueManager = null;
@@ -447,6 +448,44 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
   });
 
   // ── Bundled venv initialisation ──────────────────────────────────────────
+
+  // ── System Dependency Install (ffmpeg et al) ─────────────────────────
+  //
+  // Detect which package managers are available on this machine and
+  // optionally run an install through one of them.  Used by the
+  // preflight panel's "安裝 ffmpeg" button.
+
+  ipcMain.handle('pm:detect', () => {
+    return detectAvailableManagers();
+  });
+
+  ipcMain.handle('pm:install', async (_event, payload = {}) => {
+    const { managerId, packageName } = payload;
+    if (!managerId || !packageName) {
+      throw new Error('pm:install requires { managerId, packageName }');
+    }
+    sendLog(`[WhisperFlow] Installing ${packageName} via ${managerId}…\n`);
+    try {
+      await installPackage({
+        managerId,
+        packageName,
+        onLog: (text) => sendLog(text),
+      });
+      sendLog(`[WhisperFlow] ${packageName} install via ${managerId} finished.\n`);
+      return { ok: true };
+    } catch (error) {
+      sendLog(`[WhisperFlow] ${packageName} install failed: ${error.message}\n`);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('shell:open-external', async (_event, url) => {
+    if (typeof url !== 'string' || !/^https?:\/\//.test(url)) {
+      throw new Error('shell:open-external only accepts http(s) URLs');
+    }
+    await shell.openExternal(url);
+    return { ok: true };
+  });
 
   ipcMain.handle('venv:status', () => {
     const { venvRoot } = getPaths();

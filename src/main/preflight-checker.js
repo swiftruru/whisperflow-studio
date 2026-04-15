@@ -77,10 +77,10 @@ function validateFfmpeg() {
     code: ERROR_CODES.FFMPEG_NOT_FOUND,
     status: 'error',
     title: `找不到 ${missing.join(' / ')}`,
-    message: 'WhisperFlow Studio 需要 ffmpeg 解碼音訊檔。請依平台安裝後重新整理：'
-      + '\n  • macOS:  brew install ffmpeg'
-      + '\n  • Windows: scoop install ffmpeg  或  choco install ffmpeg'
-      + '\n  • Linux:  sudo apt install ffmpeg  /  sudo dnf install ffmpeg',
+    message: 'WhisperFlow Studio 需要 ffmpeg 解碼音訊檔。點擊下方按鈕自動偵測並安裝。',
+    // The renderer's preflight-panel picks this up and renders an
+    // "安裝 ffmpeg" button that opens the themed install dialog.
+    action: { type: 'install-ffmpeg', packageName: 'ffmpeg' },
   });
 }
 

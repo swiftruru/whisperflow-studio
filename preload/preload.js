@@ -38,6 +38,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readHistory:     ()             => ipcRenderer.invoke('history:read'),
   writeHistory:    (entries)      => ipcRenderer.invoke('history:write', entries),
 
+  // ── Package Managers (for ffmpeg install button) ────────────────────────
+  detectPackageManagers: ()                       => ipcRenderer.invoke('pm:detect'),
+  installPackage:        (managerId, packageName) => ipcRenderer.invoke('pm:install', { managerId, packageName }),
+  openExternal:          (url)                    => ipcRenderer.invoke('shell:open-external', url),
+
   // ── Bundled Python venv ──────────────────────────────────────────────────
   getVenvStatus:    ()            => ipcRenderer.invoke('venv:status'),
   initializeVenv:   ()            => ipcRenderer.invoke('venv:initialize'),

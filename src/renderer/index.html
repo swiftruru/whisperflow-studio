@@ -359,6 +359,26 @@
     </div>
   </div>
 
+  <!-- Install ffmpeg dialog -->
+  <div class="modal-overlay" id="install-ffmpeg-dialog" hidden>
+    <div class="modal install-ffmpeg-modal">
+      <div class="modal-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
+          <path d="M12 3v12"/>
+          <path d="m7 10 5 5 5-5"/>
+          <path d="M5 21h14"/>
+        </svg>
+      </div>
+      <h2>安裝 ffmpeg</h2>
+      <p>WhisperFlow Studio 需要 ffmpeg 來解碼音訊檔。請從下方選擇一個套件管理器安裝，或前往官網下載。</p>
+      <div class="install-ffmpeg-list" id="install-ffmpeg-list"></div>
+      <div class="install-ffmpeg-log" id="install-ffmpeg-log" hidden></div>
+      <div class="modal-actions install-ffmpeg-actions">
+        <button class="btn-secondary" id="btn-install-ffmpeg-close">關閉</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="bootstrap.js"></script>
 </body>
 </html>

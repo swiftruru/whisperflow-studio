@@ -2,6 +2,7 @@
 
 import { showToast } from './toast.js';
 import { initializeVenvWithProgress, VENV_INITIALIZED_EVENT } from '../lib/venv-bootstrap.js';
+import { openInstallFfmpegDialog } from './install-ffmpeg-dialog.js';
 
 const panel = document.getElementById('preflight-panel');
 const summaryEl = document.getElementById('preflight-summary');
@@ -82,6 +83,11 @@ async function handleCheckAction(action) {
     }
     return;
   }
+
+  if (action.type === 'install-ffmpeg') {
+    await openInstallFfmpegDialog(action.packageName || 'ffmpeg');
+    return;
+  }
 }
 
 async function runVenvInitializeFromButton(button, bodyEl) {
@@ -125,6 +131,8 @@ function createActionButton(check, rowEl) {
     button.textContent = '選擇資料夾';
   } else if (check.action.type === 'initialize-venv') {
     button.textContent = '立即建立環境';
+  } else if (check.action.type === 'install-ffmpeg') {
+    button.textContent = '安裝 ffmpeg';
   } else {
     return null;
   }

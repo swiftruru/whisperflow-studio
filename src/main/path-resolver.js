@@ -211,48 +211,109 @@ function listPythonShimCandidates() {
 }
 
 /**
- * Run ``<candidate> -c "import sys; print(sys.executable)"`` and return
- * the printed path if it looks like a real Python interpreter.
+ * Run Python (possibly via a .bat / .cmd shim) and ask it to print
+ * ``sys.executable`` back.  Returns the absolute path of the real
+ * interpreter, or ``null`` if the candidate turned out to be a Microsoft
+ * Store stub / non-Python / crashing shim.
  *
- * Goes through ``execSync`` (which on Windows defaults to cmd.exe) so
- * .bat / .cmd shims like pyenv-win's resolve correctly.  Microsoft
- * Store stubs typically exit with a non-zero code or print marketing
- * output instead of a real path; either way we'll catch it and return
- * null so the caller moves on to the next candidate.
+ * Implementation notes — the hard part is Windows quoting
+ * -----------------------------------------------------
+ * The obvious approach is ``candidate -c "import sys; print(sys.executable)"``.
+ * That works for POSIX and for direct .exe spawns on Windows, BUT it
+ * breaks for .bat shims (pyenv-win, conda-activate, etc) because the
+ * batch file has to be launched through ``cmd.exe``, and cmd.exe's
+ * parser is notoriously hostile to the semicolon-containing ``-c`` body.
+ * In particular, cmd.exe /c strips outer quotes under /S semantics,
+ * then re-parses the result, and ``;`` is a command separator — so
+ * ``"import sys; print(...)"`` becomes "run ``import sys``, then run
+ * ``print``".  Both commands fail and the resolver reports nothing.
+ *
+ * v1.4.2 attempted to wrap the whole line in an extra pair of quotes
+ * (``""${candidate}" -c "...""``) to defeat the /c quirk.  That still
+ * failed in real-world tests on pyenv-win — the quoting layers aren't
+ * commutative and at least one combination of whitespace, semicolon
+ * handling, and batch-file arg forwarding tripped it.
+ *
+ * The robust fix used here: **write a one-line Python script to a temp
+ * file and pass its path as a plain argument**.  No ``-c``, no embedded
+ * quotes, no semicolons on the command line.  Cmd.exe's parser has no
+ * opportunity to mangle anything because there's nothing left to
+ * mangle — just two space-separated tokens wrapped in quotes.
  */
 function askPythonForSelfPath(candidate) {
   const isWindows = process.platform === 'win32';
-  // cmd.exe quoting: the entire command line gets wrapped in another
-  // pair of double quotes by cmd's parser, so embedded paths with
-  // spaces need to be quoted, and the python ``-c`` body — which
-  // contains a semicolon — needs its own pair of quotes too.
-  const commandLine = isWindows
-    ? `""${candidate}" -c "import sys; print(sys.executable)""`
-    : `"${candidate}" -c 'import sys; print(sys.executable)'`;
+  const needsCmdShell = isWindows && /\.(bat|cmd)$/i.test(candidate);
 
-  let stdout = '';
-  try {
-    stdout = execSync(commandLine, {
-      encoding: 'utf-8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-      windowsHide: true,
-      timeout: 5000,
-    });
-  } catch (_) {
-    return null;
+  // For direct .exe / POSIX binaries we can use argv-based spawn, which
+  // sidesteps all shell parsing entirely.  ``-c`` is fine here because
+  // Node passes each arg verbatim to CreateProcess on Windows, and
+  // Python treats the whole ``import sys; print(sys.executable)`` as
+  // one argv entry regardless of whitespace.
+  if (!needsCmdShell) {
+    try {
+      const stdout = execFileSync(
+        candidate,
+        ['-c', 'import sys; print(sys.executable)'],
+        {
+          encoding: 'utf-8',
+          stdio: ['ignore', 'pipe', 'ignore'],
+          windowsHide: true,
+          timeout: 5000,
+        },
+      );
+      return parsePythonSelfPathOutput(stdout);
+    } catch (_) {
+      return null;
+    }
   }
 
-  // The shim printed something — make sure it's a path that exists and
-  // doesn't look like a Microsoft Store error message ("Python was not
-  // found; run without arguments to install from the Microsoft Store...").
+  // .bat / .cmd shim path: write a temp script file so the argument we
+  // pass has zero special characters.
+  const tmpDir = os.tmpdir();
+  const scriptPath = path.join(
+    tmpDir,
+    `wfs-pyfind-${process.pid}-${Date.now()}-${Math.floor(Math.random() * 1e6)}.py`,
+  );
+  try {
+    fs.writeFileSync(scriptPath, 'import sys\nprint(sys.executable)\n', 'utf-8');
+
+    // cmd.exe /d /s /c with the whole inner command double-wrapped is
+    // the documented workaround for the /c quirk: Microsoft's own docs
+    // say if the command line starts with a quote, cmd strips exactly
+    // one outer pair, so we pre-wrap with an extra pair that gets
+    // stripped, leaving the real quoting intact.
+    const stdout = execFileSync(
+      'cmd.exe',
+      ['/d', '/s', '/c', `""${candidate}" "${scriptPath}""`],
+      {
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+        windowsHide: true,
+        timeout: 5000,
+      },
+    );
+    return parsePythonSelfPathOutput(stdout);
+  } catch (_) {
+    return null;
+  } finally {
+    try {
+      fs.unlinkSync(scriptPath);
+    } catch (_) {
+      // Non-fatal: the tmp file will be cleaned up by the OS eventually.
+    }
+  }
+}
+
+function parsePythonSelfPathOutput(stdout) {
   for (const line of stdout.split(/\r?\n/)) {
     const trimmed = line.trim();
     if (!trimmed) continue;
+    // Microsoft Store stubs print marketing text instead of a real
+    // path — recognise and skip.
     if (/microsoft store|was not found|install from/i.test(trimmed)) continue;
     if (!fs.existsSync(trimmed)) continue;
     return trimmed;
   }
-
   return null;
 }
 

@@ -96,7 +96,7 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 - **First-run venv bootstrap** — the app creates its own Python virtualenv (`python/.venv`) on first launch and installs `requirements.txt` for you
 - **Structured runner events** — the bridge emits machine-readable stage events (`preparing`, `loading-model`, `transcribing`, `writing-subtitle`, `completed`, `failed`) that drive the progress UI
 - **Multi-GPU parallel transcription** — preserved from the upstream architecture, fans work across CUDA devices on Linux/Windows
-- **Preflight checks** — validates the bundled Python environment, `whisperflow` package, and media root before running
+- **Preflight checks** — validates the bundled Python environment, `whisperflow` package, `ffmpeg` / `ffprobe`, and media root before running; ffmpeg can be installed in one click via the detected system package manager
 - **Settings panel** — edit model, language, VAD, initial prompt, device, and compute type in-app
 
 ### UX
@@ -142,7 +142,7 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 |-------------|-------|
 | **Node.js** ≥ 18 | For running the Electron app |
 | **Python** ≥ 3.10 | Used only to bootstrap the app's own virtualenv on first launch. Must be on PATH or specified via `pythonPath` in `settings.json`. |
-| **ffmpeg** | Required at runtime for audio decoding. Install via `brew install ffmpeg` (macOS), `apt install ffmpeg` (Linux), or [ffmpeg.org](https://ffmpeg.org/) (Windows). |
+| **ffmpeg** | Required at runtime for audio decoding. If missing, the preflight panel shows a **安裝 ffmpeg** button that detects available package managers (Homebrew / Scoop / winget / apt / dnf / pacman) and installs it in one click — or copies the admin command for you. |
 
 > **No external faster-whisper-webui needed.** Previous versions required a separate Python project and a Poetry install. v1.4.0 rewrote the transcription core directly into `python/whisperflow/` and uses an in-app venv, so you only need Python 3.10+ on PATH.
 

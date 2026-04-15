@@ -6,6 +6,7 @@ import { initPreflightPanel, refreshPreflight } from './components/preflight-pan
 import { initErrorState } from './components/error-state.js';
 import { initErrorBanner } from './components/error-banner.js';
 import { initErrorDialog } from './components/error-dialog.js';
+import { initInstallFfmpegDialog } from './components/install-ffmpeg-dialog.js';
 import { initQueueState } from './components/queue-state.js';
 import { initQueuePanel } from './components/queue-panel.js';
 import { initModelManager } from './components/model-manager.js';
@@ -260,6 +261,7 @@ async function init() {
   initRecentDirs();
   initErrorState();
   initErrorDialog();
+  initInstallFfmpegDialog();
   initErrorBanner();
   initPreflightPanel({ onApplyDirectory: applyDirectory });
   await initQueueState();
