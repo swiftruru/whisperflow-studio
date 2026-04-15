@@ -9,6 +9,9 @@ import { initErrorDialog } from './components/error-dialog.js';
 import { initInstallFfmpegDialog } from './components/install-ffmpeg-dialog.js';
 import { initLanguageToggle } from './components/language-toggle.js';
 import { initAboutPanel } from './components/about-panel.js';
+import { initHelpPanel } from './components/help-panel.js';
+import { maybeRunFirstLaunchTour } from './components/onboarding-tour.js';
+import { initUpdateDialog } from './components/update-dialog.js';
 import { initRendererI18n } from './lib/i18n.js';
 import { applyTranslations } from './lib/i18n-dom.js';
 import { initQueueState } from './components/queue-state.js';
@@ -276,12 +279,14 @@ async function init() {
   initErrorState();
   initErrorDialog();
   initInstallFfmpegDialog();
+  initUpdateDialog();
   initErrorBanner();
   initPreflightPanel({ onApplyDirectory: applyDirectory });
   await initQueueState();
   initQueuePanel();
   initModelManager();
   await initAboutPanel();
+  initHelpPanel();
   const startupTasks = [
     refreshPreflight(),
     Promise.resolve().then(() => renderSettings()),
@@ -296,6 +301,12 @@ async function init() {
       console.error('[WhisperFlow Studio] Startup task failed:', result.reason);
     }
   });
+
+  // First-launch onboarding tour — triggers after everything is ready.
+  // Internally checks the `hasSeenOnboarding` flag and defers if
+  // preflight is still blocking.  Safe to call every boot; it no-ops
+  // for returning users.
+  maybeRunFirstLaunchTour();
 }
 
 init().catch((error) => {

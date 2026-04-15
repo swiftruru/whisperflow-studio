@@ -128,13 +128,21 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 
 ### About page
 
-- **Dedicated About tab** — hero block with app icon + live version badge (reads from `package.json` via IPC), author card with monogram avatar placeholder, tech stack card grouped by feature area, credits & license card with inline links to `NOTICES.md` and GitHub Issues
+- **Dedicated About tab** — hero block with app icon + live version badge (reads from `package.json` via IPC), author card with monogram avatar placeholder, tech stack card grouped by feature area, a dedicated **Software updates** card with a one-click **Check for updates** button, and credits & license card with inline links to `NOTICES.md` and GitHub Issues
 - **One-click external links** — GitHub repo, personal site, notices, and issue reporter all go through the sandboxed `shell:open-external` IPC (http(s) only)
-- **Fully bilingual** — 42 keys in the `about` namespace, live-switches with the titlebar language toggle
+- **Fully bilingual** — the `about` namespace lives alongside 15 others, live-switches with the titlebar language toggle
+
+### In-app updates
+
+- **5-second passive launch check** — on every app start the updater silently queries GitHub Releases and only surfaces the update dialog when a newer version is actually available; otherwise you see nothing
+- **Manual "Check for Updates…"** — exposed both in the native application menu (VS Code-style, in the app menu on macOS / the Help menu on Windows/Linux) and on the About tab's Software updates card; manual checks always give feedback including an "up to date" toast
+- **Three-button update dialog** — themed modal with **Update now** / **Skip this version** / **Remind me later**; skipping a specific version silently ignores it until a newer one ships, while "remind me later" just closes without persisting state
+- **Platform-aware strategy** — Windows NSIS installer gets full `electron-updater` auto-download + SHA-512-verified install + restart; macOS DMG, Windows portable and Linux AppImage redirect to the GitHub release page because unsigned or non-overwritable installers can't safely auto-install
+- **Help panel + first-launch onboarding tour** — a new titlebar Help button opens an in-app help panel with bilingual articles; on first run, a five-step spotlight tour walks new users through directory selection, model management, scan, transcription, and the queue — gated by `hasSeenOnboarding` and preflight state so it never fires during bootstrap
 
 ### Internationalization (zh-TW / en)
 
-- **Production-grade i18n architecture** — built on [i18next](https://www.i18next.com/) with 13 namespaces split by feature area (`common`, `sidebar`, `preflight`, `settings`, `queue`, `progress`, `models`, `console`, `controls`, `dialogs`, `errors`, `events`, `toasts`). Over 370 keys per locale.
+- **Production-grade i18n architecture** — built on [i18next](https://www.i18next.com/) with 16 feature namespaces (`common`, `sidebar`, `preflight`, `settings`, `queue`, `progress`, `models`, `console`, `controls`, `dialogs`, `errors`, `events`, `toasts`, `about`, `help`, `updater`). ~547 keys per locale.
 - **Titlebar language toggle** — one-click flip between Traditional Chinese and English; all static HTML, dynamic components, Python runner events, and Electron native dialogs switch live without restart
 - **Auto-detect on first launch** — reads `app.getLocale()` and picks `zh-TW` for any Chinese system, `en` for English, with `zh-TW` as the fallback
 - **Key-based main→renderer contract** — `createAppError` / `createPreflightCheck` / Python `[WhisperFlowEvent]` all carry `messageKey` + `messageParams` instead of raw strings, so the renderer can localize at display time and switching language updates already-visible error banners / preflight checks

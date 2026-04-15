@@ -289,7 +289,11 @@ function splitFormValues(data) {
 // `uiLanguage` is set from the titlebar toggle and the Settings form
 // would just duplicate that control, so we hide it here while still
 // preserving the value on disk via the save-side merge below.
-const HIDDEN_APP_SETTING_KEYS = new Set(['uiLanguage']);
+const HIDDEN_APP_SETTING_KEYS = new Set([
+  'uiLanguage',       // owned by the titlebar language toggle
+  'hasSeenOnboarding', // internal onboarding-tour flag, not user-editable
+  'updater',           // nested object owned by the updater module
+]);
 
 function getRenderedSections() {
   const visibleAppSettings = {};

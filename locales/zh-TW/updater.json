@@ -1,0 +1,45 @@
+{
+  "menu": {
+    "checkForUpdates": "檢查更新…"
+  },
+  "about": {
+    "cardLabel": "軟體更新",
+    "description": "檢查 GitHub Releases 上是否有新版本。檢查過程不會蒐集個人資料。",
+    "checkForUpdates": "檢查更新"
+  },
+  "dialog": {
+    "title": "有新版本可用",
+    "subtitle": "發現一個比你目前執行中更新的版本。",
+    "currentVersion": "目前版本",
+    "latestVersion": "最新版本",
+    "releaseNotes": "更新內容",
+    "viewFullNotes": "查看完整更新紀錄",
+    "platformNoteMac": "因為 macOS 版本未簽章，我們會把你導向 GitHub 頁面，請手動下載並取代舊版。",
+    "platformNoteWindowsAutoUpdate": "點擊下方按鈕會自動下載並安裝新版本，完成後 App 會自動重啟。",
+    "platformNotePortable": "Portable 版無法自動更新，請到 GitHub 頁面手動下載最新版本。"
+  },
+  "actions": {
+    "download": "前往更新",
+    "downloadWindows": "下載並安裝",
+    "skip": "略過此版本",
+    "later": "下次再提示",
+    "installNow": "立即重啟安裝",
+    "cancelDownload": "取消下載",
+    "close": "關閉"
+  },
+  "toast": {
+    "checking": "正在檢查更新…",
+    "upToDate": "你目前已是最新版本（v{{version}}）",
+    "checkFailed": "無法檢查更新：{{error}}",
+    "downloadStarted": "開始下載新版本…",
+    "downloadFailed": "下載失敗：{{error}}",
+    "downloadComplete": "下載完成，準備重新啟動",
+    "skipped": "已略過 v{{version}}，有更新的版本時會再通知你",
+    "openPageFailed": "無法打開 GitHub 頁面：{{error}}"
+  },
+  "progress": {
+    "label": "下載中 {{percent}}%",
+    "waiting": "準備下載…",
+    "downloaded": "下載完成"
+  }
+}

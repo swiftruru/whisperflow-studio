@@ -69,20 +69,43 @@ function parseAttrSpec(spec) {
 function translateElement(el) {
   const params = parseParams(el);
 
+  // Capture the original HTML fallback once so we can restore it if
+  // t() can't resolve the key.  We stash it on the element the first
+  // time we see it so subsequent language switches still have a
+  // reliable fallback to roll back to.
   const textKey = el.getAttribute(DATA_KEY_ATTR);
   if (textKey) {
-    el.textContent = t(textKey, params);
+    if (el.dataset.i18nFallback === undefined) {
+      el.dataset.i18nFallback = el.textContent || '';
+    }
+    const translated = t(textKey, params);
+    // t() returns empty string when i18next couldn't resolve the
+    // key (missing namespace, missing path, etc.).  In that case we
+    // keep the original HTML fallback text instead of blanking the
+    // element — critical for Windows builds where a JSON file has
+    // been observed to silently fail to load, leaving callers
+    // otherwise showing raw key paths.
+    el.textContent = translated || el.dataset.i18nFallback;
   }
 
   const htmlKey = el.getAttribute(DATA_HTML_ATTR);
   if (htmlKey) {
-    el.innerHTML = t(htmlKey, params);
+    if (el.dataset.i18nHtmlFallback === undefined) {
+      el.dataset.i18nHtmlFallback = el.innerHTML || '';
+    }
+    const translated = t(htmlKey, params);
+    el.innerHTML = translated || el.dataset.i18nHtmlFallback;
   }
 
   const attrSpec = el.getAttribute(DATA_ATTRS_ATTR);
   if (attrSpec) {
     for (const [attrName, key] of parseAttrSpec(attrSpec)) {
-      el.setAttribute(attrName, t(key, params));
+      const translated = t(key, params);
+      if (translated) {
+        el.setAttribute(attrName, translated);
+      }
+      // If missing, we leave the attribute as whatever it was before
+      // (often the English fallback baked into the HTML).
     }
   }
 }

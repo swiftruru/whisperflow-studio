@@ -94,3 +94,21 @@ jobs:
           done
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload electron-updater metadata
+        shell: bash
+        # electron-builder generates `latest.yml` (Windows),
+        # `latest-mac.yml` (macOS), and `latest-linux.yml` (Linux)
+        # next to the installers.  electron-updater on Windows NSIS
+        # needs `latest.yml` as a release asset so it can verify the
+        # SHA512 of the downloaded installer before running it.
+        # Upload whichever metadata file exists on this platform's
+        # build — failing to find one is expected on other platforms
+        # and shouldn't fail the step.
+        run: |
+          for f in dist/latest*.yml; do
+            [ -f "$f" ] || continue
+            gh release upload "${{ github.ref_name }}" "$f" --clobber
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

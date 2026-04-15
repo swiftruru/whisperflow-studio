@@ -72,12 +72,39 @@ async function initRendererI18n() {
 }
 
 /**
- * Synchronous translate.  Safe to call before init returns: falls back
- * to the key itself so static DOM that renders pre-boot doesn't break.
+ * Return the "key tail" — the part of a key after the last namespace
+ * separator.  `settings:fields.pythonPath.description` → `fields.pythonPath.description`.
+ * This is what i18next returns when a key is missing from its resources,
+ * and we use it to detect and recover from missing-namespace situations.
+ */
+function _keyTail(key) {
+  const idx = key.indexOf(':');
+  return idx >= 0 ? key.slice(idx + 1) : key;
+}
+
+/**
+ * Synchronous translate.
+ *
+ * Defensive behaviour: if i18next returns the key (or the key tail)
+ * — which happens when the namespace didn't load or the path is
+ * missing — we fall back to `params.defaultValue` if provided, or to
+ * an empty string.  This prevents users from ever seeing raw dot-path
+ * strings like "fields.pythonPath.description" in the UI, even when
+ * a JSON file fails to load (observed on some Windows builds where
+ * a specific namespace file silently failed to parse).  Callers that
+ * explicitly want the raw key on miss can pass `{ defaultValue: key }`.
  */
 function t(key, params) {
-  if (!_ready) return key;
-  return i18next.t(key, params);
+  const defaultValue = params && typeof params.defaultValue === 'string'
+    ? params.defaultValue
+    : '';
+  if (!_ready) return defaultValue || key;
+  const result = i18next.t(key, params);
+  if (typeof result !== 'string') return defaultValue;
+  if (result === key || result === _keyTail(key)) {
+    return defaultValue;
+  }
+  return result;
 }
 
 function getCurrentLanguage() {

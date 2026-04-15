@@ -1,0 +1,204 @@
+{
+  "titlebar": {
+    "tooltip": "打開使用說明"
+  },
+  "panel": {
+    "title": "使用說明",
+    "close": "關閉"
+  },
+  "sections": {
+    "quickStart": {
+      "title": "⚡ 快速開始",
+      "subtitle": "從零到第一個字幕",
+      "description": "WhisperFlow Studio 把影片的語音轉成字幕檔，並存放在與原影片相同的資料夾。核心流程只有三步：<strong>匯入 → 掃描 → 轉錄</strong>。",
+      "flowImport": "匯入資料夾",
+      "flowScan": "掃描缺字幕",
+      "flowRun": "開始轉錄",
+      "flowDone": "字幕產生",
+      "replayTour": "重新播放新手導覽"
+    },
+    "import": {
+      "title": "1. 匯入影音檔",
+      "dragDrop": {
+        "label": "兩種匯入方式",
+        "body": "點 Main 分頁的 <strong>瀏覽…</strong> 按鈕選擇資料夾，或直接把資料夾拖放到左側的 <strong>Media Directory</strong> 卡片。"
+      },
+      "fileTypes": {
+        "label": "支援的格式",
+        "body": "影片：<code>mp4 / mkv / mov / avi / m4v / ts</code>；音訊：<code>mp3 / wav / m4a / flac / ogg / aiff</code>。"
+      },
+      "recursive": {
+        "label": "遞迴掃描",
+        "body": "子資料夾裡的檔案也會被掃到。已經有 <code>.srt</code> 或 <code>.vtt</code> 伴隨檔的影片會自動跳過。"
+      }
+    },
+    "prepare": {
+      "title": "2. 準備環境（第一次必看）",
+      "intro": "首次使用需要做三個一次性的設定。之後每次開 app 都會自動就緒。",
+      "model": {
+        "label": "下載一個 Whisper 模型",
+        "body": "到 <strong>Models</strong> 分頁選一個模型按下載。建議新手先選 <code>small</code>（快、體積約 465 MB）或 <code>medium</code>（品質更好、約 1.5 GB）。中文／日文使用者建議直接用 <code>large-v2</code>（約 2.9 GB）。"
+      },
+      "ffmpeg": {
+        "label": "確認 ffmpeg 已安裝",
+        "body": "如果 <strong>System Check</strong> 面板顯示「找不到 ffmpeg」，點旁邊的 <strong>安裝 ffmpeg</strong> 按鈕會跳出套件管理器對話框，自動偵測 Homebrew / Scoop / winget 並一鍵安裝。"
+      },
+      "python": {
+        "label": "Python 虛擬環境",
+        "body": "第一次點 Run 時會自動建立。也可以到 <strong>Settings</strong> 旁邊的 <strong>立即偵測</strong> 按鈕先確認系統有可用的 Python 3.10+。"
+      },
+      "openModels": "打開 Models 分頁"
+    },
+    "settings": {
+      "title": "3. 設定轉錄參數",
+      "intro": "打開 <strong>Settings</strong> 分頁，每個欄位下面都有中文說明。幾個重要的：",
+      "model": {
+        "label": "model",
+        "body": "從 Models 分頁已下載的清單挑一個。模型越大越準但越慢。"
+      },
+      "language": {
+        "label": "language",
+        "body": "留空會自動偵測。指定語言（例如 Chinese、Japanese）通常能得到更穩定的結果。"
+      },
+      "vad": {
+        "label": "vad",
+        "body": "建議用 <code>silero-vad-skip-gaps</code>，可以過濾靜音區段、大幅加速。設成 <code>none</code> 則整段送給 Whisper。"
+      },
+      "initialPrompt": {
+        "label": "initial_prompt",
+        "body": "給 Whisper 的前置提示。選語言時會自動套用預設（中文預設是「台灣繁體中文」）。你也可以自己寫特定術語。"
+      },
+      "openSettings": "打開 Settings 分頁"
+    },
+    "run": {
+      "title": "4. 開始轉錄與監控",
+      "scan": {
+        "label": "先掃描",
+        "body": "點 <strong>Scan for Missing Subtitles</strong>，app 會把資料夾裡缺字幕的檔案列成佇列。"
+      },
+      "runBtn": {
+        "label": "開始轉錄",
+        "body": "點 <strong>Run Transcription</strong>，佇列裡的第一個檔案會開始處理。進度顯示在下方的 <strong>Batch Progress</strong> 卡片。"
+      },
+      "controls": {
+        "label": "進行中的控制",
+        "body": "可以隨時按 <strong>Pause</strong> 暫停、<strong>Skip Current</strong> 跳過目前檔、<strong>Stop Batch</strong> 整批停止。"
+      },
+      "autoLoop": {
+        "label": "自動循環模式",
+        "body": "勾起來的話，一個檔案轉完會自動處理下一個。適合批次跑一整個資料夾。"
+      }
+    },
+    "results": {
+      "title": "5. 找到轉錄結果",
+      "location": {
+        "label": "字幕檔存在哪裡？",
+        "body": "<strong>跟原影片存在同一個資料夾</strong>。檔名相同，副檔名是 <code>.srt</code> / <code>.vtt</code> / <code>.txt</code> / <code>.json</code>。"
+      },
+      "history": {
+        "label": "最近轉錄",
+        "body": "Main 分頁底下的 <strong>最近轉錄</strong> 清單會列出最近 10 筆。點 <strong>在 Finder 中顯示</strong> 可以直接開資料夾。"
+      },
+      "reveal": {
+        "label": "直接開啟資料夾",
+        "body": "當 <strong>Next to Transcribe</strong> 卡片出現時，點 <strong>在 Finder 中顯示</strong> 會打開檔案所在的資料夾。"
+      }
+    },
+    "faq": {
+      "title": "❓ 常見問題",
+      "items": {
+        "multilingual": {
+          "q": "可以轉錄多國語言嗎？",
+          "a": "可以。Whisper 原生支援 99 種語言，在 Settings 的 language 欄位選想要的語言即可。"
+        },
+        "offline": {
+          "q": "需要連網嗎？",
+          "a": "只有第一次下載 Whisper 模型時需要。下載完之後整個轉錄流程完全離線。"
+        },
+        "concurrent": {
+          "q": "可以同時跑多個檔案嗎？",
+          "a": "一次處理一個，但打開「自動循環模式」就會自動接到下一個。"
+        },
+        "gpu": {
+          "q": "有支援 GPU 加速嗎？",
+          "a": "Linux / Windows 如果有 CUDA 會自動使用。macOS 目前走 CPU 推論。"
+        },
+        "privacy": {
+          "q": "我的檔案會被上傳到哪裡嗎？",
+          "a": "不會，完全本機處理。除了第一次下載模型，沒有任何網路請求。"
+        },
+        "runGrey": {
+          "q": "Scan 已經掃過了，為什麼 Run 按鈕還是灰的？",
+          "a": "先看左邊的 <strong>System Check</strong> 面板 — 通常是有個 blocking error（例如 venv 尚未建立、找不到 ffmpeg）需要先處理。"
+        }
+      }
+    },
+    "troubleshoot": {
+      "title": "🛠 疑難排解",
+      "python": {
+        "label": "找不到 Python 3",
+        "body": "到 <strong>Settings</strong> 按 pythonPath 旁的 <strong>立即偵測</strong> 按鈕。如果還是找不到，手動指定你的 Python 3.10+ 可執行檔路徑。"
+      },
+      "ffmpeg": {
+        "label": "找不到 ffmpeg / ffprobe",
+        "body": "點 <strong>System Check</strong> 底下的 <strong>安裝 ffmpeg</strong> 按鈕；或是手動執行 <code>brew install ffmpeg</code>（macOS）、<code>scoop install ffmpeg</code>（Windows）、<code>sudo apt install ffmpeg</code>（Linux）。"
+      },
+      "modelSlow": {
+        "label": "模型下載很慢",
+        "body": "第一次抓 <code>large-v2</code> 需要下載約 2.9 GB，正常情況下要幾分鐘到十幾分鐘。之後的轉錄都是離線的。"
+      },
+      "timingOff": {
+        "label": "字幕時間軸有偏移",
+        "body": "檢查 Settings 的 <code>vad_padding</code>（預設 1 秒）。加大可以避免切到語音開頭；減小則能貼近原始語音段。"
+      },
+      "errorBanner": {
+        "label": "看到紅色錯誤 banner",
+        "body": "點 banner 上的 <strong>查看詳細資訊</strong> 會打開包含 error code 的完整錯誤訊息，方便搜尋或回報問題。"
+      }
+    },
+    "shortcuts": {
+      "title": "⌨ 快捷鍵",
+      "intro": "WhisperFlow Studio 支援以下快捷鍵：",
+      "saveSettings": "儲存設定（Settings 分頁）",
+      "clearConsole": "清除 Console",
+      "searchConsole": "搜尋 Console",
+      "closeSearch": "關閉搜尋",
+      "showShortcuts": "顯示快捷鍵清單"
+    }
+  },
+  "tour": {
+    "welcome": {
+      "title": "歡迎使用 WhisperFlow Studio",
+      "body": "我們會在 5 步內帶你完成第一次影音轉錄。全程可以隨時跳過。",
+      "start": "開始",
+      "skip": "跳過"
+    },
+    "step1": {
+      "title": "步驟 1：選擇媒體資料夾",
+      "body": "點這個 <strong>瀏覽…</strong> 按鈕挑一個裝影片或音訊的資料夾。我們會遞迴找出裡面還沒有字幕的檔案。"
+    },
+    "step2": {
+      "title": "步驟 2：準備 Whisper 模型",
+      "body": "第一次使用要先到 <strong>Models</strong> 分頁下載一個模型。建議先從 <code>small</code> 或 <code>medium</code> 開始。"
+    },
+    "step3": {
+      "title": "步驟 3：掃描缺字幕的檔案",
+      "body": "點 <strong>Scan</strong>，app 會建立一個「待轉錄佇列」。旁邊的步驟引導卡也會告訴你流程。"
+    },
+    "step4": {
+      "title": "步驟 4：開始轉錄",
+      "body": "點 <strong>Run</strong> 開始處理佇列裡的第一個檔案。可以隨時在下方的進度卡暫停、跳過或停止。"
+    },
+    "step5": {
+      "title": "步驟 5：查看進度與結果",
+      "body": "進度會顯示在這裡。轉錄完成的字幕會 <strong>跟原影片存在同一個資料夾</strong>（副檔名是 <code>.srt</code> / <code>.vtt</code>）。隨時可以點 titlebar 的 <strong>?</strong> 按鈕重新看這個導覽。"
+    },
+    "nav": {
+      "prev": "上一步",
+      "next": "下一步",
+      "finish": "完成",
+      "skip": "跳過",
+      "progress": "步驟 {{current}} / {{total}}"
+    }
+  }
+}

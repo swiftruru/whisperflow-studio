@@ -1,6 +1,16 @@
 appId: com.ruru.whisperflow-studio
 productName: WhisperFlow Studio
-publish: null
+# Publish target — only used so electron-builder generates the
+# `latest.yml` / `latest-mac.yml` / `latest-linux.yml` update-metadata
+# files alongside the installer artifacts.  Actual asset upload to
+# GitHub is still done manually via `gh release upload` in the CI
+# workflow (see .github/workflows/release.yml), not by electron-builder.
+# We pass `--publish never` to the build command to be explicit.
+publish:
+  provider: github
+  owner: swiftruru
+  repo: whisperflow-studio
+  releaseType: release
 directories:
   output: dist
 

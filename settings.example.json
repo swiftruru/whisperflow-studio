@@ -1,4 +1,8 @@
 {
   "pythonPath": null,
-  "uiLanguage": "auto"
+  "uiLanguage": "auto",
+  "hasSeenOnboarding": false,
+  "updater": {
+    "skippedVersion": null
+  }
 }

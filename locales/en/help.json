@@ -1,0 +1,204 @@
+{
+  "titlebar": {
+    "tooltip": "Open user guide"
+  },
+  "panel": {
+    "title": "User Guide",
+    "close": "Close"
+  },
+  "sections": {
+    "quickStart": {
+      "title": "⚡ Quick Start",
+      "subtitle": "From zero to your first subtitle",
+      "description": "WhisperFlow Studio turns the speech in your videos into subtitle files, saved right next to the originals. The core flow is just three steps: <strong>Import → Scan → Transcribe</strong>.",
+      "flowImport": "Import folder",
+      "flowScan": "Scan for missing",
+      "flowRun": "Run transcription",
+      "flowDone": "Subtitles ready",
+      "replayTour": "Replay the welcome tour"
+    },
+    "import": {
+      "title": "1. Import media files",
+      "dragDrop": {
+        "label": "Two ways to import",
+        "body": "Click the <strong>Browse…</strong> button on the Main tab to pick a folder, or drag a folder directly onto the <strong>Media Directory</strong> card in the left panel."
+      },
+      "fileTypes": {
+        "label": "Supported formats",
+        "body": "Video: <code>mp4 / mkv / mov / avi / m4v / ts</code>; audio: <code>mp3 / wav / m4a / flac / ogg / aiff</code>."
+      },
+      "recursive": {
+        "label": "Recursive scan",
+        "body": "Files in subfolders are included. Videos that already have a matching <code>.srt</code> or <code>.vtt</code> sidecar are automatically skipped."
+      }
+    },
+    "prepare": {
+      "title": "2. Prepare your environment (first-time setup)",
+      "intro": "There's a small one-time setup before the first run. Subsequent launches are ready to go.",
+      "model": {
+        "label": "Download a Whisper model",
+        "body": "Open the <strong>Models</strong> tab and pick one to download. For newcomers, <code>small</code> (fast, ~465 MB) or <code>medium</code> (better quality, ~1.5 GB) are good starting points. For Chinese / Japanese audio, go straight to <code>large-v2</code> (~2.9 GB)."
+      },
+      "ffmpeg": {
+        "label": "Verify ffmpeg is installed",
+        "body": "If the <strong>System Check</strong> panel says <em>ffmpeg not found</em>, click the <strong>Install ffmpeg</strong> button next to it — a themed dialog will detect Homebrew / Scoop / winget and install in one click."
+      },
+      "python": {
+        "label": "Python virtualenv",
+        "body": "Created automatically the first time you click Run. You can also hit <strong>Detect now</strong> next to pythonPath in <strong>Settings</strong> to verify a compatible Python 3.10+ is reachable."
+      },
+      "openModels": "Open Models tab"
+    },
+    "settings": {
+      "title": "3. Tune transcription parameters",
+      "intro": "Open the <strong>Settings</strong> tab — every field has an inline description. The important ones:",
+      "model": {
+        "label": "model",
+        "body": "Pick one you've already downloaded from the Models tab. Bigger models are more accurate but slower."
+      },
+      "language": {
+        "label": "language",
+        "body": "Leave blank to auto-detect. Specifying a language usually gives more stable results."
+      },
+      "vad": {
+        "label": "vad",
+        "body": "Recommended: <code>silero-vad-skip-gaps</code>. It filters out silent regions and dramatically speeds up transcription. Setting this to <code>none</code> sends the entire file to Whisper."
+      },
+      "initialPrompt": {
+        "label": "initial_prompt",
+        "body": "A priming string fed to Whisper. Picking a language auto-fills a sensible default; you can also write your own (e.g. domain-specific terminology)."
+      },
+      "openSettings": "Open Settings tab"
+    },
+    "run": {
+      "title": "4. Run and monitor",
+      "scan": {
+        "label": "Scan first",
+        "body": "Click <strong>Scan for Missing Subtitles</strong>. The app lists every file in the folder that still needs subtitles."
+      },
+      "runBtn": {
+        "label": "Start transcription",
+        "body": "Click <strong>Run Transcription</strong>. The first queued file starts processing. Live progress shows up in the <strong>Batch Progress</strong> card below."
+      },
+      "controls": {
+        "label": "In-flight controls",
+        "body": "Hit <strong>Pause</strong> to pause, <strong>Skip Current</strong> to move past the current file, or <strong>Stop Batch</strong> to abort everything."
+      },
+      "autoLoop": {
+        "label": "Auto-loop mode",
+        "body": "Enable to automatically move on to the next file when one finishes — perfect for unattended batch processing of a whole folder."
+      }
+    },
+    "results": {
+      "title": "5. Find your results",
+      "location": {
+        "label": "Where do subtitle files go?",
+        "body": "<strong>Right next to the original video, in the same folder.</strong> Same filename, new extensions: <code>.srt</code> / <code>.vtt</code> / <code>.txt</code> / <code>.json</code>."
+      },
+      "history": {
+        "label": "Recent transcripts",
+        "body": "The <strong>Recent Transcripts</strong> list at the bottom of the Main tab tracks the last 10. Click <strong>Show in Finder</strong> to open the folder directly."
+      },
+      "reveal": {
+        "label": "Open folder directly",
+        "body": "When the <strong>Next to Transcribe</strong> card is visible, click <strong>Show in Finder</strong> to jump straight to the file's folder."
+      }
+    },
+    "faq": {
+      "title": "❓ Frequently Asked Questions",
+      "items": {
+        "multilingual": {
+          "q": "Can it transcribe multiple languages?",
+          "a": "Yes. Whisper natively supports 99 languages; just set the language field in Settings."
+        },
+        "offline": {
+          "q": "Does it need the internet?",
+          "a": "Only the first time, to download the Whisper model. After that, transcription is fully offline."
+        },
+        "concurrent": {
+          "q": "Can it process multiple files at once?",
+          "a": "One at a time — but enabling Auto-loop mode makes it automatically continue to the next file."
+        },
+        "gpu": {
+          "q": "Is there GPU acceleration?",
+          "a": "Linux / Windows will automatically use CUDA if available. macOS currently runs on CPU."
+        },
+        "privacy": {
+          "q": "Is my media uploaded anywhere?",
+          "a": "No — everything is processed locally. Apart from the one-time model download, there's no outbound network activity."
+        },
+        "runGrey": {
+          "q": "Scan worked, but Run is still greyed out — why?",
+          "a": "Check the <strong>System Check</strong> panel on the left — there's usually a blocking issue like <em>venv not initialised</em> or <em>ffmpeg not found</em> that needs fixing first."
+        }
+      }
+    },
+    "troubleshoot": {
+      "title": "🛠 Troubleshooting",
+      "python": {
+        "label": "Python 3 not found",
+        "body": "Go to <strong>Settings</strong> and click <strong>Detect now</strong> next to pythonPath. If it still can't find one, specify a path to your Python 3.10+ executable manually."
+      },
+      "ffmpeg": {
+        "label": "ffmpeg / ffprobe not found",
+        "body": "Click the <strong>Install ffmpeg</strong> button in <strong>System Check</strong>. Or install manually: <code>brew install ffmpeg</code> (macOS), <code>scoop install ffmpeg</code> (Windows), <code>sudo apt install ffmpeg</code> (Linux)."
+      },
+      "modelSlow": {
+        "label": "Model download is slow",
+        "body": "The first <code>large-v2</code> download is about 2.9 GB — expect a few to fifteen minutes depending on your connection. Subsequent runs are fully offline."
+      },
+      "timingOff": {
+        "label": "Subtitle timing is off",
+        "body": "Check the <code>vad_padding</code> setting (default: 1s). Increase it to avoid clipping the start of utterances; decrease it to hug the raw speech more tightly."
+      },
+      "errorBanner": {
+        "label": "Red error banner appeared",
+        "body": "Click <strong>Show details</strong> on the banner to open the full error message with an error code — useful for searching or reporting the issue."
+      }
+    },
+    "shortcuts": {
+      "title": "⌨ Keyboard Shortcuts",
+      "intro": "WhisperFlow Studio supports these shortcuts:",
+      "saveSettings": "Save settings (Settings tab)",
+      "clearConsole": "Clear Console",
+      "searchConsole": "Search Console",
+      "closeSearch": "Close search",
+      "showShortcuts": "Show shortcuts list"
+    }
+  },
+  "tour": {
+    "welcome": {
+      "title": "Welcome to WhisperFlow Studio",
+      "body": "We'll walk you through your first transcription in 5 quick steps. You can skip the tour at any time.",
+      "start": "Start",
+      "skip": "Skip"
+    },
+    "step1": {
+      "title": "Step 1: Choose a media folder",
+      "body": "Click the <strong>Browse…</strong> button to pick a folder of videos or audio files. WhisperFlow recursively finds every file that still needs subtitles."
+    },
+    "step2": {
+      "title": "Step 2: Download a Whisper model",
+      "body": "On your first run, open the <strong>Models</strong> tab and download a model. <code>small</code> or <code>medium</code> are good starting points."
+    },
+    "step3": {
+      "title": "Step 3: Scan for missing subtitles",
+      "body": "Click <strong>Scan</strong> to build a queue of files that still need transcription. The step guide on the right summarises the flow too."
+    },
+    "step4": {
+      "title": "Step 4: Start transcription",
+      "body": "Click <strong>Run</strong> to process the first queued file. You can pause, skip, or stop at any time from the progress card below."
+    },
+    "step5": {
+      "title": "Step 5: Monitor progress and find results",
+      "body": "Live progress appears here. Finished subtitles are saved <strong>right next to each video</strong> (as <code>.srt</code> / <code>.vtt</code>). You can replay this tour anytime via the <strong>?</strong> button in the titlebar."
+    },
+    "nav": {
+      "prev": "Back",
+      "next": "Next",
+      "finish": "Finish",
+      "skip": "Skip",
+      "progress": "Step {{current}} / {{total}}"
+    }
+  }
+}

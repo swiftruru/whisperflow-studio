@@ -29,6 +29,43 @@ import { t } from '../lib/i18n.js';
 async function initAboutPanel() {
   await fillVersionBadge();
   bindExternalLinks();
+  bindCheckForUpdatesButton();
+  bindMenuOpenAbout();
+}
+
+/**
+ * Wire the "Check for updates" inline button in the credits card
+ * to the main-process updater.  Manual check → renderer-side
+ * update-dialog component handles the three possible outcomes
+ * (up-to-date toast, checking toast, update-available modal).
+ */
+function bindCheckForUpdatesButton() {
+  const btn = document.getElementById('btn-about-check-for-updates');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    try {
+      await window.electronAPI.updater.check({ manual: true });
+    } catch (err) {
+      // Non-blocking error handling — the updater's own toast
+      // stream will also surface errors via `updater:error`
+      // broadcasts, so this catch is just belt-and-suspenders.
+      console.error('[about] check for updates failed:', err);
+    }
+  });
+}
+
+/**
+ * When the user picks "About WhisperFlow Studio" from the Help
+ * menu on Windows / Linux, the main process broadcasts
+ * `menu:open-about`.  Switch to the About tab so they land on the
+ * right page.
+ */
+function bindMenuOpenAbout() {
+  if (!window.electronAPI?.onMenuOpenAbout) return;
+  window.electronAPI.onMenuOpenAbout(() => {
+    const tabBtn = document.querySelector('.tab-btn[data-tab="about"]');
+    if (tabBtn) tabBtn.click();
+  });
 }
 
 async function fillVersionBadge() {

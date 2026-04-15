@@ -1,0 +1,45 @@
+{
+  "menu": {
+    "checkForUpdates": "Check for Updates…"
+  },
+  "about": {
+    "cardLabel": "Software updates",
+    "description": "Check GitHub Releases for a newer version. No personal data is collected during the check.",
+    "checkForUpdates": "Check for updates"
+  },
+  "dialog": {
+    "title": "Update available",
+    "subtitle": "A newer version than the one you're running was found.",
+    "currentVersion": "Current",
+    "latestVersion": "Latest",
+    "releaseNotes": "What's new",
+    "viewFullNotes": "View full release notes",
+    "platformNoteMac": "Because the macOS build is unsigned, we'll open the GitHub page so you can download and replace the old version manually.",
+    "platformNoteWindowsAutoUpdate": "Click the button below to download and install the new version automatically. The app will restart when it's done.",
+    "platformNotePortable": "The portable build can't auto-update. Please grab the latest version from the GitHub page."
+  },
+  "actions": {
+    "download": "Update now",
+    "downloadWindows": "Download & install",
+    "skip": "Skip this version",
+    "later": "Remind me later",
+    "installNow": "Restart & install now",
+    "cancelDownload": "Cancel download",
+    "close": "Close"
+  },
+  "toast": {
+    "checking": "Checking for updates…",
+    "upToDate": "You're running the latest version (v{{version}})",
+    "checkFailed": "Couldn't check for updates: {{error}}",
+    "downloadStarted": "Downloading update…",
+    "downloadFailed": "Download failed: {{error}}",
+    "downloadComplete": "Download complete, ready to restart",
+    "skipped": "Skipped v{{version}} — you'll still be notified when newer versions come out",
+    "openPageFailed": "Couldn't open the GitHub page: {{error}}"
+  },
+  "progress": {
+    "label": "Downloading {{percent}}%",
+    "waiting": "Preparing download…",
+    "downloaded": "Download complete"
+  }
+}

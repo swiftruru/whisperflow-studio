@@ -2,6 +2,17 @@
 
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
+/**
+ * Subscribe to an updater:* broadcast channel.  Returns a disposer
+ * function the caller can call to unsubscribe.  Centralised so all
+ * the `onUpdateXxx` wrappers share the same pattern.
+ */
+function _onUpdater(channel, cb) {
+  const handler = (_event, payload) => cb(payload);
+  ipcRenderer.on(channel, handler);
+  return () => ipcRenderer.removeListener(channel, handler);
+}
+
 contextBridge.exposeInMainWorld('electronAPI', {
   // ── Environment ──────────────────────────────────────────────────────────
   platform: process.platform,
@@ -16,6 +27,36 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.on('i18n:language-changed', handler);
       return () => ipcRenderer.removeListener('i18n:language-changed', handler);
     },
+  },
+
+  // ── Updater ─────────────────────────────────────────────────────────────
+  // Exposes the main-process updater module to the renderer.  The
+  // three `invoke` channels let renderer components actively trigger
+  // behaviour; the `onXxx()` subscribers let renderer components
+  // react to broadcasts coming from the main-process orchestrator.
+  updater: {
+    check:       (opts = {})    => ipcRenderer.invoke('updater:check', opts),
+    skip:        (version)      => ipcRenderer.invoke('updater:skip', version),
+    start:       ()             => ipcRenderer.invoke('updater:start'),
+    install:     ()             => ipcRenderer.invoke('updater:install'),
+    getStrategy: ()             => ipcRenderer.invoke('updater:get-strategy'),
+    onChecking:          (cb) => _onUpdater('updater:checking', cb),
+    onUpdateAvailable:   (cb) => _onUpdater('updater:update-available', cb),
+    onUpToDate:          (cb) => _onUpdater('updater:up-to-date', cb),
+    onError:             (cb) => _onUpdater('updater:error', cb),
+    onDownloadProgress:  (cb) => _onUpdater('updater:download-progress', cb),
+    onDownloadDone:      (cb) => _onUpdater('updater:download-done', cb),
+    onSkipped:           (cb) => _onUpdater('updater:skipped', cb),
+  },
+
+  // ── Menu bridge ──────────────────────────────────────────────────────────
+  // Main process emits `menu:open-about` when the user clicks
+  // "About WhisperFlow Studio" in the application menu.  Renderer
+  // listens and switches to the About tab.
+  onMenuOpenAbout: (cb) => {
+    const handler = () => cb();
+    ipcRenderer.on('menu:open-about', handler);
+    return () => ipcRenderer.removeListener('menu:open-about', handler);
   },
 
   // ── Config ───────────────────────────────────────────────────────────────

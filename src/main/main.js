@@ -9,6 +9,12 @@ const { getAppRuntimeConfig } = require('./config-metadata');
 const { registerHandlers } = require('./ipc-handlers');
 const { initMainI18n, resolveLanguage, t } = require('./i18n');
 const { registerLocaleIpcHandlers } = require('./locale-ipc');
+const updater = require('./updater');
+const {
+  broadcastUpdaterEvent,
+  registerUpdaterIpcHandlers,
+} = require('./updater/updater-ipc');
+const { setApplicationMenu } = require('./app-menu');
 
 // ── Path Resolution ───────────────────────────────────────────────────────────
 // In development:  ELECTRON_APP_ROOT = <project>/
@@ -240,6 +246,41 @@ app.whenReady().then(async () => {
   }
   createWindow();
   registerHandlers(mainWindow, ELECTRON_APP_ROOT, readLocalSettings, writeLocalSettings, setIsRunning);
+
+  // ── Updater wiring ─────────────────────────────────────────────────────
+  // The updater lives in its own module and only needs three hooks:
+  //   1. A broadcast channel so it can push updater:* events to the
+  //      renderer (via updater-ipc.js :: broadcastUpdaterEvent)
+  //   2. Read/write access to settings.json for the "skip this
+  //      version" flag, which it gets via the existing helpers
+  //   3. IPC registration so renderer components can trigger manual
+  //      checks, skip, and install actions
+  //
+  // After init, the orchestrator itself schedules a 5-second passive
+  // check; we don't have to call checkForUpdates() explicitly here.
+  registerUpdaterIpcHandlers();
+  updater.initUpdater({
+    readSettings: readLocalSettings,
+    writeSettings: writeLocalSettings,
+    broadcast: broadcastUpdaterEvent,
+  });
+
+  // Install the custom application menu (Check for Updates…, etc.).
+  // The "Open About" click tells the renderer to switch to the About
+  // tab — we just emit a dedicated channel and the renderer handles
+  // it via its own listener in about-panel.js / index.js.
+  setApplicationMenu({
+    onCheckForUpdates: () => {
+      updater.checkForUpdates({ manual: true }).catch((err) => {
+        console.error('[menu] manual check failed:', err);
+      });
+    },
+    onOpenAbout: () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('menu:open-about');
+      }
+    },
+  });
 });
 
 app.on('before-quit', () => {

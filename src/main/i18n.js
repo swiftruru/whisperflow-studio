@@ -38,6 +38,8 @@ const NAMESPACES = [
   'events',
   'toasts',
   'about',
+  'help',
+  'updater',
 ];
 
 /**
@@ -64,6 +66,15 @@ function resolveLanguage(setting, osLocale) {
 /**
  * Load every namespace JSON for both languages from disk.  Returns the
  * shape i18next expects: `{ 'zh-TW': { common: {...}, ... }, en: {...} }`.
+ *
+ * Any namespace that fails to load (missing file, parse error,
+ * encoding issue, asar packaging glitch) is logged to stderr and
+ * replaced with an empty object.  The renderer's `t()` wrapper then
+ * falls back to HTML placeholder text so users never see raw key
+ * paths — but the log line makes it obvious in the next bug report
+ * which file was the culprit.  This defensive logging was added
+ * after a Windows-specific regression where `settings.json` silently
+ * failed to load but the rest of the namespaces were fine.
  */
 function loadAllResources(localesRoot) {
   const resources = {};
@@ -72,10 +83,17 @@ function loadAllResources(localesRoot) {
     for (const ns of NAMESPACES) {
       const filePath = path.join(localesRoot, lang, `${ns}.json`);
       try {
-        resources[lang][ns] = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-      } catch (_) {
-        // Missing namespace files are OK during bootstrap — they'll be
-        // added as Phase N migrations fill them in.  Fall back to empty.
+        let content = fs.readFileSync(filePath, 'utf-8');
+        // Strip UTF-8 BOM if present — `JSON.parse` chokes on BOM
+        // and some Windows editors / git configs add one silently.
+        if (content.charCodeAt(0) === 0xFEFF) {
+          content = content.slice(1);
+        }
+        resources[lang][ns] = JSON.parse(content);
+      } catch (err) {
+        console.error(
+          `[i18n] Failed to load ${lang}/${ns}.json: ${err.message} (path: ${filePath})`
+        );
         resources[lang][ns] = {};
       }
     }

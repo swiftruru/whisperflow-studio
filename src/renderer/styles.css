@@ -575,6 +575,11 @@ html:not([data-platform="darwin"]) .titlebar-logo {
   gap: 3px;
   min-width: 0;
   flex: 1;
+  /* Explicit overflow handling for English titles/messages so any
+     accidental long word (like a file path pasted into the title)
+     breaks at letters instead of overflowing the card. */
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .preflight-item-title {
@@ -1457,19 +1462,18 @@ html:not([data-theme="light"]) .btn-primary:hover:not(:disabled) {
 .section-chevron { flex-shrink: 0; transition: transform 0.2s var(--easing); color: var(--overlay0); }
 .section-header-collapsible.collapsed .section-chevron { transform: rotate(-90deg); }
 
+/* Stacked field layout (v1.6.1).  Replaces the old 110px-label + 1fr
+   two-column grid, which left only ~180px for the input + description
+   inside a 340px left panel — too narrow for Chinese descriptions to
+   read naturally without 5-line wraps.
+   Now: label sits on its own row above a full-width input + description,
+   giving the description column ~300px of breathing room (the same look
+   as Linear / Notion / Raycast settings pages). */
 .field-row {
-  display: grid;
-  grid-template-columns: 110px 1fr;
-  gap: 12px;
-  /* `start` (not `center`) keeps the label pinned to the top of the
-     cell so it visually belongs to the input directly to its right,
-     even when the description below the input makes the row tall. */
-  align-items: start;
-  padding: 14px 16px;
-  /* Dashed bottom border clearly delimits each setting.  We use
-     dashed (not solid) because the section already has a solid
-     header/footer and we want the per-row divider to read as a
-     secondary separator, not a harder break. */
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px 16px;
   border-bottom: 1px dashed var(--border);
 }
 
@@ -1478,24 +1482,25 @@ html:not([data-theme="light"]) .btn-primary:hover:not(:disabled) {
 }
 
 .field-row label {
-  /* Nudge the label down so its text baseline lines up with the
-     input's padded text (7px top padding inside the input minus the
-     label's own visual offset).  Without this the label sits a pixel
-     too high and looks disconnected from the field. */
-  padding-top: 7px;
   font-size: 11px;
-  font-weight: 600;
-  color: var(--subtext1);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.02em;
+  /* Monospace echoes the config.json key format so power users can
+     see at a glance which JSON key they're editing. */
+  font-family: var(--font-mono);
+  /* Long keys like `initial_prompt_mode` wrap at word boundaries
+     instead of overflowing. */
+  word-break: break-word;
+  white-space: normal;
+  overflow: visible;
 }
 
 .field-row .field-control {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -1601,13 +1606,26 @@ select { appearance: auto; cursor: pointer; }
 
 .btn-inline-action {
   flex-shrink: 0;
+  /* Hard cap the button width so long English labels (e.g.
+     "Create environment now", "Install ffmpeg", "Choose folder")
+     can't steal space from the preflight item's text column.
+     Without this the button expands to fit its label on a single
+     line, squeezing the body to ~60px and causing every word in
+     the title/message to wrap onto its own line.  With the cap,
+     the button wraps at word boundaries and the body keeps enough
+     room to read naturally. */
+  max-width: 120px;
   padding: 5px 10px;
-  border-radius: 99px;
+  border-radius: 14px;
   border: 1px solid var(--border);
   background: var(--surface0);
   color: var(--amber);
   font-size: 11px;
   font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  word-break: normal;
+  overflow-wrap: break-word;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s, color 0.15s;
   font-family: var(--font-ui);
@@ -2769,4 +2787,721 @@ kbd {
   color: var(--overlay0);
   padding: 20px 0 6px;
   letter-spacing: 0.02em;
+}
+
+/* ── Titlebar help button ──────────────────────────────────────────────────── */
+.btn-help {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface1);
+  color: var(--overlay1);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  -webkit-app-region: no-drag;
+  flex-shrink: 0;
+  padding: 6px;
+}
+
+.btn-help:hover {
+  color: var(--amber);
+  border-color: color-mix(in srgb, var(--yellow) 45%, transparent);
+  background: color-mix(in srgb, var(--yellow) 8%, var(--surface1));
+}
+
+.btn-help[disabled] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* ── Help Panel (right slideout) ───────────────────────────────────────────── */
+.help-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  pointer-events: none;
+}
+
+.help-panel[aria-hidden="false"] {
+  pointer-events: auto;
+}
+
+.help-panel-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0);
+  transition: background 250ms var(--easing);
+  pointer-events: none;
+}
+
+.help-panel[aria-hidden="false"] .help-panel-backdrop {
+  background: rgba(0, 0, 0, 0.18);
+  pointer-events: auto;
+}
+
+.help-panel-sheet {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 380px;
+  max-width: 90vw;
+  background: var(--surface0);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 260ms var(--easing);
+  pointer-events: auto;
+}
+
+.help-panel[aria-hidden="false"] .help-panel-sheet {
+  transform: translateX(0);
+}
+
+.help-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--mantle);
+  flex-shrink: 0;
+}
+
+.help-panel-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+}
+
+.help-panel-icon {
+  color: var(--gold);
+  flex-shrink: 0;
+}
+
+.help-panel-header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.help-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Language toggle mirror inside the help panel header.  Same visual
+   family as the titlebar toggle but a touch shorter so it fits
+   alongside the close button without pushing the header height. */
+.help-panel-lang {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 13px;
+  font-size: 10.5px;
+  /* Inherits .btn-language-toggle styles (border, font-family,
+     hover, disabled) since the element carries both classes. */
+}
+
+.help-panel-close {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--subtext0);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.help-panel-close:hover {
+  color: var(--text);
+  background: var(--surface2);
+  border-color: var(--border);
+}
+
+.help-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px 24px;
+}
+
+.help-section {
+  border-bottom: 1px dashed var(--border);
+  padding: 12px 0;
+}
+
+.help-section:last-child {
+  border-bottom: none;
+}
+
+.help-section--pinned {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.help-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 4px 2px;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--text);
+  text-align: left;
+}
+
+.help-section--pinned .help-section-header {
+  cursor: default;
+}
+
+.help-section-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.help-chevron {
+  color: var(--subtext0);
+  transition: transform 0.2s var(--easing);
+  flex-shrink: 0;
+}
+
+.help-section-header[aria-expanded="true"] .help-chevron {
+  transform: rotate(180deg);
+}
+
+.help-section-body {
+  padding: 10px 2px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.help-section-body[hidden] {
+  display: none;
+}
+
+.help-section-subtitle {
+  margin: 0;
+  font-size: 11px;
+  color: var(--subtext0);
+}
+
+.help-paragraph {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--subtext1);
+}
+
+.help-paragraph strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.help-paragraph code {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--yellow) 10%, var(--surface1));
+  color: var(--gold);
+}
+
+.help-paragraph em {
+  color: var(--subtext0);
+  font-style: normal;
+  font-weight: 500;
+}
+
+.help-intro {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--subtext0);
+  font-style: italic;
+}
+
+.help-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 10px;
+  border-left: 2px solid color-mix(in srgb, var(--yellow) 30%, transparent);
+}
+
+.help-item-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.01em;
+}
+
+.help-faq-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 0;
+  border-bottom: 1px dashed color-mix(in srgb, var(--border) 50%, transparent);
+}
+
+.help-faq-item:last-child {
+  border-bottom: none;
+}
+
+.help-faq-q {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.help-faq-a {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--subtext0);
+}
+
+.help-faq-a strong {
+  color: var(--subtext1);
+}
+
+.help-faq-a em {
+  font-style: normal;
+  color: var(--subtext1);
+}
+
+.help-flow-chart {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--yellow) 6%, var(--surface1));
+  border: 1px solid color-mix(in srgb, var(--yellow) 20%, transparent);
+  border-radius: var(--radius-sm);
+  font-size: 10.5px;
+  color: var(--text);
+  margin: 2px 0;
+}
+
+.help-flow-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+}
+
+.help-flow-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--yellow);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--yellow) 60%, transparent);
+}
+
+.help-flow-arrow {
+  color: var(--overlay1);
+  font-weight: 700;
+}
+
+.help-replay-tour {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.help-shortcuts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.help-shortcut-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--subtext1);
+}
+
+.help-shortcut-row kbd {
+  /* Reuse existing kbd styles if any; fallback here */
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface1);
+  color: var(--text);
+  min-width: 26px;
+  text-align: center;
+}
+
+/* ── Onboarding Tour ───────────────────────────────────────────────────────── */
+.onboarding-root {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  pointer-events: none;
+}
+
+.onboarding-root[aria-hidden="false"] {
+  pointer-events: auto;
+}
+
+.onboarding-backdrop {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  transition: background 220ms var(--easing);
+}
+
+.onboarding-root[aria-hidden="false"] .onboarding-backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+/* The spotlight trick: a fixed-positioned element sits at the target's
+   bounding rect and uses a massive outward box-shadow to darken every
+   pixel outside its box.  This gives us a "hole" effect without having
+   to clone the target element or fiddle with z-index stacking. */
+.onboarding-spotlight {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--amber) 45%, transparent),
+    0 0 0 9999px rgba(0, 0, 0, 0.55);
+  transition: top 260ms var(--easing),
+              left 260ms var(--easing),
+              width 260ms var(--easing),
+              height 260ms var(--easing),
+              box-shadow 260ms var(--easing);
+}
+
+.onboarding-callout {
+  position: absolute;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  background: var(--surface0);
+  border: 1px solid color-mix(in srgb, var(--yellow) 40%, var(--border));
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md),
+              0 0 0 1px color-mix(in srgb, var(--yellow) 20%, transparent);
+  padding: 16px 18px 14px;
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 220ms var(--easing),
+              transform 220ms var(--easing),
+              top 260ms var(--easing),
+              left 260ms var(--easing);
+}
+
+.onboarding-callout.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.onboarding-callout-progress {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 6px;
+}
+
+.onboarding-callout-title {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.onboarding-callout-body {
+  margin: 0 0 14px;
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: var(--subtext1);
+}
+
+.onboarding-callout-body strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.onboarding-callout-body code {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--yellow) 10%, var(--surface1));
+  color: var(--gold);
+}
+
+.onboarding-callout-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.onboarding-callout-nav-left,
+.onboarding-callout-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.onboarding-btn {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface1);
+  color: var(--subtext1);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.onboarding-btn:hover:not(:disabled) {
+  background: var(--surface2);
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--yellow) 35%, var(--border));
+}
+
+.onboarding-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.onboarding-btn--primary {
+  background: color-mix(in srgb, var(--amber) 18%, var(--surface1));
+  border-color: color-mix(in srgb, var(--amber) 50%, transparent);
+  color: var(--amber);
+}
+
+.onboarding-btn--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--amber) 28%, var(--surface1));
+  border-color: color-mix(in srgb, var(--amber) 70%, transparent);
+  color: #ffd882;
+}
+
+.onboarding-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--subtext0);
+}
+
+.onboarding-btn--ghost:hover:not(:disabled) {
+  background: var(--surface2);
+  color: var(--subtext1);
+}
+
+/* Temporary class applied during the tour to elements that are
+   normally hidden (e.g. progress-card before a scan), so the tour
+   can highlight them.  The class is removed when the tour ends or
+   advances past the step. */
+.onboarding-preview {
+  display: block !important;
+  visibility: visible !important;
+}
+
+/* ── Update Dialog ─────────────────────────────────────────────────────────── */
+/* Themed modal shown when the updater finds a newer release.  Inherits the
+   base `.modal-overlay` + `.modal` styles so it automatically picks up the
+   cream / cocoa theme tokens; the rules below only add dialog-specific
+   spacing, version pill styling, progress bar, and button layout. */
+
+.update-dialog {
+  max-width: 460px;
+  padding-top: 22px;
+}
+
+.update-dialog-icon {
+  color: var(--amber);
+}
+
+.update-dialog-subtitle {
+  text-align: center;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--subtext0);
+  margin: -6px 0 14px;
+}
+
+.update-version-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 10px 12px;
+  margin: 4px 0 14px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--yellow) 6%, var(--surface1));
+  border: 1px solid color-mix(in srgb, var(--yellow) 18%, transparent);
+}
+
+.update-version-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 70px;
+}
+
+.update-version-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--overlay0);
+}
+
+.update-version-value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--subtext1);
+}
+
+.update-version-new {
+  color: var(--gold);
+}
+
+.update-version-arrow {
+  font-size: 18px;
+  color: var(--overlay1);
+  font-weight: 700;
+}
+
+.update-notes-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.update-notes-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--gold);
+}
+
+.update-notes {
+  max-height: 160px;
+  overflow-y: auto;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface1);
+  color: var(--subtext1);
+  font-size: 11px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.update-notes-link {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 10.5px;
+  color: var(--amber);
+  cursor: pointer;
+  font-family: var(--font-ui);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--amber) 40%, transparent);
+  text-underline-offset: 2px;
+}
+
+.update-notes-link:hover {
+  color: var(--gold);
+}
+
+.update-platform-note {
+  margin: 0 0 14px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border-left: 2px solid color-mix(in srgb, var(--yellow) 40%, transparent);
+  background: color-mix(in srgb, var(--yellow) 4%, var(--surface1));
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--subtext0);
+}
+
+.update-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 16px;
+}
+
+.update-progress-bar {
+  height: 6px;
+  border-radius: 99px;
+  background: var(--surface2);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.update-progress-fill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--yellow), var(--amber));
+  transition: width 180ms var(--easing);
+}
+
+.update-progress-label {
+  font-size: 10.5px;
+  color: var(--subtext0);
+  text-align: center;
+  font-family: var(--font-mono);
+}
+
+.update-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.update-dialog-actions .btn-secondary,
+.update-dialog-actions .btn-primary {
+  height: 34px;
+  padding: 0 14px;
+  font-size: 12px;
+}
+
+.update-action-primary {
+  min-width: 120px;
 }

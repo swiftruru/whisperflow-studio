@@ -1,27 +1,43 @@
 'use strict';
 
 /**
- * Titlebar language toggle.
+ * Language toggle — binds ANY button element on the page that should
+ * act as a zh-TW ↔ en switch.
  *
- * Renders a small pill button in the titlebar right-cluster that
- * flips between zh-TW ↔ en.  Uses the current language from the
- * renderer's i18next instance to decide the label; clicking asks
- * main to switch via the `i18n:set-language` IPC, and main
- * broadcasts back so every renderer (and main-process dialog) stays
- * in sync.
+ * Originally this module only bound the titlebar toggle, but when the
+ * help panel slides open it covers the titlebar and users lose access
+ * to the language switch.  The fix is to expose the same behaviour on
+ * a second button inside the help panel header, sharing the exact
+ * same render / click handler so the two buttons can never drift out
+ * of sync.
  *
- * Two-language toggle instead of a dropdown:
- *   - Fastest click for the common case (flip the only other choice)
- *   - Dropdown adds visual clutter to a titlebar that already hosts
- *     theme toggle + status badge + Setup button + window controls
- *   - If we ever add a third language this module should turn into
- *     a small popover instead of a hard switch
+ * The shared logic:
+ *   - Renders a pill button showing `中 / EN` (the current language
+ *     comes first, the one it'll flip to is second).
+ *   - On click, calls `setLanguage()` which hits the i18n:set-language
+ *     IPC.  Main process persists the choice and broadcasts back via
+ *     i18n:language-changed.
+ *   - Every bound button subscribes to `onLanguageChanged` so they
+ *     all re-render whenever the language flips, regardless of which
+ *     button was clicked.
+ *
+ * Two-language toggle instead of a dropdown is deliberate: for two
+ * options a single tap is the fastest possible interaction, and
+ * there's no ambiguity about what "flip" means.  If we ever add a
+ * third language this module should grow into a popover.
  */
 
 import { getCurrentLanguage, onLanguageChanged, setLanguage, t } from '../lib/i18n.js';
 
 const LANGS = ['zh-TW', 'en'];
 const LABELS = { 'zh-TW': '中', en: 'EN' };
+
+// Every bound button is tracked so the onLanguageChanged subscription
+// can re-render all of them (titlebar + help-panel, potentially more
+// in the future).  The Set avoids double-binding the same element if
+// `bindLanguageToggle()` gets called twice.
+const boundButtons = new Set();
+let globalListenerAttached = false;
 
 function nextLang(current) {
   const idx = LANGS.indexOf(current);
@@ -37,29 +53,57 @@ function render(button) {
   button.dataset.lang = current;
 }
 
-function initLanguageToggle() {
-  const button = document.getElementById('btn-language-toggle');
-  if (!button) return;
+function renderAll() {
+  for (const btn of boundButtons) {
+    render(btn);
+  }
+}
+
+/**
+ * Attach the shared click handler + onLanguageChanged subscription to
+ * a button element.  Idempotent: calling this twice on the same
+ * element does nothing the second time.
+ */
+function bindLanguageToggle(button) {
+  if (!button || boundButtons.has(button)) return;
+  boundButtons.add(button);
 
   render(button);
 
   button.addEventListener('click', async () => {
     const current = getCurrentLanguage();
     const target = nextLang(current);
-    button.disabled = true;
+    // Disable ALL bound buttons during the round-trip so the user
+    // can't double-click across both toggles.
+    for (const b of boundButtons) b.disabled = true;
     try {
       await setLanguage(target);
     } finally {
-      button.disabled = false;
+      for (const b of boundButtons) b.disabled = false;
     }
-    // render() will re-run via the onLanguageChanged callback below
-    // once main echoes the change back, so we don't need to touch the
-    // button here.
+    // renderAll() will also fire via the onLanguageChanged callback
+    // once main echoes the change back.  Calling it here is harmless
+    // and makes the UI feel instant on slow IPC links.
   });
 
-  onLanguageChanged(() => {
-    render(button);
-  });
+  // Attach the global language-changed listener exactly once —
+  // subsequent bindLanguageToggle() calls just add their buttons to
+  // the Set and get picked up by the existing listener.
+  if (!globalListenerAttached) {
+    globalListenerAttached = true;
+    onLanguageChanged(() => {
+      renderAll();
+    });
+  }
 }
 
-export { initLanguageToggle };
+/**
+ * Bind the titlebar button — called at app init time.
+ */
+function initLanguageToggle() {
+  const button = document.getElementById('btn-language-toggle');
+  if (!button) return;
+  bindLanguageToggle(button);
+}
+
+export { initLanguageToggle, bindLanguageToggle };
