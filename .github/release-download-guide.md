@@ -7,10 +7,10 @@ Pick the file that matches your operating system — you only need **one**. Ever
 
 | Your system / 作業系統 | Download / 下載 | Notes / 備註 |
 |---|---|---|
-| 🍎 **macOS — Apple Silicon** (M1 / M2 / M3 / M4) | `WhisperFlow-Studio-arm64.dmg` | Any Mac made since late 2020 / 2020 末之後的 Mac |
-| 🍎 **macOS — Intel** | `WhisperFlow-Studio-x64.dmg` | Older Intel-based Macs / 舊款 Intel Mac |
-| 🪟 **Windows 10 / 11** (64-bit) | `WhisperFlow-Studio-Setup.exe` | NSIS installer, supports in-app auto-update / 支援 App 內自動更新 |
-| 🐧 **Linux** (x86_64) | `WhisperFlow-Studio.AppImage` | Portable binary — `chmod +x` then double-click / 免安裝，下載後 `chmod +x` 即可執行 |
+| 🍎 **macOS — Apple Silicon** (M1 / M2 / M3 / M4) | `WhisperFlow-Studio-__VERSION__-mac-arm64.dmg` | Any Mac made since late 2020 / 2020 末之後的 Mac |
+| 🍎 **macOS — Intel** | `WhisperFlow-Studio-__VERSION__-mac-x64.dmg` | Older Intel-based Macs / 舊款 Intel Mac |
+| 🪟 **Windows 10 / 11** (64-bit) | `WhisperFlow-Studio-__VERSION__-win-x64.exe` | NSIS installer, supports in-app auto-update / 支援 App 內自動更新 |
+| 🐧 **Linux** (x86_64) | `WhisperFlow-Studio-__VERSION__-linux-x86_64.AppImage` | Portable binary — `chmod +x` then double-click / 免安裝，下載後 `chmod +x` 即可執行 |
 
 > **Not sure which Mac you have?** Click  → About This Mac. "Chip: Apple M…" → pick **arm64**. "Processor: Intel…" → pick **x64**.
 > **不確定 Mac 種類？** 點左上角  → 關於這台 Mac。顯示「晶片：Apple M…」選 **arm64**；顯示「處理器：Intel…」選 **x64**。

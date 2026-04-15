@@ -38,19 +38,19 @@
 Pre-built binaries are published on every tagged release. Pick your platform:
 
 <p align="center">
-  <a href="https://github.com/swiftruru/whisperflow-studio/releases/latest/download/WhisperFlow-Studio-arm64.dmg">
+  <a href="https://github.com/swiftruru/whisperflow-studio/releases/latest/download/WhisperFlow-Studio-mac-arm64.dmg">
     <img src="https://img.shields.io/badge/download-macOS%20Apple%20Silicon-000000?logo=apple&logoColor=white&style=for-the-badge" alt="macOS Apple Silicon">
   </a>
   &nbsp;
-  <a href="https://github.com/swiftruru/whisperflow-studio/releases/latest/download/WhisperFlow-Studio-x64.dmg">
+  <a href="https://github.com/swiftruru/whisperflow-studio/releases/latest/download/WhisperFlow-Studio-mac-x64.dmg">
     <img src="https://img.shields.io/badge/download-macOS%20Intel-8a8a8a?logo=apple&logoColor=white&style=for-the-badge" alt="macOS Intel">
   </a>
   &nbsp;
-  <a href="https://github.com/swiftruru/whisperflow-studio/releases/latest/download/WhisperFlow-Studio-Setup.exe">
+  <a href="https://github.com/swiftruru/whisperflow-studio/releases/latest/download/WhisperFlow-Studio-win-x64.exe">
     <img src="https://img.shields.io/badge/download-Windows%20Installer-0078D6?logo=windows&logoColor=white&style=for-the-badge" alt="Windows Installer">
   </a>
   &nbsp;
-  <a href="https://github.com/swiftruru/whisperflow-studio/releases/latest/download/WhisperFlow-Studio.AppImage">
+  <a href="https://github.com/swiftruru/whisperflow-studio/releases/latest/download/WhisperFlow-Studio-linux-x86_64.AppImage">
     <img src="https://img.shields.io/badge/download-Linux%20AppImage-FCC624?logo=linux&logoColor=black&style=for-the-badge" alt="Linux AppImage">
   </a>
 </p>

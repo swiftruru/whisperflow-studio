@@ -53,14 +53,14 @@ mac:
         - x64
   icon: assets/icon.icns
   category: public.app-category.utilities
-  artifactName: WhisperFlow-Studio-${version}-${arch}.${ext}
+  artifactName: WhisperFlow-Studio-${version}-mac-${arch}.${ext}
 
 win:
   target: nsis
   icon: assets/icon.png
-  artifactName: WhisperFlow-Studio-Setup-${version}.${ext}
+  artifactName: WhisperFlow-Studio-${version}-win-x64.${ext}
 
 linux:
   target: AppImage
   icon: assets/icon.png
-  artifactName: WhisperFlow-Studio-${version}.${ext}
+  artifactName: WhisperFlow-Studio-${version}-linux-x86_64.${ext}
