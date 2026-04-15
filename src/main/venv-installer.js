@@ -22,7 +22,7 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const { getVenvPipPath, getVenvPythonPath } = require('./path-resolver');
+const { getVenvPythonPath } = require('./path-resolver');
 
 function isVenvInitialized(venvRoot) {
   const pythonPath = getVenvPythonPath(venvRoot);
@@ -74,17 +74,26 @@ async function installRequirements({ venvRoot, requirementsPath, onLog }) {
     throw new Error(`requirements file not found: ${requirementsPath}`);
   }
 
-  const pipPath = getVenvPipPath(venvRoot);
+  // Upgrade pip via `python -m pip install --upgrade pip`, NOT via the
+  // pip.exe shim directly.  On Windows, running pip.exe to upgrade
+  // itself fails because the .exe file is locked while it's executing
+  // — pip detects this and refuses with:
+  //   "ERROR: To modify pip, please run the following command:
+  //    <python> -m pip install --upgrade pip"
+  // The `python -m pip` invocation works on every platform and avoids
+  // the self-lock issue entirely.  Same reasoning applies to the
+  // requirements install step for consistency.
+  const venvPython = getVenvPythonPath(venvRoot);
 
   if (typeof onLog === 'function') {
     onLog('[WhisperFlow] Upgrading pip…\n');
   }
-  await runSpawn(pipPath, ['install', '--upgrade', 'pip'], { cwd: venvRoot, onLog });
+  await runSpawn(venvPython, ['-m', 'pip', 'install', '--upgrade', 'pip'], { cwd: venvRoot, onLog });
 
   if (typeof onLog === 'function') {
     onLog(`[WhisperFlow] Installing dependencies from ${requirementsPath}…\n`);
   }
-  await runSpawn(pipPath, ['install', '-r', requirementsPath], { cwd: venvRoot, onLog });
+  await runSpawn(venvPython, ['-m', 'pip', 'install', '-r', requirementsPath], { cwd: venvRoot, onLog });
 }
 
 async function initializeBundledVenv({
