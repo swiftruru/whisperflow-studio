@@ -28,9 +28,15 @@ def test_emit_writes_prefixed_json_line(capsys):
 
 
 def test_emitter_for_pulls_name_from_path():
-    em = emitter_for("/a/b/movie.mp4")
+    # Use Path() on both sides so the assertion works on Windows too:
+    # str(Path("/a/b/movie.mp4")) is "\\a\\b\\movie.mp4" there because
+    # pathlib normalises to the native separator.
+    from pathlib import Path
+
+    test_path = "/a/b/movie.mp4"
+    em = emitter_for(test_path)
     assert em.file_name == "movie.mp4"
-    assert em.file_path == "/a/b/movie.mp4"
+    assert em.file_path == str(Path(test_path))
 
 
 def test_emitter_for_empty_returns_blank_emitter():

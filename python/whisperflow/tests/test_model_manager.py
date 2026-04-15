@@ -383,7 +383,10 @@ def test_default_torch_hub_dir_respects_torch_home(monkeypatch, tmp_path):
 def test_default_torch_hub_dir_falls_back_to_cache(monkeypatch):
     monkeypatch.delenv("TORCH_HOME", raising=False)
     monkeypatch.delenv("XDG_CACHE_HOME", raising=False)
-    assert str(default_torch_hub_dir()).endswith("/.cache/torch/hub")
+    # Use Path.parts instead of a hard-coded string suffix so the
+    # assertion works on Windows (where the separator is backslash).
+    path = default_torch_hub_dir()
+    assert path.parts[-3:] == (".cache", "torch", "hub")
 
 
 def test_import_silero_vad_from_system_cache_hard_links(monkeypatch, tmp_path):
