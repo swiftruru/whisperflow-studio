@@ -49,6 +49,8 @@
       ],
       "win32": [
         "${HOME}/scoop/shims",
+        "${HOME}/.pyenv/pyenv-win/shims",
+        "${HOME}/.pyenv/pyenv-win/bin",
         "${HOME}/AppData/Local/Microsoft/WinGet/Packages",
         "C:/ProgramData/chocolatey/bin",
         "C:/Program Files/ffmpeg/bin"

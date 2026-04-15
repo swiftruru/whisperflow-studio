@@ -6,6 +6,32 @@ const os = require('os');
 const path = require('path');
 const { readConfigMetadata } = require('./config-metadata');
 
+// Breadcrumb log — flushed to userData/python-detection.log the next time
+// resolveSystemPython runs, so when a user reports "找不到 Python 3" we can
+// see exactly which step failed without asking them to attach a debugger.
+const _detectionTrace = [];
+function trace(...parts) {
+  try {
+    _detectionTrace.push(parts.map((p) => (typeof p === 'string' ? p : JSON.stringify(p))).join(' '));
+  } catch (_) {
+    _detectionTrace.push('[unserializable trace entry]');
+  }
+}
+function flushDetectionTrace() {
+  try {
+    const userData = process.env.WHISPERFLOW_USER_DATA_DIR;
+    if (!userData) return;
+    const logPath = path.join(userData, 'python-detection.log');
+    const stamp = new Date().toISOString();
+    const body = [`── ${stamp} ──`, ...(_detectionTrace.length ? _detectionTrace : ['(no trace)'])].join('\n') + '\n\n';
+    fs.appendFileSync(logPath, body, 'utf-8');
+  } catch (_) {
+    // best-effort
+  } finally {
+    _detectionTrace.length = 0;
+  }
+}
+
 function expandHomePath(value) {
   return typeof value === 'string' ? value.replace(/\$\{HOME\}/g, os.homedir()) : value;
 }
@@ -95,37 +121,124 @@ function resolveBundledPython(venvRoot) {
  * Returns `null` if nothing suitable is found.
  */
 function resolveSystemPython(userOverride, configMetadataPath) {
+  _detectionTrace.length = 0;
+  trace('resolveSystemPython called, platform=', process.platform);
+  trace('PATH=', process.env.PATH || '(empty)');
+
   const trimmedOverride = typeof userOverride === 'string' ? userOverride.trim() : '';
-  if (trimmedOverride && fs.existsSync(trimmedOverride)) {
-    return trimmedOverride;
+  if (trimmedOverride) {
+    trace('user override =', trimmedOverride, 'exists=', fs.existsSync(trimmedOverride));
+    if (fs.existsSync(trimmedOverride)) {
+      flushDetectionTrace();
+      return trimmedOverride;
+    }
   }
 
-  for (const candidate of getKnownPythonPaths(configMetadataPath)) {
-    if (fs.existsSync(candidate)) {
+  const knownPaths = getKnownPythonPaths(configMetadataPath);
+  trace('knownPythonPaths count=', knownPaths.length);
+  for (const candidate of knownPaths) {
+    const exists = fs.existsSync(candidate);
+    trace('  known:', candidate, exists ? 'EXISTS' : 'missing');
+    if (exists) {
+      flushDetectionTrace();
       return candidate;
     }
   }
 
+  if (process.platform === 'win32') {
+    const viaPyenvWin = resolveViaPyenvWin();
+    if (viaPyenvWin) {
+      trace('pyenv-win scan hit:', viaPyenvWin);
+      flushDetectionTrace();
+      return viaPyenvWin;
+    }
+    trace('pyenv-win scan: no match');
+  }
+
   const viaSelfReport = resolveViaPythonSelfReport();
   if (viaSelfReport) {
+    trace('self-report hit:', viaSelfReport);
+    flushDetectionTrace();
     return viaSelfReport;
   }
+  trace('self-report: no match');
 
   const pathDirs = (process.env.PATH || '').split(path.delimiter);
   const candidates = process.platform === 'win32'
     ? ['python.exe', 'python3.exe', 'py.exe']
     : ['python3', 'python3.14', 'python3.13', 'python3.12', 'python3.11', 'python3.10'];
 
+  trace('manual PATH walk, dirs=', pathDirs.length, 'candidates=', candidates);
   for (const dir of pathDirs) {
     for (const name of candidates) {
       const candidate = path.join(dir, name);
       if (fs.existsSync(candidate)) {
+        trace('manual walk hit:', candidate);
+        flushDetectionTrace();
         return candidate;
       }
     }
   }
 
+  trace('all strategies failed, returning null');
+  flushDetectionTrace();
   return null;
+}
+
+/**
+ * pyenv-win direct scan.  When the user has pyenv-win installed but the
+ * shim dir isn't on Electron's inherited PATH (common when pyenv-win was
+ * installed after the current user session started, or when the installer
+ * only updated User PATH but Explorer still has the old environment),
+ * `where.exe python` returns nothing and the self-report resolver has no
+ * candidates to try.
+ *
+ * Walk `%USERPROFILE%\.pyenv\pyenv-win\versions\<ver>\python.exe` directly
+ * and pick the highest-versioned install.  Also handles custom `PYENV` /
+ * `PYENV_ROOT` locations that some users set.
+ */
+function resolveViaPyenvWin() {
+  const roots = [];
+  const pyenvEnv = process.env.PYENV || process.env.PYENV_ROOT;
+  if (pyenvEnv) roots.push(path.join(pyenvEnv, 'versions'));
+  roots.push(path.join(os.homedir(), '.pyenv', 'pyenv-win', 'versions'));
+
+  for (const versionsDir of roots) {
+    trace('pyenv-win versionsDir=', versionsDir, fs.existsSync(versionsDir) ? 'EXISTS' : 'missing');
+    if (!fs.existsSync(versionsDir)) continue;
+
+    let entries;
+    try {
+      entries = fs.readdirSync(versionsDir);
+    } catch (err) {
+      trace('  readdir failed:', err.message);
+      continue;
+    }
+
+    const candidates = entries
+      .filter((name) => /^\d+\.\d+/.test(name))
+      .sort((a, b) => compareVersionStrings(b, a))
+      .map((name) => path.join(versionsDir, name, 'python.exe'));
+
+    trace('  pyenv-win candidates:', candidates);
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) {
+        return candidate;
+      }
+    }
+  }
+  return null;
+}
+
+function compareVersionStrings(a, b) {
+  const parse = (s) => s.split(/[.\-+]/).map((p) => parseInt(p, 10) || 0);
+  const pa = parse(a);
+  const pb = parse(b);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i += 1) {
+    const diff = (pa[i] || 0) - (pb[i] || 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
 }
 
 /**
@@ -192,9 +305,11 @@ function listPythonShimCandidates() {
         stdio: ['ignore', 'pipe', 'ignore'],
         windowsHide: true,
       });
-    } catch (_) {
+      trace('  ', lookupCmd, name, '->', JSON.stringify(stdout));
+    } catch (err) {
       // where.exe / which exits non-zero when nothing matches — that's
       // expected, just move on.
+      trace('  ', lookupCmd, name, 'failed:', err.message);
       continue;
     }
 
@@ -207,6 +322,7 @@ function listPythonShimCandidates() {
     }
   }
 
+  trace('listPythonShimCandidates result=', results);
   return results;
 }
 
@@ -243,6 +359,7 @@ function listPythonShimCandidates() {
 function askPythonForSelfPath(candidate) {
   const isWindows = process.platform === 'win32';
   const needsCmdShell = isWindows && /\.(bat|cmd)$/i.test(candidate);
+  trace('askPythonForSelfPath:', candidate, 'needsCmdShell=', needsCmdShell);
 
   // For direct .exe / POSIX binaries we can use argv-based spawn, which
   // sidesteps all shell parsing entirely.  ``-c`` is fine here because
@@ -261,8 +378,10 @@ function askPythonForSelfPath(candidate) {
           timeout: 5000,
         },
       );
+      trace('  direct stdout=', JSON.stringify(stdout));
       return parsePythonSelfPathOutput(stdout);
-    } catch (_) {
+    } catch (err) {
+      trace('  direct failed:', err.message);
       return null;
     }
   }
@@ -292,8 +411,10 @@ function askPythonForSelfPath(candidate) {
         timeout: 5000,
       },
     );
+    trace('  cmd.exe stdout=', JSON.stringify(stdout));
     return parsePythonSelfPathOutput(stdout);
-  } catch (_) {
+  } catch (err) {
+    trace('  cmd.exe failed:', err.message);
     return null;
   } finally {
     try {

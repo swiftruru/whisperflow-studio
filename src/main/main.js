@@ -208,6 +208,12 @@ function setIsRunning(val) { isRunning = val; }
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 app.whenReady().then(() => {
+  // Expose userData path to the path-resolver so it can flush Python
+  // detection traces to disk when a resolution attempt fails.  Users can
+  // send us this log when they hit "找不到 Python 3" and we can see
+  // exactly which resolver step failed.
+  process.env.WHISPERFLOW_USER_DATA_DIR = app.getPath('userData');
+
   if (process.platform === 'darwin') {
     const macIcon = nativeImage.createFromPath(path.join(ELECTRON_APP_ROOT, 'assets', 'icon-mac.png'));
     app.dock.setIcon(macIcon);
