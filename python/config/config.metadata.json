@@ -56,12 +56,24 @@
         "/usr/local/bin/python3"
       ],
       "win32": [
+        "${HOME}/AppData/Local/Programs/Python/Python314/python.exe",
+        "${HOME}/AppData/Local/Programs/Python/Python313/python.exe",
         "${HOME}/AppData/Local/Programs/Python/Python312/python.exe",
         "${HOME}/AppData/Local/Programs/Python/Python311/python.exe",
         "${HOME}/AppData/Local/Programs/Python/Python310/python.exe",
+        "${HOME}/AppData/Local/Microsoft/WindowsApps/python.exe",
+        "${HOME}/AppData/Local/Microsoft/WindowsApps/python3.exe",
+        "C:/Program Files/Python314/python.exe",
+        "C:/Program Files/Python313/python.exe",
+        "C:/Program Files/Python312/python.exe",
+        "C:/Program Files/Python311/python.exe",
+        "C:/Program Files/Python310/python.exe",
+        "C:/Python314/python.exe",
+        "C:/Python313/python.exe",
         "C:/Python312/python.exe",
         "C:/Python311/python.exe",
-        "C:/Python310/python.exe"
+        "C:/Python310/python.exe",
+        "C:/Windows/py.exe"
       ]
     }
   },
