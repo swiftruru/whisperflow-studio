@@ -1,6 +1,6 @@
 'use strict';
 
-const { execFileSync } = require('child_process');
+const { execFileSync, execSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -87,8 +87,9 @@ function resolveBundledPython(venvRoot) {
  * Precedence:
  *   1. User override (explicit `pythonPath` setting)
  *   2. Known platform paths (config.metadata.json :: knownPythonPaths)
- *   3. Shell-which (delegates to `where.exe` on Windows / `which` on POSIX)
- *      so we find exactly the same interpreter the user's terminal uses
+ *   3. Self-report (ask Python itself for ``sys.executable`` via every
+ *      shim we can find on PATH — handles pyenv-win .bat shims, conda,
+ *      scoop, py-launcher, etc.)
  *   4. Manual $PATH iteration as a last resort
  *
  * Returns `null` if nothing suitable is found.
@@ -105,9 +106,9 @@ function resolveSystemPython(userOverride, configMetadataPath) {
     }
   }
 
-  const viaShell = resolveViaShellWhich();
-  if (viaShell) {
-    return viaShell;
+  const viaSelfReport = resolveViaPythonSelfReport();
+  if (viaSelfReport) {
+    return viaSelfReport;
   }
 
   const pathDirs = (process.env.PATH || '').split(path.delimiter);
@@ -128,50 +129,128 @@ function resolveSystemPython(userOverride, configMetadataPath) {
 }
 
 /**
- * Ask the OS where Python lives, the same way the user's shell would.
+ * Find the *real* python.exe path by asking Python itself.
  *
- * On Windows: calls ``where.exe python``.  This matches whatever
- * ``python --version`` resolves to in PowerShell / cmd, which is the
- * single source of truth for "which Python is on PATH" on this machine.
- * Avoids the brittleness of trying to enumerate every possible install
- * location ourselves (Python 3.13 from python.org, MS Store stub,
- * Chocolatey, scoop, conda, py-launcher, ...).
+ * For each Python-ish executable on PATH, run
+ * ``<candidate> -c "import sys; print(sys.executable)"`` through the
+ * shell and use whatever path Python prints back.  This is the only
+ * approach that works uniformly across every Windows Python install:
  *
- * On POSIX: calls ``which python3`` for symmetry, though our fallback
- * usually finds it via the known-paths list first.
+ *   - python.org installer   → finds the regular .exe
+ *   - **pyenv-win**          → the shim is a ``python.bat`` that
+ *     forwards to ``versions/<x.y.z>/python.exe``; running it through
+ *     ``cmd.exe`` resolves the .bat correctly and Python prints the
+ *     real underlying path
+ *   - Microsoft Store        → the stub fails (or prints non-Python
+ *     output), we silently skip it
+ *   - conda / scoop / chocolatey / venv / virtualenv → all work,
+ *     because Python always knows its own location
  *
- * Returns the absolute path to the first valid candidate, or null if
- * the OS can't find anything.
+ * The shell route is essential because Node's ``spawn`` on Windows
+ * goes through ``CreateProcess``, which can't directly execute .bat
+ * files — but ``execSync`` defaults to ``cmd.exe`` on Windows, which
+ * can.
+ *
+ * Returns the absolute path to a real python.exe, or ``null``.
  */
-function resolveViaShellWhich() {
-  const isWindows = process.platform === 'win32';
-  const cmd = isWindows ? 'where.exe' : 'which';
-  const candidates = isWindows
-    ? ['python.exe', 'python3.exe', 'py.exe']
-    : ['python3', 'python3.14', 'python3.13', 'python3.12', 'python3.11', 'python3.10'];
+function resolveViaPythonSelfReport() {
+  for (const candidate of listPythonShimCandidates()) {
+    const real = askPythonForSelfPath(candidate);
+    if (real) {
+      return real;
+    }
+  }
+  return null;
+}
 
-  for (const name of candidates) {
+/**
+ * Enumerate every Python-launcher-shaped file on PATH that we could
+ * plausibly hand to ``askPythonForSelfPath``.  Uses the OS's native
+ * lookup so we get the same set the user's shell sees.
+ */
+function listPythonShimCandidates() {
+  const isWindows = process.platform === 'win32';
+  const lookupCmd = isWindows ? 'where.exe' : 'which';
+
+  // On Windows ``where.exe python`` (no extension) follows %PATHEXT% so
+  // it returns python.exe, python.bat, python.cmd, and even the bare
+  // ``python`` Bash shim if pyenv-win installed one.  We DON'T want to
+  // restrict to ``python.exe`` here — that's what made v1.4.1 miss
+  // pyenv-win shims entirely.
+  const shimNames = isWindows
+    ? ['python', 'python3', 'py']
+    : ['python3', 'python3.14', 'python3.13', 'python3.12', 'python3.11', 'python3.10', 'python'];
+
+  const seen = new Set();
+  const results = [];
+
+  for (const name of shimNames) {
     let stdout = '';
     try {
-      stdout = execFileSync(cmd, [name], {
+      stdout = execFileSync(lookupCmd, [name], {
         encoding: 'utf-8',
         stdio: ['ignore', 'pipe', 'ignore'],
-        // ``where.exe`` exits non-zero when nothing is found, which would
-        // otherwise throw — execFileSync's catch handles that.
         windowsHide: true,
       });
     } catch (_) {
+      // where.exe / which exits non-zero when nothing matches — that's
+      // expected, just move on.
       continue;
     }
 
-    // ``where`` may return multiple lines (e.g. matches in several PATH
-    // dirs); take the first existing one.
     for (const line of stdout.split(/\r?\n/)) {
       const trimmed = line.trim();
-      if (trimmed && fs.existsSync(trimmed)) {
-        return trimmed;
-      }
+      if (!trimmed || seen.has(trimmed)) continue;
+      if (!fs.existsSync(trimmed)) continue;
+      seen.add(trimmed);
+      results.push(trimmed);
     }
+  }
+
+  return results;
+}
+
+/**
+ * Run ``<candidate> -c "import sys; print(sys.executable)"`` and return
+ * the printed path if it looks like a real Python interpreter.
+ *
+ * Goes through ``execSync`` (which on Windows defaults to cmd.exe) so
+ * .bat / .cmd shims like pyenv-win's resolve correctly.  Microsoft
+ * Store stubs typically exit with a non-zero code or print marketing
+ * output instead of a real path; either way we'll catch it and return
+ * null so the caller moves on to the next candidate.
+ */
+function askPythonForSelfPath(candidate) {
+  const isWindows = process.platform === 'win32';
+  // cmd.exe quoting: the entire command line gets wrapped in another
+  // pair of double quotes by cmd's parser, so embedded paths with
+  // spaces need to be quoted, and the python ``-c`` body — which
+  // contains a semicolon — needs its own pair of quotes too.
+  const commandLine = isWindows
+    ? `""${candidate}" -c "import sys; print(sys.executable)""`
+    : `"${candidate}" -c 'import sys; print(sys.executable)'`;
+
+  let stdout = '';
+  try {
+    stdout = execSync(commandLine, {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      windowsHide: true,
+      timeout: 5000,
+    });
+  } catch (_) {
+    return null;
+  }
+
+  // The shim printed something — make sure it's a path that exists and
+  // doesn't look like a Microsoft Store error message ("Python was not
+  // found; run without arguments to install from the Microsoft Store...").
+  for (const line of stdout.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (/microsoft store|was not found|install from/i.test(trimmed)) continue;
+    if (!fs.existsSync(trimmed)) continue;
+    return trimmed;
   }
 
   return null;
