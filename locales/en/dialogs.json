@@ -38,6 +38,11 @@
     "openDocsFailed": "Failed to open URL: {{error}}",
     "commandCopied": "Copied: {{command}}",
     "copyCommandFailed": "Failed to copy command",
+    "close": "Close",
+    "cancelInstall": "Cancel install",
+    "installCancelled": "[{{manager}}] install cancelled",
+    "cancelFailed": "Failed to cancel install: {{error}}",
+    "verifyFailed": "{{manager}} reported a successful install, but {{package}} is still not found on the system. The download or extraction probably failed silently — please try another package manager.",
     "scoopUpdateWarning": "⚠ The first Scoop install runs a full bucket update first — this can take several minutes before ffmpeg itself starts downloading."
   },
   "confirm": {

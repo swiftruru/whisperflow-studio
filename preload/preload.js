@@ -94,6 +94,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── Package Managers (for ffmpeg install button) ────────────────────────
   detectPackageManagers: ()                       => ipcRenderer.invoke('pm:detect'),
   installPackage:        (managerId, packageName) => ipcRenderer.invoke('pm:install', { managerId, packageName }),
+  cancelInstallPackage:  ()                       => ipcRenderer.invoke('pm:cancel-install'),
   openExternal:          (url)                    => ipcRenderer.invoke('shell:open-external', url),
 
   // ── Bundled Python venv ──────────────────────────────────────────────────

@@ -14,7 +14,7 @@ const {
   resolveSystemPython,
 } = require('./path-resolver');
 const { initializeBundledVenv, isVenvInitialized } = require('./venv-installer');
-const { detectAvailableManagers, installPackage } = require('./package-manager');
+const { detectAvailableManagers, installPackage, cancelActiveInstall } = require('./package-manager');
 const { ERROR_CODES, createAppError, normalizeUnknownError, toAppError } = require('./error-catalog');
 
 let activeQueueManager = null;
@@ -462,6 +462,16 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
 
   ipcMain.handle('pm:detect', () => {
     return detectAvailableManagers();
+  });
+
+  ipcMain.handle('pm:cancel-install', () => {
+    // Returns { cancelled: true } if we actually killed a running child,
+    // { cancelled: false } if there was nothing to cancel.  Never throws.
+    const cancelled = cancelActiveInstall();
+    if (cancelled) {
+      sendLog('[WhisperFlow] Install cancelled by user.\n');
+    }
+    return { cancelled };
   });
 
   ipcMain.handle('pm:install', async (_event, payload = {}) => {

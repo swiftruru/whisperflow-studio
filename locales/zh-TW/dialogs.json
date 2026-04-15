@@ -38,6 +38,11 @@
     "openDocsFailed": "無法開啟網址：{{error}}",
     "commandCopied": "已複製：{{command}}",
     "copyCommandFailed": "無法複製指令",
+    "close": "關閉",
+    "cancelInstall": "取消安裝",
+    "installCancelled": "[{{manager}}] 安裝已取消",
+    "cancelFailed": "無法取消安裝：{{error}}",
+    "verifyFailed": "{{manager}} 回報安裝成功，但系統上仍然找不到 {{package}}。可能是解壓縮或下載失敗，請改用其他套件管理器再試一次。",
     "scoopUpdateWarning": "⚠ 首次使用 Scoop 會先檢查所有 bucket 更新，可能需要數分鐘；之後才會開始下載 ffmpeg 本體。"
   },
   "confirm": {

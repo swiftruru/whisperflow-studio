@@ -150,6 +150,34 @@ function resolveWingetPackageId(name) {
 
 
 function isExecutableOnPath(cmdName) {
+  // On Windows, delegate to `where.exe` first because it correctly
+  // resolves App Execution Aliases in %LOCALAPPDATA%\Microsoft\WindowsApps
+  // (how Windows 10/11 expose `winget.exe` and other Store-provided
+  // binaries).  These aliases are APPEXECLINK reparse points and
+  // `fs.statSync(...).isFile()` returns false on them, so the manual
+  // PATH walk below silently misses winget even when the user has it
+  // installed.  The `where` invocation uses the OS's canonical
+  // resolver and catches these cases correctly.  Falls back to the
+  // manual walk if `where` errors out (e.g. the command isn't on
+  // PATH — extremely unusual, but not worth crashing over).
+  if (process.platform === 'win32') {
+    try {
+      const out = execFileSync('where', [cmdName], {
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).toString('utf-8').trim();
+      if (out) {
+        // `where` can print multiple results (one per line).  Take
+        // the first one — that's what Windows itself would launch.
+        const first = out.split(/\r?\n/)[0]?.trim();
+        if (first) return first;
+      }
+    } catch (_) {
+      // Not found via `where`, or `where` itself unavailable — fall
+      // through to the manual PATH walk.
+    }
+  }
+
   const exts = process.platform === 'win32'
     ? (process.env.PATHEXT || '.EXE;.BAT;.CMD;.COM').split(';').map((e) => e.toLowerCase())
     : [''];
@@ -159,7 +187,8 @@ function isExecutableOnPath(cmdName) {
     for (const ext of exts) {
       const candidate = path.join(dir, cmdName + ext);
       try {
-        if (fs.statSync(candidate).isFile()) {
+        const stat = fs.statSync(candidate);
+        if (stat.isFile()) {
           return candidate;
         }
       } catch (_) {
@@ -216,6 +245,12 @@ function detectAvailableManagers() {
  * @param {(chunk: string) => void} [options.onLog]
  * @returns {Promise<void>}
  */
+// Holds the currently running install child process so `cancelActiveInstall`
+// can kill it from another IPC call.  Only one install runs at a time (the
+// dialog enforces that), so a single module-level slot is enough.
+let _activeChild = null;
+let _activeCancelled = false;
+
 function installPackage({ managerId, packageName, onLog }) {
   return new Promise((resolve, reject) => {
     const manager = MANAGERS.find((m) => m.id === managerId);
@@ -250,6 +285,8 @@ function installPackage({ managerId, packageName, onLog }) {
       // Let the manager use cmd.exe / sh for us on each platform.
       shell: process.platform === 'win32',
     });
+    _activeChild = child;
+    _activeCancelled = false;
 
     const forward = (buf) => {
       if (typeof onLog === 'function') onLog(buf.toString('utf-8'));
@@ -258,10 +295,20 @@ function installPackage({ managerId, packageName, onLog }) {
     child.stderr?.on('data', forward);
 
     child.on('error', (err) => {
+      if (_activeChild === child) _activeChild = null;
       reject(new Error(`${manager.label} spawn failed: ${err.message}`));
     });
     child.on('close', (code) => {
-      if (code === 0) {
+      const wasCancelled = _activeCancelled;
+      if (_activeChild === child) {
+        _activeChild = null;
+        _activeCancelled = false;
+      }
+      if (wasCancelled) {
+        const err = new Error(`${manager.label} install cancelled by user`);
+        err.code = 'PM_INSTALL_CANCELLED';
+        reject(err);
+      } else if (code === 0) {
         resolve();
       } else {
         reject(new Error(`${manager.label} exited with code ${code}`));
@@ -270,9 +317,53 @@ function installPackage({ managerId, packageName, onLog }) {
   });
 }
 
+/**
+ * Kill the currently running install child (if any).  Returns true if a
+ * process was actually killed, false if there was nothing to cancel.
+ *
+ * On Windows we walk the process tree via `taskkill /T` because scoop /
+ * winget are PowerShell front-ends that spawn their real work as
+ * grandchildren — a plain `child.kill()` only kills the shim and leaves
+ * the download running in the background.  On POSIX a plain SIGTERM is
+ * enough because `spawn(..., { shell: false })` gives us the real pid.
+ */
+function cancelActiveInstall() {
+  const child = _activeChild;
+  if (!child || child.killed) return false;
+  _activeCancelled = true;
+  try {
+    if (process.platform === 'win32' && typeof child.pid === 'number') {
+      // /F force, /T tree — kills the shell and every descendant spawned
+      // by scoop / winget / choco.
+      try {
+        execFileSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], {
+          windowsHide: true,
+          stdio: 'ignore',
+        });
+      } catch (_) {
+        // Fall through to child.kill() as a best-effort fallback.
+        child.kill();
+      }
+    } else {
+      child.kill('SIGTERM');
+      // Escalate to SIGKILL after a grace period so a misbehaving child
+      // that ignores SIGTERM still goes down.
+      setTimeout(() => {
+        if (_activeChild === child && !child.killed) {
+          try { child.kill('SIGKILL'); } catch (_) { /* ignore */ }
+        }
+      }, 2000);
+    }
+  } catch (_) {
+    return false;
+  }
+  return true;
+}
+
 
 module.exports = {
   MANAGERS,
   detectAvailableManagers,
   installPackage,
+  cancelActiveInstall,
 };

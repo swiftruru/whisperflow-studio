@@ -167,7 +167,7 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 |-------------|-------|
 | **Node.js** ≥ 18 | For running the Electron app |
 | **Python** ≥ 3.10 | Used only to bootstrap the app's own virtualenv on first launch. Must be on PATH or specified via `pythonPath` in `settings.json`. |
-| **ffmpeg** | Required at runtime for audio decoding. If missing, the preflight panel shows a **安裝 ffmpeg** button that detects available package managers (Homebrew / Scoop / winget / apt / dnf / pacman) and installs it in one click — or copies the admin command for you. |
+| **ffmpeg** | Required at runtime for audio decoding. If missing, the preflight panel shows a **安裝 ffmpeg** button that detects available package managers (Homebrew / winget / Scoop / Chocolatey / apt / dnf / pacman) and installs it in one click — or copies the admin command for you. Installs are cancellable mid-run and the dialog verifies the binary actually landed on disk before declaring success. |
 
 > **No external faster-whisper-webui needed.** Previous versions required a separate Python project and a Poetry install. v1.4.0 rewrote the transcription core directly into `python/whisperflow/` and uses an in-app venv, so you only need Python 3.10+ on PATH.
 
