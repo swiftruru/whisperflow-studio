@@ -449,7 +449,30 @@ async function renderSettings() {
 
     const header = document.createElement('div');
     header.className = 'section-header section-header-collapsible';
-    header.innerHTML = `<span>[${section}]</span><svg class="section-chevron" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>`;
+    // Look up a human-readable name for this section via the
+    // `settings:sections.<KEY>` i18n path.  We keep the section KEY
+    // (APP_SETTINGS / SETTING) as the stable identifier used for
+    // collapse-state persistence and form submission, but surface
+    // a friendly label in the heading so non-technical users don't
+    // have to decode raw config section names.  Falls back to the
+    // raw KEY if the translation is missing (so future new sections
+    // still render something instead of a blank heading).
+    const sectionLabel = t(`settings:sections.${section}`, { defaultValue: section });
+    const headerLabel = document.createElement('span');
+    headerLabel.textContent = sectionLabel;
+    const chevron = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    chevron.setAttribute('class', 'section-chevron');
+    chevron.setAttribute('viewBox', '0 0 24 24');
+    chevron.setAttribute('width', '12');
+    chevron.setAttribute('height', '12');
+    chevron.setAttribute('fill', 'none');
+    chevron.setAttribute('stroke', 'currentColor');
+    chevron.setAttribute('stroke-width', '2.5');
+    const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    polyline.setAttribute('points', '6 9 12 15 18 9');
+    chevron.appendChild(polyline);
+    header.appendChild(headerLabel);
+    header.appendChild(chevron);
     if (isCollapsed) header.classList.add('collapsed');
     container.appendChild(header);
 

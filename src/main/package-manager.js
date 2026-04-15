@@ -288,8 +288,15 @@ function installPackage({ managerId, packageName, onLog }) {
     _activeChild = child;
     _activeCancelled = false;
 
+    // Accumulate the full output so we can scan it for known-failure
+    // patterns after the child closes.  Some package managers (Scoop
+    // in particular) exit 0 on genuine failures — we can't trust
+    // exit code alone and have to grep the output ourselves.
+    let accumulatedOutput = '';
     const forward = (buf) => {
-      if (typeof onLog === 'function') onLog(buf.toString('utf-8'));
+      const text = buf.toString('utf-8');
+      accumulatedOutput += text;
+      if (typeof onLog === 'function') onLog(text);
     };
     child.stdout?.on('data', forward);
     child.stderr?.on('data', forward);
@@ -308,13 +315,87 @@ function installPackage({ managerId, packageName, onLog }) {
         const err = new Error(`${manager.label} install cancelled by user`);
         err.code = 'PM_INSTALL_CANCELLED';
         reject(err);
-      } else if (code === 0) {
+        return;
+      }
+
+      // Scan the accumulated output for known-failure patterns before
+      // trusting the exit code.  Scoop's 7z wrapper reports extraction
+      // failures on stderr but still lets the outer `scoop install`
+      // exit 0, which is how the infamous `ffmpeg decompress-error`
+      // issue bypasses naive exit-code-only success checks.  winget's
+      // `--silent` mode has a similar bug around UAC cancellation.
+      const failureReason = detectSilentInstallFailure(managerId, accumulatedOutput);
+      if (failureReason) {
+        const err = new Error(
+          `${manager.label} reported success but the output contains a failure marker: ${failureReason}`,
+        );
+        err.code = 'PM_SILENT_FAILURE';
+        reject(err);
+        return;
+      }
+
+      if (code === 0) {
         resolve();
       } else {
         reject(new Error(`${manager.label} exited with code ${code}`));
       }
     });
   });
+}
+
+/**
+ * Scan the combined stdout+stderr of a finished package-manager run
+ * for known failure signatures that the manager didn't propagate as
+ * a non-zero exit code.  Returns a short human-readable reason
+ * string if a silent failure is detected, or `null` otherwise.
+ *
+ * This list is additive — add new entries as we find new silent-
+ * failure modes in the wild, but keep the existing ones stable so
+ * we don't regress the detection.
+ */
+function detectSilentInstallFailure(managerId, output) {
+  if (!output || typeof output !== 'string') return null;
+  const text = output;
+
+  if (managerId === 'scoop') {
+    // 7z decompress error — Scoop exits 0 but ffmpeg isn't extracted.
+    // Example line:
+    //   "Failed to extract files from C:\...\ffmpeg-8.1-full_build.7z."
+    if (/Failed to extract files from/i.test(text)) {
+      return '7z extraction failed (scoop decompress-error)';
+    }
+    // Scoop's boilerplate "Please try again or create a new issue"
+    // footer is only printed on failure paths even though the outer
+    // exit code can still be 0.
+    if (/Please try again or create a new issue/i.test(text)) {
+      return 'scoop install reported a user-facing failure';
+    }
+    // Checksum mismatch — also exits 0 in some Scoop versions.
+    if (/Hash check failed|ERROR Hash check failed/i.test(text)) {
+      return 'scoop hash check failed';
+    }
+  }
+
+  if (managerId === 'winget') {
+    // winget occasionally reports "Installer failed with exit code"
+    // in stdout while the outer winget process itself exits 0.
+    if (/Installer failed with exit code/i.test(text)) {
+      return 'winget installer subprocess reported failure';
+    }
+    // User cancelled UAC — winget prints this on stderr and exits 0
+    // with --silent in some builds.
+    if (/The operation was cancell?ed by the user/i.test(text)) {
+      return 'UAC prompt cancelled by user';
+    }
+  }
+
+  if (managerId === 'choco') {
+    if (/The install of .* was NOT successful/i.test(text)) {
+      return 'chocolatey reported install was not successful';
+    }
+  }
+
+  return null;
 }
 
 /**

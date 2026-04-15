@@ -9,8 +9,8 @@
   },
   "loading": "正在載入設定…",
   "sections": {
-    "APP_SETTINGS": "APP_SETTINGS",
-    "SETTING": "SETTING"
+    "APP_SETTINGS": "應用程式設定",
+    "SETTING": "轉錄參數"
   },
   "fields": {
     "pythonPath": {

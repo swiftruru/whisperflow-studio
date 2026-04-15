@@ -9,8 +9,8 @@
   },
   "loading": "Loading config…",
   "sections": {
-    "APP_SETTINGS": "APP_SETTINGS",
-    "SETTING": "SETTING"
+    "APP_SETTINGS": "Application",
+    "SETTING": "Transcription"
   },
   "fields": {
     "pythonPath": {

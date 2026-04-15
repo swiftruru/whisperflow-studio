@@ -2858,8 +2858,17 @@ kbd {
 
 /* ── Help Panel (right slideout) ───────────────────────────────────────────── */
 .help-panel {
+  /* Anchor the whole overlay below the titlebar so the language
+     toggle, theme toggle, and — on Windows — the native
+     min/max/close controls drawn by titleBarOverlay stay visible
+     and clickable while the help panel is open.  Previously this
+     used `inset: 0` which covered the titlebar row entirely and
+     hid the right-side toolbar on Windows in particular. */
   position: fixed;
-  inset: 0;
+  top: var(--titlebar-h);
+  right: 0;
+  bottom: 0;
+  left: 0;
   z-index: 120;
   pointer-events: none;
 }
@@ -2890,6 +2899,7 @@ kbd {
   max-width: 90vw;
   background: var(--surface0);
   border-left: 1px solid var(--border);
+  border-top: 1px solid var(--border);
   box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
