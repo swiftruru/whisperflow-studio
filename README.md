@@ -1,8 +1,74 @@
-# WhisperFlow Studio
+<!-- markdownlint-disable MD033 MD041 -->
+<!--
+  Inline HTML is intentional in this file: GitHub-flavored markdown has no
+  alignment primitives, so the centered header, badge rows, and download
+  buttons below all rely on <p align="center"> and <img>.  The lint
+  directive above silences MD033 (no-inline-html) for this README only.
+-->
 
-A desktop GUI for [faster-whisper-webui](https://github.com/jhj0517/faster-whisper-webui) — automatically scan a media directory for files without subtitles, then run AI speech-to-text transcription with a single click.
+<h1 align="center">🎙️ WhisperFlow Studio</h1>
 
-Built with Electron 35, vanilla JS renderer, pastel cream/yellow theme with dark mode support.
+<p align="center">
+  <strong>Self-contained desktop transcription for macOS, Windows &amp; Linux</strong><br>
+  Point at a folder, scan for files without subtitles, click Run. No external Python project, no Poetry, no path setup.
+</p>
+
+<p align="center">
+  <a href="https://github.com/swiftruru/whisperflow-studio/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/swiftruru/whisperflow-studio/release.yml?label=build&logo=github&style=flat-square" alt="Build"></a>
+  <a href="https://github.com/swiftruru/whisperflow-studio/releases/latest"><img src="https://img.shields.io/github/v/release/swiftruru/whisperflow-studio?label=release&color=orange&style=flat-square" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License"></a>
+  <img src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey?style=flat-square" alt="Platforms">
+  <img src="https://img.shields.io/badge/i18n-zh--TW%20%7C%20en-ff69b4?style=flat-square" alt="i18n">
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Electron-35-47848F?logo=electron&logoColor=white&style=flat-square" alt="Electron 35">
+  <img src="https://img.shields.io/badge/Vanilla%20JS-ESM-F7DF1E?logo=javascript&logoColor=black&style=flat-square" alt="Vanilla JS">
+  <img src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white&style=flat-square" alt="Python 3.10+">
+  <img src="https://img.shields.io/badge/faster--whisper-0.10+-4B8BBE?style=flat-square" alt="faster-whisper">
+  <img src="https://img.shields.io/badge/CTranslate2-3.24+-ff9800?style=flat-square" alt="CTranslate2">
+  <img src="https://img.shields.io/badge/PyTorch-2.1+-EE4C2C?logo=pytorch&logoColor=white&style=flat-square" alt="PyTorch">
+  <img src="https://img.shields.io/badge/Silero%20VAD-latest-6DB33F?style=flat-square" alt="Silero VAD">
+</p>
+
+---
+
+## 📦 Download
+
+Pre-built binaries are published on every tagged release. Pick your platform:
+
+<p align="center">
+  <a href="https://github.com/swiftruru/whisperflow-studio/releases/latest/download/WhisperFlow-Studio-arm64.dmg">
+    <img src="https://img.shields.io/badge/download-macOS%20Apple%20Silicon-000000?logo=apple&logoColor=white&style=for-the-badge" alt="macOS Apple Silicon">
+  </a>
+  &nbsp;
+  <a href="https://github.com/swiftruru/whisperflow-studio/releases/latest/download/WhisperFlow-Studio-x64.dmg">
+    <img src="https://img.shields.io/badge/download-macOS%20Intel-8a8a8a?logo=apple&logoColor=white&style=for-the-badge" alt="macOS Intel">
+  </a>
+  &nbsp;
+  <a href="https://github.com/swiftruru/whisperflow-studio/releases/latest/download/WhisperFlow-Studio-Setup.exe">
+    <img src="https://img.shields.io/badge/download-Windows%20Installer-0078D6?logo=windows&logoColor=white&style=for-the-badge" alt="Windows Installer">
+  </a>
+  &nbsp;
+  <a href="https://github.com/swiftruru/whisperflow-studio/releases/latest/download/WhisperFlow-Studio.AppImage">
+    <img src="https://img.shields.io/badge/download-Linux%20AppImage-FCC624?logo=linux&logoColor=black&style=for-the-badge" alt="Linux AppImage">
+  </a>
+</p>
+
+<p align="center">
+  <sub>
+    🔒 Built on GitHub Actions from the tagged commit. Checksums match the files uploaded by the workflow.<br>
+    🐍 First launch will automatically create a local Python virtualenv under your app data directory and install <code>faster-whisper</code>, <code>torch</code> and friends — expect a one-time 5–10 min setup.
+  </sub>
+</p>
+
+---
+
+## Overview
+
+A self-contained desktop app for fast, accurate speech-to-text transcription. Point it at a folder, scan for files without subtitles, and let it generate `.srt` / `.vtt` / `.txt` / `.json` for every missing item — all powered by [faster-whisper](https://github.com/SYSTRAN/faster-whisper) running inside the app's own bundled Python environment. No external tools to install, no paths to configure, no extra project to clone.
+
+Built with Electron 35, a vanilla-JS renderer, and a from-scratch Python transcription core that lives in [`python/whisperflow/`](python/whisperflow/).
 
 ---
 
@@ -11,8 +77,8 @@ Built with Electron 35, vanilla JS renderer, pastel cream/yellow theme with dark
 | Step | Action |
 |------|--------|
 | 1 | Point the app at a folder containing video/audio files |
-| 2 | **Scan for Missing Subtitles** — builds a queue of media files that do not yet have `.srt` / `.vtt` companions |
-| 3 | **Run Transcription** — starts the current queued item through `faster-whisper-webui`'s CLI |
+| 2 | **Scan for Missing Subtitles** — builds a queue of media files without `.srt` / `.vtt` companions |
+| 3 | **Run Transcription** — pipes the current queued file through the bundled `whisperflow` Python package |
 | 4 | Monitor the batch queue, then **Pause / Resume / Skip Current / Stop Batch** as needed |
 | 5 | Enable **Auto-loop** to keep processing queued items until the batch is done |
 
@@ -23,57 +89,46 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 ## Features
 
 ### Core
+
+- **Self-contained transcription core** — [`python/whisperflow/`](python/whisperflow/) is a rewritten, dependency-isolated Python package that drives faster-whisper, Silero VAD, segment merging, and subtitle writers. No external project required.
 - **Batch media scan** — recursively builds a queue of media files without subtitle companions
-- **Queue-based transcription** — runs the current queued item through `faster-whisper-webui` via Poetry CLI
-- **Real-time console** — streams Python stdout/stderr with timestamps and color-coded log levels
-- **Structured runner events** — Python bridge emits machine-readable stage events (`preparing`, `loading-model`, `transcribing`, `writing-subtitle`, `completed`, `failed`)
-- **Preflight checks** — validates Poetry, tool paths, media root, and required scripts before running transcription
-- **Settings panel** — edit all Whisper parameters (model, language, VAD, prompts, paths) in-app
-- **Profile switcher** — switch between multiple config profiles (shown when more than one profile exists)
-- **Drag & drop** — drag a folder onto the directory card to set the media root
+- **Model Manager tab** — list / download / delete faster-whisper models into an app-managed directory; all weights live under Electron's `userData/models/`, not in your global HuggingFace cache
+- **First-run venv bootstrap** — the app creates its own Python virtualenv (`python/.venv`) on first launch and installs `requirements.txt` for you
+- **Structured runner events** — the bridge emits machine-readable stage events (`preparing`, `loading-model`, `transcribing`, `writing-subtitle`, `completed`, `failed`) that drive the progress UI
+- **Multi-GPU parallel transcription** — preserved from the upstream architecture, fans work across CUDA devices on Linux/Windows
+- **Preflight checks** — validates the bundled Python environment, `whisperflow` package, and media root before running
+- **Settings panel** — edit model, language, VAD, initial prompt, device, and compute type in-app
 
 ### UX
-- **Auto-loop mode** — one scan builds the batch queue, then queued items run continuously until the batch is done
+
+- **Auto-loop mode** — one scan builds the batch queue, then queued items run continuously until done
 - **System Check panel** — surfaces blocking setup problems and links directly to the right settings field
-- **Next to Transcribe card** — shows the current queued file name, path, and remaining count
-- **Batch Progress card** — shows queue stage, processed counts, and per-batch scan summary
-- **Elapsed / ETA timing** — current job and batch cards show elapsed time plus estimated remaining time when enough progress data is available
-- **Queue panel** — lists pending / running / paused / done / skipped / failed items
-- **Queue search + status filters** — narrow the queue by file name/path and by status chips such as `Pending`, `Skipped`, or `Failed`
-- **Single-item queue controls** — retry, remove, and move queue items up/down directly from the queue list
+- **Next to Transcribe card** — current queued file name, path, and remaining count
+- **Batch Progress card** — queue stage, processed counts, per-batch scan summary, elapsed / ETA timing
+- **Queue panel** — lists pending / running / paused / done / skipped / failed items, with search and status chips
+- **Single-item queue controls** — retry, remove, move items up/down directly from the queue list
 - **Queue persistence** — queue state is restored after app restart so pending/skipped/failed work is not lost
-- **Stage messages** — queue UI surfaces the current runner stage message directly from the Python bridge
 - **Pause / Resume / Skip Current / Stop Batch** — control the current queued transcription without losing the rest of the queue
-- **Skip / Stop transition states** — the UI now shows `Skipping` / `Stopping` while waiting for the current Python process to exit cleanly
-- **Sticky action dock** — Scan / Run / Pause / Skip / Stop stay visible near the top of the sidebar instead of being pushed below long queue cards
-- **Transcription history** — last 10 transcribed files (✓ success / ✗ fail) displayed in the main panel; persisted across sessions
+- **Transcription history** — last 10 transcribed files (✓ / ✗) persisted across sessions
 - **Recent directories** — last 5 used directories shown below the directory card for one-click re-selection
-- **Reveal in Finder** — open the scanned file's parent folder directly from the UI
-- **Window memory** — window size and position are restored on next launch
-- **Step guide** — onboarding hints shown when no directory is selected
-- **Dirty state indicator** — Save button highlights when settings have unsaved changes
-- **Settings section collapse** — each settings group is collapsible; state persisted across sessions
 - **Toast notifications** — success / info / error feedback for every action
-- **Structured error UI** — runtime failures are normalized into actionable banners/dialogs instead of only raw stderr
-- **Execution timer** — status bar shows elapsed time (`Running 01:23`) while a process is running
-- **Window title status** — title bar shows `● Running` during transcription
+- **Structured error UI** — runtime failures are normalized into actionable banners/dialogs instead of raw stderr
 
 ### Console tools
-- **Log level filters** — filter console output by All / Error / Warn / OK
+
+- **Log level filters** — All / Error / Warn / OK
 - **Console search** — Cmd+F to find text in the log; shows match count
-- **Copy** — copy full log to clipboard
-- **Save Log** — export log to a `.txt` file via save dialog
-- **Clear** — manually clear the console (never clears automatically)
-- **Auto-scroll lock** — toggle to freeze scroll position
+- **Copy / Save Log / Clear / Auto-scroll lock**
 
 ### Appearance
-- **Light / dark theme toggle** — pastel cream yellow (light) and warm dark (dark); persisted via localStorage
+
+- **Light / dark theme toggle** — pastel cream yellow (light) and warm dark (dark); persisted
 - **System theme detection** — defaults to OS preference on first launch
 
 ### Keyboard shortcuts
 | Shortcut | Action |
 |----------|--------|
-| `Cmd+S` | Save settings (when Settings tab is active) |
+| `Cmd+S` | Save settings (Settings tab active) |
 | `Cmd+K` | Clear console |
 | `Cmd+F` | Open console search |
 | `Escape` | Close console search |
@@ -86,9 +141,10 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 | Requirement | Notes |
 |-------------|-------|
 | **Node.js** ≥ 18 | For running the Electron app |
-| **Poetry** | Python dependency manager; must be findable in PATH or a known location |
-| **[faster-whisper-webui](https://github.com/jhj0517/faster-whisper-webui)** | The Python backend that does the actual transcription |
-| **WhisperFlow Studio `python/` helpers** | Included in this repo; they handle scan logic and the headless CLI bridge |
+| **Python** ≥ 3.10 | Used only to bootstrap the app's own virtualenv on first launch. Must be on PATH or specified via `pythonPath` in `settings.json`. |
+| **ffmpeg** | Required at runtime for audio decoding. Install via `brew install ffmpeg` (macOS), `apt install ffmpeg` (Linux), or [ffmpeg.org](https://ffmpeg.org/) (Windows). |
+
+> **No external faster-whisper-webui needed.** Previous versions required a separate Python project and a Poetry install. v1.4.0 rewrote the transcription core directly into `python/whisperflow/` and uses an in-app venv, so you only need Python 3.10+ on PATH.
 
 ---
 
@@ -100,48 +156,56 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 npm install
 ```
 
-### 2. Configure local app settings
-
-Copy the settings template and edit it:
+### 2. Configure local app settings (optional)
 
 ```bash
 cp settings.example.json settings.json
 ```
 
-Open `settings.json` and, if needed, set a custom `poetryPath`:
+`settings.json` holds portable overrides. The only key you might need is `pythonPath`:
 
 ```json
 {
-  "poetryPath": null
+  "pythonPath": null
 }
 ```
 
-`poetryPath` can be left `null` — the app searches common install locations automatically (`~/.local/bin/poetry`, `/opt/homebrew/bin/poetry`, etc.). Set it only if Poetry is installed somewhere non-standard. In the Settings tab, the resolved auto-detected Poetry path is shown directly in the field even when you have not pinned a custom override.
+- `null` (default) → auto-detect system Python 3 from PATH and common install locations
+- Set a string path only if your Python 3.10+ is installed somewhere non-standard
 
-### 3. Configure transcription settings
-
-WhisperFlow Studio now uses `python/config/config.json` as the single source of truth for transcription settings.
-
-If `python/config/config.json` does not exist yet in your local checkout, create it from the template first:
-
-```bash
-cp python/config/config.example.json python/config/config.json
-```
-
-On first run:
-
-1. Open the **Settings** tab
-2. Set `whisper_faster_tool_path` to your `faster-whisper-webui` directory
-3. Optionally adjust model, language, VAD, and prompt defaults
-4. Click **Save**
-
-### 4. Run
+### 3. Run
 
 ```bash
 npm run dev
 # or
 npm start
 ```
+
+### 4. First-run bootstrap
+
+On first launch the **System Check** panel will show a warning:
+
+> **Python 虛擬環境尚未建立** · 第一次執行轉錄時會自動建立 `python/.venv/` 並安裝依賴（約數百 MB）。
+
+Click **立即建立環境** to run:
+
+1. `python3 -m venv python/.venv`
+2. `pip install --upgrade pip`
+3. `pip install -r python/requirements.txt`
+
+This downloads `faster-whisper`, `ctranslate2`, `torch`, `torchaudio`, and a few smaller dependencies. Expect 2-10 minutes depending on network speed.
+
+Progress streams live to the Console panel.
+
+### 5. Download a model
+
+Open the **Models** tab and click **下載** next to the model you want (e.g. `large-v2`). Models go to:
+
+- **macOS**: `~/Library/Application Support/WhisperFlow Studio/models/`
+- **Windows**: `%APPDATA%/WhisperFlow Studio/models/`
+- **Linux**: `~/.config/WhisperFlow Studio/models/`
+
+The Silero VAD weights share the same directory (under `torch_hub/`) so your global `~/.cache/` stays clean.
 
 ---
 
@@ -150,53 +214,82 @@ npm start
 ```
 whisperflow-studio/
 ├── bridge/
-│   └── run_cli.py               # Python bridge: headless CLI runner (streams output to Electron)
+│   └── run_cli.py                 # Thin Electron → whisperflow adapter (~90 lines)
 ├── python/
+│   ├── pyproject.toml             # Bundled Python project metadata
+│   ├── requirements.txt           # venv dependency list
 │   ├── config/
-│   │   ├── config.example.json  # Tracked template for local runtime config
-│   │   ├── config.metadata.json # Shared UI/options/media-extension metadata
-│   │   └── config.json          # Main transcription config (single source of truth)
-│   ├── config_metadata.py       # Python helper for reading shared config metadata
-│   ├── config_setting.py        # Legacy compatibility helper retained for older scan/config flows
-│   ├── faster-whisper-webui-cli.run.py # Shared CLI wrapper logic
-│   └── subtitle_utils.py        # Subtitle detection helpers
+│   │   ├── config.example.json    # Tracked template for local runtime config
+│   │   ├── config.metadata.json   # UI enum options, bundled-python metadata
+│   │   └── config.json            # Main transcription config (single source of truth)
+│   ├── config_setting.py          # Media scan helper invoked from Electron
+│   ├── config_metadata.py         # Python helper for reading shared metadata
+│   ├── subtitle_utils.py          # Subtitle-detection helpers for the scan
+│   └── whisperflow/               # Transcription core
+│       ├── cli.py                 # argparse entry point + --list-models / --download-model / --delete-model
+│       ├── transcriber.py         # Orchestrator: model load → VAD → whisper → write outputs
+│       ├── config.py              # TranscribeConfig dataclass
+│       ├── events.py              # [WhisperFlowEvent] JSON emitter
+│       ├── languages.py           # Full Whisper-99 language table
+│       ├── progress.py            # ProgressListener protocol + SubTaskProgressListener
+│       ├── audio/source.py        # Local-file AudioSource wrapper
+│       ├── subtitles/writers.py   # SRT / VTT / TXT writers
+│       ├── models/
+│       │   ├── registry.py        # Built-in faster-whisper model catalogue
+│       │   ├── manager.py         # Cross-platform models dir + download/list/delete
+│       │   ├── cache.py           # Thread-safe model cache
+│       │   ├── whisper_container.py
+│       │   └── faster_whisper_backend.py
+│       ├── vad/
+│       │   ├── base.py            # AbstractVadTranscription + merge/gap helpers
+│       │   ├── silero.py          # Silero VAD (torch.hub pinned to managed dir)
+│       │   ├── periodic.py        # Fixed-interval fallback VAD
+│       │   ├── parallel.py        # Multi-GPU parallel driver (CUDA)
+│       │   └── segments.py        # merge_timestamps()
+│       ├── prompts/
+│       │   ├── base.py            # PromptStrategy protocol + InitialPromptMode enum
+│       │   ├── prepend.py         # Prepend-all / prepend-first
+│       │   └── json_prompt.py     # Per-segment JSON-driven prompts
+│       └── tests/                 # pytest unit tests (46 tests, lightweight)
 ├── preload/
-│   └── preload.js               # Electron contextBridge (exposes window.electronAPI)
+│   └── preload.js                 # Electron contextBridge (window.electronAPI)
 ├── src/
 │   ├── main/
-│   │   ├── main.js              # App bootstrap, window creation, dock icon
-│   │   ├── ipc-handlers.js      # All IPC channels (config, fs dialogs, process runners)
-│   │   ├── config-metadata.js   # Reads shared config metadata for Electron
-│   │   ├── preflight-checker.js # Environment checks for Poetry, paths, and required scripts
-│   │   ├── queue-manager.js     # Batch queue state, scan logic, and job lifecycle
-│   │   ├── queue-storage.js     # Persists queue state to Electron userData for restart recovery
-│   │   ├── runner-event.js      # Structured runner event schema and parser
-│   │   ├── runner-metrics.js    # Elapsed / ETA helpers for current job and batch timing
-│   │   ├── python-runner.js     # Spawns Poetry subprocesses, streams stdout/stderr, pause/resume/stop control
-│   │   ├── config-manager.js    # Reads/writes and normalizes config.json
-│   │   └── path-resolver.js     # Locates the Poetry executable
+│   │   ├── main.js                # App bootstrap, window creation
+│   │   ├── ipc-handlers.js        # All IPC channels (config, fs, runners, models, venv)
+│   │   ├── config-metadata.js     # Reads shared config metadata
+│   │   ├── preflight-checker.js   # Environment checks (venv, whisperflow package, media root)
+│   │   ├── venv-installer.js      # First-run venv creation + pip install
+│   │   ├── queue-manager.js       # Batch queue state and job lifecycle
+│   │   ├── queue-storage.js       # Persists queue state to userData
+│   │   ├── runner-event.js        # [WhisperFlowEvent] parser
+│   │   ├── runner-metrics.js      # Elapsed / ETA helpers
+│   │   ├── python-runner.js       # Spawns bundled venv python, streams stdio
+│   │   ├── config-manager.js      # Reads/writes config.json
+│   │   └── path-resolver.js       # Locates venv python + system python
 │   └── renderer/
-│       ├── index.html           # Main HTML template
-│       ├── index.js             # Tab switching, directory drag-drop, theme, keyboard shortcuts
-│       ├── styles.css           # Pastel cream/yellow theme (light + dark)
+│       ├── index.html
+│       ├── index.js
+│       ├── styles.css
 │       └── components/
-│           ├── controls-bar.js      # Scan / Run / Pause / Resume / Skip / Stop / auto-loop logic
-│           ├── preflight-panel.js   # System Check panel
-│           ├── queue-state.js       # Renderer-side queue store
-│           ├── queue-view-state.js  # Queue search/filter view state
-│           ├── queue-panel.js       # Queue list + batch progress cards
-│           ├── error-banner.js      # Actionable runtime error banner
-│           ├── error-dialog.js      # Detailed runtime error modal
-│           ├── error-actions.js     # Error CTA dispatcher
-│           ├── settings-panel.js    # Whisper settings form, dirty tracking, section collapse
-│           ├── console-log.js       # Real-time log panel, filters, search, save log
-│           ├── profile-switcher.js  # Profile switching UI
-│           └── toast.js             # Toast notification system
-├── assets/                      # App icons
-├── scripts/
-│   └── patch-icon.js            # Postinstall: patches electron.icns for dev mode dock icon
-├── settings.json                # Local portable settings (gitignored)
-├── settings.example.json        # Template — copy to settings.json and edit
+│           ├── controls-bar.js
+│           ├── preflight-panel.js
+│           ├── queue-panel.js
+│           ├── settings-panel.js   # Whisper settings form, dynamic model dropdown
+│           ├── model-manager.js    # Models tab: list / download / delete
+│           ├── console-log.js
+│           ├── profile-switcher.js
+│           ├── error-banner.js
+│           ├── error-dialog.js
+│           ├── error-actions.js
+│           ├── error-state.js
+│           ├── history.js
+│           ├── queue-state.js
+│           ├── queue-view-state.js
+│           └── toast.js
+├── NOTICES.md                     # Third-party attributions (Apache 2.0 for upstream)
+├── settings.json                  # Local portable settings (gitignored)
+├── settings.example.json          # Template
 └── package.json
 ```
 
@@ -206,60 +299,48 @@ whisperflow-studio/
 
 ### `settings.json` (portable, gitignored)
 
-Stored in the project root during development. In packaged builds it lives in Electron `userData`.
+Stored in the project root during development; in packaged builds it lives in Electron `userData`.
 
 | Key | Type | Description |
-|-----|------|-------------|
-| `poetryPath` | `string \| null` | Absolute path to the `poetry` binary; `null` = auto-detect |
+| --- | --- | --- |
+| `pythonPath` | string or null | Absolute path to a system Python 3.10+ interpreter for venv bootstrap; `null` = auto-detect |
 
 ### `python/config/config.json`
 
-Whisper transcription settings. Edited via the **Settings** tab inside the app.
-This file is the main runtime config for transcription defaults and bridge compatibility fields.
-`python/config/config.example.json` is the tracked template; `config.json` is the local working copy.
+Whisper transcription settings. Edited via the **Settings** tab inside the app. `python/config/config.example.json` is the tracked template; `config.json` is your local working copy.
 
 | Key | Description |
 |-----|-------------|
-| `whisper_implementation` | Backend mode passed to `faster-whisper-webui` |
-| `python_executor` | Stored for compatibility with the Python wrapper; default is `poetry` |
-| `model` | Whisper model size (`large-v2`, `medium`, …) |
-| `fp16_enabled` / `auto_parallel_enabled` | Execution flags forwarded to the CLI |
-| `language` | Target language for transcription |
-| `initial_prompt` | Hint text fed to Whisper (e.g. `台灣繁體中文` for Traditional Chinese output) |
-| `vad_argument` | Voice activity detection strategy |
-| `vad_max_merge_size` | Merge nearby VAD segments within the given number of seconds |
-| `vad_initial_prompt_mode` | How the initial prompt is applied during VAD runs |
-| `whisper_faster_tool_path` | Path to the `faster-whisper-webui` installation |
-| `media_root_path` | Directory to scan for media files |
-| `media_file_name` / `media_file_path` | Kept in sync with the current queue item for Python bridge compatibility |
-| `missing_count` | Remaining queue size (`pending + running + paused + failed`) after the last queue update |
+| `model` | Whisper model name (`tiny`, `base`, `small`, `medium`, `large-v1`, `large-v2`, `large-v3`). Only downloaded models appear in the Settings dropdown. |
+| `models_dir` | Managed models directory; populated automatically from Electron's `userData/models/`. |
+| `device` | `auto`, `cpu`, or `cuda`. |
+| `compute_type` | `auto`, `float16`, `float32`, `int8`, `int8_float16`, `int8_float32`. |
+| `vad` | Voice activity detection strategy: `none`, `silero-vad`, `silero-vad-skip-gaps`, `silero-vad-expand-into-gaps`, `periodic-vad`. |
+| `vad_merge_window` | Silence window (seconds) within which consecutive speech segments are merged. |
+| `vad_max_merge_size` | Maximum merged-segment length (seconds). |
+| `vad_padding` | Padding added around each detected speech segment (seconds). |
+| `vad_prompt_window` | Rolling prompt window length (seconds). |
+| `language` | Target language (human-readable name; auto-detected if empty). |
+| `initial_prompt` | Hint text fed to Whisper (e.g. `台灣繁體中文` for Traditional Chinese output). |
+| `initial_prompt_mode` | `prepend_all_segments`, `prepend_first_segment`, or `json_prompt_mode`. |
+| `media_root_path` | Directory to scan for media files. |
+| `media_file_name` / `media_file_path` | Kept in sync with the current queue item for bridge compatibility. |
+| `missing_count` | Remaining queue size after the last scan. |
 
-> Queue state itself lives in Electron main process (`queue-manager.js`), not inside `config.json`.
-> Persisted queue snapshots live separately in Electron `userData/queue-state.json`.
-
-> Selecting a language in the Settings tab auto-fills `initial_prompt` with a sensible preset for that language.
-
-### `WEBUI_SETTING` in `python/config/config.json`
-
-Legacy WebUI-related defaults are also preserved in JSON form, including:
-
-- `server_name`
-- `server_port`
-- `default_model_name`
-- `input_audio_max_duration`
-- `default_vad`
-
-If a legacy `python/config/config.ini` still exists, WhisperFlow Studio will import missing or still-default values from it into `config.json` automatically.
+> Queue state itself lives in Electron's main process (`queue-manager.js`), not inside `config.json`. Persisted queue snapshots live separately in Electron `userData/queue-state.json`.
+>
+> Selecting a language in the Settings tab auto-fills `initial_prompt` with a sensible preset.
 
 ### `python/config/config.metadata.json`
 
 Tracked metadata for non-user-editable app constants shared across Electron and Python:
 
-- settings form enum options
+- settings form enum options (with a dynamic `model` dropdown fed by the Model Manager)
 - language-to-prompt presets
 - media file extensions for browse/scan
 - subtitle file extensions for detection
-- app runtime defaults such as window sizing and Poetry path discovery
+- bundled-Python metadata (venv dir name, requirements file, minimum Python version)
+- known system Python paths for venv bootstrap
 
 ---
 
@@ -270,76 +351,57 @@ Tracked metadata for non-user-editable app constants shared across Electron and 
 - **Browse** — click the Browse button to open a folder picker
 - **Drag and drop** — drag a folder (or any file inside it) onto the directory card
 
-### Queue workflow
+### Model management
 
-- A single **Scan** builds the full queue rather than selecting only one file
-- Use the queue search box and status chips to focus on a subset of items
-- Use row actions to `Retry`, `Remove`, or move items `↑ / ↓`
-- `Skip Current` marks the active job as `skipped`; it is not permanent and can be returned to `pending` later via `Retry`
+1. Open the **Models** tab
+2. Review the built-in model catalogue (size, repo id, description)
+3. Click **下載** next to a model to download it into the managed directory
+4. Installed models appear with a green badge; click **刪除** to remove them
 
-### System Check / Preflight
-
-- The app runs a startup **System Check** before transcription
-- Missing Poetry, invalid `whisper_faster_tool_path`, missing media root, or missing bridge scripts are shown directly in the main panel
-- `Scan` only requires a valid media root; `Run Transcription` requires the full preflight to pass
+Models that aren't yet downloaded won't appear in the Settings tab's `model` dropdown — download first, then pick.
 
 ### Scan → Transcribe workflow
 
 1. Set the media directory
-2. Click **Scan for Missing Subtitles** — the console shows scan results, a batch queue is built, and the **Next to Transcribe / Batch Progress / Queue** cards update
-3. Click **Run Transcription** — the current queued item starts and the console streams progress in real time
-4. While a job is running you can:
-   - **Pause / Resume** the current transcription
-   - **Skip Current** to mark the current item as skipped and move on
-   - **Stop Batch** to terminate the current process and leave the remaining queue ready
-5. Review the queue list for pending / running / paused / done / skipped / failed states
-6. Watch **Batch Progress** for:
-   - current stage (`Preparing`, `Loading Model`, `Transcribing`, `Writing Subtitle`, ...)
-   - current job elapsed time and ETA
-   - batch elapsed time and estimated remaining time
-   - stage message forwarded from the Python bridge
+2. Click **Scan for Missing Subtitles**
+3. Click **Run Transcription**
+4. While a job is running you can **Pause / Resume / Skip Current / Stop Batch**
+5. Watch **Batch Progress** for current stage, elapsed time, ETA, and stage messages forwarded from Python
 
-When **Auto-loop** is enabled and you press **Skip Current**, WhisperFlow Studio first enters a short `Skipping` transition while the current Python process exits, then automatically continues to the next queued file.
+### System Check / Preflight
 
-Or enable **自動循環模式** (Auto-loop) to have the app continue through all queued files automatically after a single scan.
+Preflight validates:
+
+- `config.json` is readable
+- The bundled `whisperflow` Python package exists
+- The bundled venv is initialised (otherwise shows a warning with a **立即建立環境** button)
+- Media root exists
+- Bridge scripts exist
+
+Errors block transcription; warnings (like "venv not initialised") do not — the user can dismiss them by clicking the inline action.
 
 ### Restart recovery
 
 - Queue state is persisted in Electron `userData/queue-state.json`
 - `running` jobs are restored as `failed` with an interruption message after app restart
 - `paused` jobs are restored as `pending`
-- WhisperFlow Studio does not fake-resume old Python subprocesses after restart
 
 ### Progress model
 
-- The Python bridge now emits structured runner events in addition to human-readable log lines
-- Electron main parses those events and updates queue state with:
-  - `stage`
-  - `progress`
-  - `stageMessage`
-  - `elapsedSeconds`
-  - `etaSeconds`
+- `python/whisperflow/events.py` emits `[WhisperFlowEvent]` JSON lines to stdout
+- Electron main (`runner-event.js`) parses them and updates queue state with `stage`, `progress`, `stageMessage`, `elapsedSeconds`, `etaSeconds`
 - The renderer uses that queue state to drive the visible progress UI
-- If a structured event is missing, queue progress falls back to the older stdout keyword heuristics so the UI does not go blank
-
-### Settings tab
-
-- Adjust model, language, VAD, initial prompt, and other Whisper parameters
-- Click **Save** to write changes to `python/config/config.json`
-- Switching the **language** dropdown auto-fills `initial_prompt` with a language-appropriate preset
-- Each settings section can be collapsed; the state is remembered across sessions
 
 ---
 
 ## Moving the app
 
-Because runtime settings live in `settings.json` and `python/config/config.json`, you can move the project directory anywhere as long as your external tool paths still point to valid locations:
+Because runtime settings live in `settings.json` and `python/config/config.json`, and the bundled venv lives inside the project directory, you can move the project directory anywhere:
 
 1. Move the folder to the new location
-2. Run `npm install` (restores `node_modules`)
-3. Check `settings.json` if you use a custom `poetryPath`
-4. Open the app and update `whisper_faster_tool_path` in the **Settings** tab if the `faster-whisper-webui` path changed
-5. `npm run dev`
+2. Run `npm install` to restore `node_modules`
+3. If `python/.venv/` was moved along with the project, it may contain absolute paths from its original location — delete it and re-run the bootstrap from the System Check panel
+4. `npm run dev`
 
 ---
 
@@ -353,6 +415,23 @@ npm run build:linux  # Linux AppImage
 
 Output goes to `dist/`.
 
+> The release build does **not** bundle a pre-built venv. The installed app ships with `python/whisperflow/` and `python/requirements.txt`, and the user's first launch creates a machine-local venv on demand. This keeps the installer under ~200 MB instead of ~2 GB, and avoids the venv-relocation problem across machines.
+
+---
+
+## Development
+
+Run the Python unit tests (46 tests, lightweight — no torch required):
+
+```bash
+cd python
+python3 -m venv .venv-test
+.venv-test/bin/pip install pytest ffmpeg-python numpy
+.venv-test/bin/python -m pytest whisperflow/tests/ -q
+```
+
+The same suite runs on every release in CI — see [`.github/workflows/release.yml`](.github/workflows/release.yml).
+
 ---
 
 ## Tech stack
@@ -362,7 +441,17 @@ Output goes to `dist/`.
 | Desktop shell | Electron 35 |
 | Renderer | Vanilla JS (ES modules), no framework |
 | Styling | CSS custom properties, pastel cream/yellow palette (light + dark) |
+| Transcription core | `whisperflow` package → faster-whisper + CTranslate2 + Silero VAD |
+| Python env | Local `python/.venv/` created on first launch (no poetry, no external project) |
 | Config I/O | JSON files via `fs` (`python/config/config.json`, `settings.json`) |
 | Python subprocess | `child_process.spawn` with `PYTHONUNBUFFERED=1` |
 | ANSI stripping | `strip-ansi@6.0.1` (pinned CJS build) |
 | Packaging | electron-builder |
+
+---
+
+## Credits
+
+WhisperFlow Studio's transcription core was originally derived (rewritten, not copied) from [aadnk/faster-whisper-webui](https://gitlab.com/aadnk/faster-whisper-webui), which is licensed under the Apache License 2.0. The Gradio WebUI layer, YouTube downloader, speaker diarization, and HuggingFace converter have been removed; the VAD/merge/prompt-strategy/transcription logic was rewritten into the `whisperflow` package with a cleaner type-hinted API. See [NOTICES.md](NOTICES.md) for full attribution.
+
+Runtime transcription is powered by [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (MIT) and [CTranslate2](https://github.com/OpenNMT/CTranslate2) (MIT), using [OpenAI Whisper](https://github.com/openai/whisper) model weights (MIT). Voice activity detection uses [Silero VAD](https://github.com/snakers4/silero-vad) (MIT).

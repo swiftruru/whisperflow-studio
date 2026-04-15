@@ -1,8 +1,8 @@
 {
   "name": "whisperflow-studio",
   "productName": "WhisperFlow Studio",
-  "version": "1.3.2",
-  "description": "WhisperFlow Studio - faster-whisper-webui desktop GUI",
+  "version": "1.4.0",
+  "description": "WhisperFlow Studio - self-contained faster-whisper desktop transcription app",
   "main": "src/main/main.js",
   "scripts": {
     "start": "ELECTRON_RUN_AS_NODE='' electron .",

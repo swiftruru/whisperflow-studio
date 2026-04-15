@@ -49,6 +49,7 @@
       <!-- Tab Nav -->
       <nav class="tab-nav" role="tablist">
         <button class="tab-btn active" data-tab="main" role="tab">Main</button>
+        <button class="tab-btn" data-tab="models" role="tab">Models</button>
         <button class="tab-btn" data-tab="settings" role="tab">Settings</button>
         <div class="tab-indicator" id="tab-indicator"></div>
       </nav>
@@ -242,6 +243,21 @@
         </div>
 
       </div><!-- /tab-main -->
+
+      <!-- ── Tab: Models ────────────────────────────────────────────────── -->
+      <div class="tab-pane" id="tab-models">
+        <div class="models-toolbar">
+          <div class="models-toolbar-left">
+            <span class="models-toolbar-label">Model Manager</span>
+            <span class="models-dir-label" id="models-dir-label">—</span>
+          </div>
+          <button class="btn-secondary" id="btn-models-refresh">Refresh</button>
+        </div>
+        <div class="models-panel-body">
+          <div class="models-empty-msg" id="models-empty-msg">正在載入模型清單…</div>
+          <div class="models-list" id="models-list"></div>
+        </div>
+      </div><!-- /tab-models -->
 
       <!-- ── Tab: Settings ──────────────────────────────────────────────── -->
       <div class="tab-pane" id="tab-settings">

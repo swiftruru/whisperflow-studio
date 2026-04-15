@@ -2,11 +2,11 @@
 
 import { showToast } from './toast.js';
 import { refreshPreflight } from './preflight-panel.js';
+import { VENV_INITIALIZED_EVENT } from '../lib/venv-bootstrap.js';
 
 const APP_SETTINGS_SECTION = 'APP_SETTINGS';
 const VALIDATED_FIELD_KEYS = new Set([
-  'poetryPath',
-  'whisper_faster_tool_path',
+  'pythonPath',
   'media_root_path',
 ]);
 
@@ -16,8 +16,39 @@ let configObj = null;
 let appSettingsObj = null;
 let configMetadata = null;
 
-function getEnumOptions() {
-  return configMetadata?.settingsUi?.enumOptions || {};
+// Per-model dynamic-enum overrides.  The ``model`` field's dropdown used to
+// come from a static list in config.metadata.json; now it's populated at
+// render time from the Model Manager IPC so users only see models they've
+// actually downloaded (plus any custom entries already in their config).
+let dynamicModelNames = null;
+
+async function loadDynamicModelNames() {
+  // Keep retrying until we actually get a populated list — the venv may not
+  // be initialised on first call, in which case we want the next render to
+  // try again rather than getting stuck on an empty cache.
+  if (Array.isArray(dynamicModelNames) && dynamicModelNames.length > 0) {
+    return dynamicModelNames;
+  }
+  try {
+    const result = await window.electronAPI.listModels();
+    const list = Array.isArray(result?.models) ? result.models : [];
+    dynamicModelNames = list.map((entry) => entry.name);
+  } catch (_) {
+    dynamicModelNames = null;
+  }
+  return dynamicModelNames;
+}
+
+function invalidateDynamicModelNames() {
+  dynamicModelNames = null;
+}
+
+function getEnumOptions(key) {
+  const base = configMetadata?.settingsUi?.enumOptions || {};
+  if (key === 'model' && Array.isArray(dynamicModelNames) && dynamicModelNames.length > 0) {
+    return { ...base, model: dynamicModelNames };
+  }
+  return base;
 }
 
 function getLanguagePrompts() {
@@ -33,7 +64,7 @@ function getFileBrowseKeys() {
 }
 
 function inferFieldType(key, value) {
-  if (getEnumOptions()[key]) return 'select';
+  if (getEnumOptions(key)[key]) return 'select';
   if (value === 'True' || value === 'False') return 'boolean';
   if (!isNaN(value) && value !== '') return 'number';
   return 'text';
@@ -63,7 +94,7 @@ function buildField(section, key, value) {
 
   if (fieldType === 'select') {
     input = document.createElement('select');
-    const options = getEnumOptions()[key];
+    const options = getEnumOptions(key)[key];
     for (const opt of options) {
       const option = document.createElement('option');
       option.value = opt;
@@ -117,7 +148,7 @@ function buildField(section, key, value) {
     btn.textContent = '…';
     btn.title = 'Browse file';
     btn.addEventListener('click', async () => {
-      const file = key === 'poetryPath'
+      const file = key === 'pythonPath'
         ? await window.electronAPI.browseAnyFile()
         : await window.electronAPI.browseFile();
       if (file) {
@@ -150,12 +181,16 @@ function collectFormValues() {
     if (el.type === 'checkbox') {
       result[section][key] = el.checked ? 'True' : 'False';
     } else {
-      const isAutoResolvedPoetryPath =
-        key === 'poetryPath'
+      // If this field's value was auto-filled by the validator (the user
+      // never typed it), persist it as an empty string instead of the
+      // resolved absolute path.  Otherwise moving the project would break
+      // because the saved path would point at the old location.
+      const isAutoResolvedPath =
+        key === 'pythonPath'
         && el.dataset.autoResolved === 'true'
         && el.value.trim() === (el.dataset.autoResolvedValue || '').trim();
 
-      result[section][key] = isAutoResolvedPoetryPath ? '' : el.value;
+      result[section][key] = isAutoResolvedPath ? '' : el.value;
     }
   }
 
@@ -171,7 +206,7 @@ function splitFormValues(data) {
     configData: nextConfig,
     appSettings: {
       ...nextAppSettings,
-      poetryPath: nextAppSettings.poetryPath?.trim() ? nextAppSettings.poetryPath.trim() : null,
+      pythonPath: nextAppSettings.pythonPath?.trim() ? nextAppSettings.pythonPath.trim() : null,
     },
   };
 }
@@ -192,7 +227,7 @@ function getValidationHint(input) {
 }
 
 function syncResolvedDisplayValue(input, result) {
-  if (input.dataset.key !== 'poetryPath' || input.type !== 'text') return;
+  if (input.dataset.key !== 'pythonPath' || input.type !== 'text') return;
 
   const currentValue = input.value.trim();
   if (currentValue) {
@@ -275,14 +310,14 @@ function initFieldValidation() {
       input.addEventListener('change', () => validateFieldElement(input));
     } else {
       input.addEventListener('input', () => {
-        if (input.dataset.key === 'poetryPath' && input.dataset.autoResolved === 'true') {
+        if (input.dataset.key === 'pythonPath' && input.dataset.autoResolved === 'true') {
           input.dataset.autoResolved = 'false';
         }
         scheduleValidation(input);
       });
       input.addEventListener('blur', () => validateFieldElement(input));
       input.addEventListener('change', () => {
-        if (input.dataset.key === 'poetryPath' && input.dataset.autoResolved === 'true') {
+        if (input.dataset.key === 'pythonPath' && input.dataset.autoResolved === 'true') {
           input.dataset.autoResolved = 'false';
         }
         validateFieldElement(input);
@@ -303,9 +338,18 @@ async function renderSettings() {
       window.electronAPI.readConfig(),
       window.electronAPI.readAppSettings(),
     ]);
+    await loadDynamicModelNames();
   } catch (error) {
     container.innerHTML = `<p class="error-msg">Failed to load config: ${error.message}</p>`;
     return;
+  }
+
+  // Sanity check: if the SETTING section is missing or empty here, future
+  // saves will silently rewrite an empty form into config.json (Bug A from
+  // 2026-04-15).  Surface it loudly in the console so the next regression
+  // is easy to spot.
+  if (!configObj || !configObj.SETTING || Object.keys(configObj.SETTING).length === 0) {
+    console.warn('[WhisperFlow Studio] settings-panel rendered with empty SETTING section', { configObj });
   }
 
   container.innerHTML = '';
@@ -369,19 +413,102 @@ function initLanguagePromptSync() {
   });
 }
 
+// Called when the venv finishes bootstrapping from any tab. Refreshes the
+// model dropdown options (now that listModels actually works) and pulls in
+// the auto-injected `models_dir` value from the Electron main process —
+// without re-rendering the whole form, so any unsaved field edits are
+// preserved.
+async function refreshAfterVenvInit() {
+  // 1. Re-fetch the dynamic model list now that the venv is alive.
+  invalidateDynamicModelNames();
+  await loadDynamicModelNames();
+
+  // 2. Rebuild the `model` <select>'s options in place, preserving the
+  //    current selection so the user doesn't lose context.
+  const modelSelect = document.querySelector('#settings-content [data-section="SETTING"][data-key="model"]');
+  if (modelSelect && modelSelect.tagName === 'SELECT') {
+    const previousValue = modelSelect.value;
+    const options = getEnumOptions('model').model || [];
+    modelSelect.innerHTML = '';
+    for (const opt of options) {
+      const option = document.createElement('option');
+      option.value = opt;
+      option.textContent = opt;
+      if (opt === previousValue) option.selected = true;
+      modelSelect.appendChild(option);
+    }
+    // Preserve a custom value the user may have typed/saved earlier.
+    if (previousValue && !options.includes(previousValue)) {
+      const option = document.createElement('option');
+      option.value = previousValue;
+      option.textContent = previousValue;
+      option.selected = true;
+      modelSelect.insertBefore(option, modelSelect.firstChild);
+    }
+  }
+
+  // 3. Pull in models_dir from config.json if the field is currently empty.
+  //    Main process auto-injects models_dir when venv:initialize starts; we
+  //    only overwrite empty inputs so the user doesn't lose any value they
+  //    were in the middle of editing.
+  try {
+    const fresh = await window.electronAPI.readConfig();
+    const freshModelsDir = fresh?.SETTING?.models_dir || '';
+    if (freshModelsDir) {
+      // Update the in-memory mirror so collectFormValues() picks it up too.
+      if (configObj?.SETTING) {
+        configObj.SETTING.models_dir = freshModelsDir;
+      }
+      const modelsDirInput = document.querySelector('#settings-content [data-section="SETTING"][data-key="models_dir"]');
+      if (modelsDirInput && !modelsDirInput.value.trim()) {
+        modelsDirInput.value = freshModelsDir;
+        modelsDirInput.title = freshModelsDir;
+      }
+    }
+  } catch (_) {
+    // Non-fatal — leave the form alone if config:read fails.
+  }
+}
+
 async function saveSettings() {
   const data = collectFormValues();
   const { configData, appSettings } = splitFormValues(data);
 
+  // CRITICAL: don't replace the on-disk config wholesale.  If the form
+  // didn't render a particular section for any reason (collapsed state,
+  // partial render, future refactor), `configData` won't contain that
+  // section and a naive write would drop it on the floor — which is how
+  // we used to wipe `media_root_path` and friends.  Instead, deep-merge
+  // form values INTO whatever's on disk right now.
+  let mergedConfig;
+  try {
+    const onDisk = await window.electronAPI.readConfig();
+    mergedConfig = deepMergeConfig(onDisk || {}, configData);
+  } catch (_) {
+    mergedConfig = configData;
+  }
+
   await Promise.all([
-    window.electronAPI.writeConfig(configData),
+    window.electronAPI.writeConfig(mergedConfig),
     window.electronAPI.writeAppSettings(appSettings),
   ]);
 
-  configObj = configData;
+  configObj = mergedConfig;
   appSettingsObj = appSettings;
   clearDirty();
   await refreshPreflight();
+}
+
+function deepMergeConfig(base, overrides) {
+  const result = { ...(base || {}) };
+  for (const [section, value] of Object.entries(overrides || {})) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      result[section] = { ...(result[section] || {}), ...value };
+    } else {
+      result[section] = value;
+    }
+  }
+  return result;
 }
 
 const saveBtn = document.getElementById('btn-save-settings');
@@ -397,4 +524,17 @@ saveBtn.addEventListener('click', async () => {
   }, 1800);
 });
 
-export { collectFormValues, renderSettings, saveSettings };
+// Refresh the model dropdown + models_dir input after the venv finishes
+// bootstrapping from any tab.
+window.addEventListener(VENV_INITIALIZED_EVENT, () => {
+  refreshAfterVenvInit().catch((error) => {
+    console.error('[WhisperFlow Studio] Failed to refresh settings after venv init:', error);
+  });
+});
+
+export {
+  collectFormValues,
+  invalidateDynamicModelNames,
+  renderSettings,
+  saveSettings,
+};

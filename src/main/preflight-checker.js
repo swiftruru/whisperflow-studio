@@ -3,15 +3,22 @@
 const fs = require('fs');
 const path = require('path');
 const { readConfig } = require('./config-manager');
-const { resolvePoetryPath } = require('./path-resolver');
+const {
+  resolveBundledPython,
+  resolveSystemPython,
+} = require('./path-resolver');
+const { isVenvInitialized } = require('./venv-installer');
 const { ERROR_CODES, createPreflightCheck } = require('./error-catalog');
 
 function getPaths(electronAppRoot) {
   const pythonDir = path.join(electronAppRoot, 'python');
   return {
+    pythonDir,
     configPath: path.join(pythonDir, 'config', 'config.json'),
     scanScriptPath: path.join(pythonDir, 'config_setting.py'),
     cliScriptPath: path.join(electronAppRoot, 'bridge', 'run_cli.py'),
+    whisperflowPackagePath: path.join(pythonDir, 'whisperflow', '__init__.py'),
+    requirementsPath: path.join(pythonDir, 'requirements.txt'),
   };
 }
 
@@ -31,88 +38,117 @@ function isExistingFile(targetPath) {
   }
 }
 
-function validatePoetryPath(value, configMetadataPath) {
-  const explicitPath = typeof value === 'string' ? value.trim() : '';
-  const resolvedPath = resolvePoetryPath(explicitPath, configMetadataPath);
-
-  if (explicitPath && !isExistingFile(explicitPath)) {
+function validateWhisperflowPackage(pythonDir) {
+  const packageInit = path.join(pythonDir, 'whisperflow', '__init__.py');
+  if (isExistingFile(packageInit)) {
     return createPreflightCheck({
-      key: 'poetryPath',
-      code: ERROR_CODES.INVALID_POETRY_PATH,
-      status: 'error',
-      title: 'Poetry 路徑不存在',
-      message: '請確認 Poetry 可執行檔路徑正確，或清空此欄位改用自動偵測。',
-      detail: explicitPath,
-      action: { type: 'open-settings', section: 'APP_SETTINGS', key: 'poetryPath' },
-    });
-  }
-
-  if (!resolvedPath) {
-    return createPreflightCheck({
-      key: 'poetryPath',
-      code: ERROR_CODES.POETRY_NOT_FOUND,
-      status: 'error',
-      title: '找不到 Poetry',
-      message: '請在 Settings 指定 Poetry 路徑，否則無法啟動轉錄流程。',
-      detail: explicitPath || 'No Poetry executable could be resolved from the current settings or PATH.',
-      action: { type: 'open-settings', section: 'APP_SETTINGS', key: 'poetryPath' },
+      key: 'whisperflow_package',
+      status: 'ok',
+      title: 'WhisperFlow 核心已就緒',
+      message: '內建的 whisperflow Python 套件已安裝。',
+      detail: packageInit,
     });
   }
 
   return createPreflightCheck({
-    key: 'poetryPath',
-    status: 'ok',
-    title: 'Poetry 已就緒',
-    message: explicitPath ? '將使用你指定的 Poetry 路徑。' : '將使用自動偵測到的 Poetry 路徑。',
-    detail: resolvedPath,
+    key: 'whisperflow_package',
+    code: ERROR_CODES.WHISPERFLOW_PACKAGE_MISSING,
+    status: 'error',
+    title: 'WhisperFlow 核心不存在',
+    message: '找不到內建的 whisperflow Python 套件，應用程式資源可能已損毀。',
+    detail: packageInit,
   });
 }
 
-function validateWhisperToolPath(value) {
-  const toolPath = typeof value === 'string' ? value.trim() : '';
+/**
+ * Check the bundled venv's runtime state.  This is the System Check entry
+ * shown in the preflight panel — it cares about whether `python -m
+ * whisperflow.cli` can actually run, not about which system python was used
+ * to bootstrap it.
+ */
+function validateBundledVenv({ venvRoot, configMetadataPath, userSettings }) {
+  const venvPython = resolveBundledPython(venvRoot);
 
-  if (!toolPath) {
+  if (venvPython && isVenvInitialized(venvRoot)) {
     return createPreflightCheck({
-      key: 'whisper_faster_tool_path',
-      code: ERROR_CODES.MISSING_WHISPER_TOOL_PATH,
-      status: 'error',
-      title: 'Whisper 工具路徑未設定',
-      message: '請在 Settings 指定 faster-whisper-webui 專案資料夾。',
-      action: { type: 'open-settings', section: 'SETTING', key: 'whisper_faster_tool_path' },
+      key: 'bundled_python',
+      status: 'ok',
+      title: 'Python 環境已就緒',
+      message: '使用應用程式內建的虛擬環境執行轉錄。',
+      detail: venvPython,
     });
   }
 
-  if (!isExistingDirectory(toolPath)) {
+  // The venv isn't there yet — make sure we at least have a system python
+  // that can bootstrap it, otherwise this becomes an error instead of a
+  // warning.
+  const systemPython = resolveSystemPython(userSettings?.pythonPath, configMetadataPath);
+  if (!systemPython) {
     return createPreflightCheck({
-      key: 'whisper_faster_tool_path',
-      code: ERROR_CODES.INVALID_WHISPER_TOOL_PATH,
+      key: 'bundled_python',
+      code: ERROR_CODES.BUNDLED_PYTHON_NOT_FOUND,
       status: 'error',
-      title: 'Whisper 工具路徑不存在',
-      message: '指定的 faster-whisper-webui 路徑不存在，請重新選擇。',
-      detail: toolPath,
-      action: { type: 'open-settings', section: 'SETTING', key: 'whisper_faster_tool_path' },
-    });
-  }
-
-  const poetryProjectFile = path.join(toolPath, 'pyproject.toml');
-  if (!isExistingFile(poetryProjectFile)) {
-    return createPreflightCheck({
-      key: 'whisper_faster_tool_path',
-      code: ERROR_CODES.INVALID_WHISPER_TOOL_PROJECT,
-      status: 'error',
-      title: 'Whisper 工具路徑不是 Poetry 專案',
-      message: '這個資料夾內找不到 pyproject.toml，請確認你選的是 faster-whisper-webui 專案根目錄。',
-      detail: poetryProjectFile,
-      action: { type: 'open-settings', section: 'SETTING', key: 'whisper_faster_tool_path' },
+      title: '找不到 Python 3',
+      message: '找不到系統 Python 3 來建立虛擬環境。請安裝 Python 3.10 以上版本，或在 Settings 指定 python 可執行檔路徑。',
+      action: { type: 'open-settings', section: 'APP_SETTINGS', key: 'pythonPath' },
     });
   }
 
   return createPreflightCheck({
-    key: 'whisper_faster_tool_path',
+    key: 'bundled_python',
+    code: ERROR_CODES.VENV_NOT_INITIALIZED,
+    status: 'warning',
+    title: 'Python 虛擬環境尚未建立',
+    message: '第一次執行轉錄時會自動建立虛擬環境並安裝依賴（約數百 MB）。',
+    detail: venvRoot,
+    action: { type: 'initialize-venv' },
+  });
+}
+
+/**
+ * Validator for the `pythonPath` SETTING field specifically.  This is
+ * different from `validateBundledVenv`: here the user is being asked to
+ * pin a SYSTEM python interpreter (used only to bootstrap the venv on
+ * first launch), not a path to the venv interpreter itself.
+ *
+ * Returns a `detail` of the resolved system python path so the form can
+ * auto-fill it as a hint while leaving the underlying setting empty.
+ */
+function validateSystemPythonField(value, configMetadataPath) {
+  const explicit = typeof value === 'string' ? value.trim() : '';
+
+  if (explicit && !isExistingFile(explicit)) {
+    return createPreflightCheck({
+      key: 'pythonPath',
+      code: ERROR_CODES.BUNDLED_PYTHON_NOT_FOUND,
+      status: 'error',
+      title: 'Python 路徑不存在',
+      message: '指定的 Python 可執行檔不存在，請重新選擇或清空此欄位以使用自動偵測。',
+      detail: explicit,
+      action: { type: 'open-settings', section: 'APP_SETTINGS', key: 'pythonPath' },
+    });
+  }
+
+  const resolved = resolveSystemPython(explicit, configMetadataPath);
+  if (!resolved) {
+    return createPreflightCheck({
+      key: 'pythonPath',
+      code: ERROR_CODES.BUNDLED_PYTHON_NOT_FOUND,
+      status: 'error',
+      title: '找不到 Python 3',
+      message: '找不到 Python 3.10+。請安裝後重試，或在這裡指定 python 可執行檔路徑。',
+      action: { type: 'open-settings', section: 'APP_SETTINGS', key: 'pythonPath' },
+    });
+  }
+
+  return createPreflightCheck({
+    key: 'pythonPath',
     status: 'ok',
-    title: 'Whisper 工具路徑已就緒',
-    message: 'faster-whisper-webui 專案路徑有效。',
-    detail: toolPath,
+    title: 'Python 已就緒',
+    message: explicit
+      ? '將使用你指定的 Python 路徑建立虛擬環境。'
+      : '將使用自動偵測到的系統 Python 建立虛擬環境。',
+    detail: resolved,
   });
 }
 
@@ -172,14 +208,19 @@ function validateScriptPath(key, scriptPath, title) {
   });
 }
 
-function validateSettingField({ key, value, configMetadataPath }) {
+function validateSettingField({
+  key,
+  value,
+  configMetadataPath,
+}) {
   switch (key) {
-    case 'poetryPath':
-      return validatePoetryPath(value, configMetadataPath);
-    case 'whisper_faster_tool_path':
-      return validateWhisperToolPath(value);
     case 'media_root_path':
       return validateMediaRootPath(value);
+    case 'pythonPath':
+      // The setting is a SYSTEM python override (only used during venv
+      // bootstrap), not a runtime venv path — so we validate against
+      // resolveSystemPython, not the bundled venv.
+      return validateSystemPythonField(value, configMetadataPath);
     default:
       return createPreflightCheck({
         key,
@@ -190,7 +231,12 @@ function validateSettingField({ key, value, configMetadataPath }) {
   }
 }
 
-function runPreflight({ electronAppRoot, configMetadataPath, getLocalSettings }) {
+function runPreflight({
+  electronAppRoot,
+  venvRoot,
+  configMetadataPath,
+  getLocalSettings,
+}) {
   const paths = getPaths(electronAppRoot);
   const checks = [];
   let config = null;
@@ -216,8 +262,8 @@ function runPreflight({ electronAppRoot, configMetadataPath, getLocalSettings })
   }
 
   const appSettings = getLocalSettings() || {};
-  checks.push(validatePoetryPath(appSettings.poetryPath, configMetadataPath));
-  checks.push(validateWhisperToolPath(config?.SETTING?.whisper_faster_tool_path));
+  checks.push(validateWhisperflowPackage(paths.pythonDir));
+  checks.push(validateBundledVenv({ venvRoot, configMetadataPath, userSettings: appSettings }));
   checks.push(validateMediaRootPath(config?.SETTING?.media_root_path));
   checks.push(validateScriptPath('scan_script', paths.scanScriptPath, '掃描腳本'));
   checks.push(validateScriptPath('cli_script', paths.cliScriptPath, 'CLI 腳本'));

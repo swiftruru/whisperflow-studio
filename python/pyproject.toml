@@ -1,0 +1,20 @@
+[project]
+name = "whisperflow"
+version = "0.1.0"
+description = "Transcription core for WhisperFlow Studio"
+requires-python = ">=3.10"
+readme = "../README.md"
+license = { text = "Apache-2.0" }
+authors = [{ name = "WhisperFlow Studio" }]
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["whisperflow*"]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"

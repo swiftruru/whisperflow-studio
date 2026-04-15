@@ -1,250 +1,141 @@
-"""
-Bridge script for Electron: runs the CLI transcription without terminal animations.
-Replaces os.system() with subprocess.Popen so stdout streams to Electron in real-time.
+#!/usr/bin/env python3
+"""Bridge script Electron spawns to transcribe the currently queued file.
+
+This used to be a ~250-line wrapper that subprocess'd an *external*
+``faster-whisper-webui`` project.  Now it's a thin adapter that:
+
+1. Loads ``python/config/config.json`` into a :class:`TranscribeConfig`.
+2. Points ``input_path`` / ``output_dir`` at the queued media file.
+3. Hands the whole thing to :func:`whisperflow.transcriber.Transcriber.run`.
+
+All the heavy lifting and the ``[WhisperFlowEvent]`` progress stream come
+from the in-process :mod:`whisperflow` package; nothing shells out.
 """
 
+from __future__ import annotations
+
+import logging
 import os
 import sys
-import importlib.util
-import subprocess
-import json
-from datetime import datetime
+from pathlib import Path
 
-# python/ lives next to bridge/ inside whisperflow-studio/.
-# Using __file__ makes this path correct regardless of cwd or where the app is moved.
-SCRIPT_DIR   = os.path.dirname(os.path.realpath(__file__))
-PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..', 'python'))
+# ``python/`` lives next to ``bridge/`` in the source tree and inside the
+# packaged app's resources directory.  Putting it on sys.path lets the
+# bundled venv's site-packages find the whisperflow package.
+SCRIPT_DIR = Path(__file__).resolve().parent
+PYTHON_DIR = (SCRIPT_DIR / ".." / "python").resolve()
+if str(PYTHON_DIR) not in sys.path:
+    sys.path.insert(0, str(PYTHON_DIR))
 
-_spec = importlib.util.spec_from_file_location(
-    'whisper_cli_run',
-    os.path.join(PROJECT_ROOT, 'faster-whisper-webui-cli.run.py'),
-)
-_mod = importlib.util.module_from_spec(_spec)
-sys.path.insert(0, PROJECT_ROOT)   # for common.colors etc.
-_spec.loader.exec_module(_mod)
-
-WhisperFasterScript = _mod.WhisperFasterScript
+from whisperflow.config import TranscribeConfig  # noqa: E402
+from whisperflow.events import STAGE_FAILED, emitter_for  # noqa: E402
+from whisperflow.transcriber import Transcriber  # noqa: E402
 
 
-class HeadlessWhisperScript(WhisperFasterScript):
-    """Subclass that skips terminal animations and uses Popen for streaming output."""
+def _setup_logging() -> None:
+    """Route the whisperflow package's ``_log.info(...)`` messages to
+    ``sys.stdout`` so the Electron Console panel picks them up as plain
+    log lines (not prefixed with ``[stderr]``).
 
-    event_prefix = '[WhisperFlowEvent]'
+    Without this the entire transcription pipeline runs silently from the
+    user's perspective — Python's root logger has no handler installed,
+    so every ``_log.info("loading model ...")`` / ``_log.info("silero VAD
+    scanning ...")`` / per-segment line is dropped on the floor.
 
-    def _event_timestamp(self):
-        return datetime.utcnow().isoformat(timespec='seconds') + 'Z'
+    stdout specifically (not stderr) because:
 
-    def _elapsed_seconds(self, start_time):
-        if not start_time:
-            return None
-        return max(0, int((datetime.now() - start_time).total_seconds()))
+    1. python-runner.js on the Electron side parses stdout line-by-line
+       and already filters out the machine-readable ``[WhisperFlowEvent]``
+       JSON lines — non-event lines flow straight to the Console.
+    2. stderr output gets a ``[stderr]`` prefix in the log, which is
+       correct for real errors but wrong for informational logging.
+    """
+    root = logging.getLogger()
+    already_configured = any(
+        isinstance(h, logging.StreamHandler) and getattr(h, "stream", None) is sys.stdout
+        for h in root.handlers
+    )
+    if already_configured:
+        return
+    handler = logging.StreamHandler(sys.stdout)
+    # Keep the format minimal — the Console panel adds its own timestamp
+    # column, and log-level labels would add noise to the transcript.
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    root.addHandler(handler)
+    root.setLevel(logging.INFO)
 
-    def emit_event(
-        self,
-        event_type,
-        stage=None,
-        message='',
-        progress=None,
-        elapsed_seconds=None,
-        eta_seconds=None,
-        extra=None,
-    ):
-        wc = self.whisper_config
-        payload = {
-            'type': event_type,
-            'stage': stage or '',
-            'message': message or '',
-            'progress': progress,
-            'elapsedSeconds': elapsed_seconds,
-            'etaSeconds': eta_seconds,
-            'filePath': os.path.join(wc.media_file_path or '', wc.media_file_name or ''),
-            'fileName': wc.media_file_name or '',
-            'timestamp': self._event_timestamp(),
-            'source': 'bridge',
-        }
 
-        if extra:
-            payload['meta'] = extra
+def _build_config() -> TranscribeConfig:
+    config_path = PYTHON_DIR / "config" / "config.json"
+    config = TranscribeConfig.load(config_path)
 
-        print(f'{self.event_prefix} {json.dumps(payload, ensure_ascii=False)}')
-        sys.stdout.flush()
+    setting = _read_setting_section(config_path)
+    media_dir = setting.get("media_file_path") or ""
+    media_name = setting.get("media_file_name") or ""
 
-    def build_and_execute_command(self):
-        wc = self.whisper_config
-        os.chdir(wc.whisper_faster_tool_path)
+    if media_dir and media_name:
+        config.input_path = str(Path(media_dir) / media_name)
+        config.output_dir = media_dir
 
-        command_start = datetime.now()
+    return config
 
-        self.emit_event(
-            'stage',
-            stage='loading-model',
-            message='Preparing CLI command',
-            progress=20,
-            elapsed_seconds=self._elapsed_seconds(command_start),
+
+def _read_setting_section(config_path: Path) -> dict:
+    """Grab the raw SETTING dict so we can pull out media_file_* fields that
+    the TranscribeConfig dataclass itself doesn't model."""
+    import json
+
+    try:
+        raw = json.loads(config_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return raw.get("SETTING", {}) if isinstance(raw, dict) else {}
+
+
+def main() -> int:
+    _setup_logging()
+
+    config = _build_config()
+
+    # Force per-segment text output.  Without this the user stares at a
+    # static Console for 2+ minutes while whisper runs; with it, each
+    # decoded segment streams to the Console the moment it's produced,
+    # giving clear live feedback ("[00:04:514 -> 00:06:514] 這邊是在日本成田機場").
+    config.verbose = True
+
+    # Match the output-file set the original faster-whisper-webui produced:
+    # srt + vtt + plain-text transcript + raw segment JSON, all in the same
+    # directory as the source media.  TranscribeConfig defaults txt/json
+    # to False (to keep the Python library surface minimal for direct CLI
+    # users), so we opt in explicitly here from the Electron bridge path.
+    config.write_txt = True
+    config.write_json = True
+
+    if not config.input_path:
+        emitter = emitter_for(None)
+        emitter.error(
+            "no media file queued (media_file_path/media_file_name are empty)",
+            extra={"reason": "missing_media_file"},
         )
+        return 2
 
-        print(f'[WhisperFlow] Whisper tool: "{wc.whisper_faster_tool_path}"')
-        print(f'[WhisperFlow] Target file:  "{wc.media_file_name}"')
-        print(f'[WhisperFlow] Model: {wc.model}  Language: {wc.language}')
-        sys.stdout.flush()
-
-        start_time = datetime.now()
-        print(f'[WhisperFlow] Started at: {start_time.strftime("%Y-%m-%d %H:%M:%S")}\n')
-        sys.stdout.flush()
-
-        # Use the absolute poetry path injected by the Electron runner so the
-        # packaged app works even when ~/.local/bin is not in the GUI PATH.
-        poetry_bin = os.environ.get('WHISPERFLOW_POETRY_PATH') or 'poetry'
-
-        # Build args as a proper list so the OS passes them verbatim —
-        # no shell quoting needed, handles any special chars in paths/prompts.
-        cmd = [
-            poetry_bin, 'run', 'python', 'cli.py',
-            '--whisper_implementation', wc.whisper_implementation,
-            '--model',                   wc.model,
-            '--fp16',                    wc.fp16_enabled,
-            '--auto_parallel',           wc.auto_parallel_enabled,
-            '--vad',                     wc.vad_argument,
-        ]
-
-        if wc.vad_max_merge_size not in (None, ''):
-            cmd.extend(['--vad_max_merge_size', str(wc.vad_max_merge_size)])
-
-        cmd.extend([
-            '--language',                wc.language,
-            '--initial_prompt',          wc.initial_prompt or '',
-            '--vad_initial_prompt_mode', wc.vad_initial_prompt_mode,
-            '--output_dir',              f'{wc.media_file_path}/',
-            f'{wc.media_file_path}/{wc.media_file_name}',
-        ])
-
-        proc = subprocess.Popen(
-            cmd,
-            stdout=sys.stdout,
-            stderr=sys.stderr,
-            cwd=wc.whisper_faster_tool_path,
+    if not Path(config.input_path).is_file():
+        emitter = emitter_for(config.input_path)
+        emitter.error(
+            f"queued file does not exist: {config.input_path}",
+            extra={"reason": "missing_media_file"},
         )
+        return 2
 
-        self.emit_event(
-            'stage',
-            stage='transcribing',
-            message='CLI process started',
-            progress=45,
-            elapsed_seconds=self._elapsed_seconds(start_time),
-        )
-
-        return_code = proc.wait()
-
-        end_time = datetime.now()
-        formatted = self.format_duration(end_time - start_time)
-        print(f'\n[WhisperFlow] Finished at: {end_time.strftime("%Y-%m-%d %H:%M:%S")}')
-        print(f'[WhisperFlow] Duration: {formatted}')
-        sys.stdout.flush()
-
-        if return_code != 0:
-            self.emit_event(
-                'error',
-                stage='failed',
-                message=f'CLI process exited with code {return_code}',
-                progress=None,
-                elapsed_seconds=self._elapsed_seconds(start_time),
-                extra={'returnCode': return_code},
-            )
-            return
-
-        self.emit_event(
-            'stage',
-            stage='writing-subtitle',
-            message='CLI process finished, verifying subtitle output',
-            progress=90,
-            elapsed_seconds=self._elapsed_seconds(start_time),
-        )
-
-        if self.has_subtitle(self.whisper_config.media_file_name, self.whisper_config.media_file_path):
-            print(f'[WhisperFlow] Subtitles generated: "{self.whisper_config.media_file_name}"')
-            self.emit_event(
-                'completed',
-                stage='completed',
-                message='Subtitle files generated',
-                progress=100,
-                elapsed_seconds=self._elapsed_seconds(start_time),
-            )
-        else:
-            print('[WhisperFlow] Warning: subtitle file not found after transcription.')
-            self.emit_event(
-                'warning',
-                stage='writing-subtitle',
-                message='CLI finished but subtitle file was not found',
-                progress=95,
-                elapsed_seconds=self._elapsed_seconds(start_time),
-            )
-        sys.stdout.flush()
-
-    def check_directory_and_file(self):
-        """Override to remove time.sleep() calls that block streaming."""
-        import os as _os
-        wc = self.whisper_config
-
-        self.emit_event(
-            'stage',
-            stage='preparing',
-            message='Validating configuration and input file',
-            progress=10,
-        )
-
-        if not _os.path.isdir(wc.whisper_faster_tool_path):
-            self.emit_event(
-                'error',
-                stage='failed',
-                message=f'Whisper tool directory does not exist: {wc.whisper_faster_tool_path}',
-                extra={'reason': 'invalid_tool_path'},
-            )
-            print(f'[WhisperFlow] Error: Directory "{wc.whisper_faster_tool_path}" does not exist.')
-            sys.exit(1)
-
-        print(f'[WhisperFlow] Reading config.json ...')
-        sys.stdout.flush()
-
-        if not wc.media_file_name:
-            self.emit_event(
-                'warning',
-                stage='completed',
-                message='No media file specified for recognition',
-                progress=100,
-            )
-            print('[WhisperFlow] No media file specified for recognition.')
-            sys.exit(0)
-
-        media_file = _os.path.join(wc.media_file_path, wc.media_file_name)
-        if not _os.path.exists(media_file):
-            self.emit_event(
-                'error',
-                stage='failed',
-                message=f'Target file not found: {wc.media_file_name}',
-                extra={'reason': 'missing_media_file'},
-            )
-            print(f'[WhisperFlow] Error: Target file "{wc.media_file_name}" not found.')
-            sys.exit(1)
-
-        if self.has_subtitle(wc.media_file_name, wc.media_file_path):
-            self.emit_event(
-                'warning',
-                stage='completed',
-                message=f'File already has subtitles: {wc.media_file_name}',
-                progress=100,
-            )
-            print(f'[WhisperFlow] File "{wc.media_file_name}" already has subtitles. Skipping.')
-            sys.exit(1)
-
-        print(f'[WhisperFlow] File "{wc.media_file_name}" has no subtitles — starting transcription.')
-        sys.stdout.flush()
+    emitter = emitter_for(config.input_path)
+    try:
+        transcriber = Transcriber(config, emitter=emitter)
+        transcriber.run()
+    except Exception as err:  # pragma: no cover - top-level safety net
+        emitter.error(str(err), extra={"reason": type(err).__name__})
+        return 1
+    return 0
 
 
-def main():
-    script = HeadlessWhisperScript(PROJECT_ROOT)
-    script.check_directory_and_file()
-    script.build_and_execute_command()
-
-
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    sys.exit(main())

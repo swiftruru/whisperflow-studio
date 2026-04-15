@@ -1,0 +1,292 @@
+# Rewritten from faster-whisper-webui app.py's WhisperTranscriber class
+# (Apache 2.0, (c) aadnk).  Changes: dropped all Gradio glue, zip output,
+# URL/microphone ingest, diarization, multi-file handling, VadOptions
+# bundle class, and the 40-character CJK line-width override.  The
+# remaining class is a single orchestrator for "given a config and a
+# local file, produce SRT/VTT/TXT outputs and emit progress events".
+# See /NOTICES.md for license details.
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional
+
+from .config import TranscribeConfig
+from .events import (
+    STAGE_COMPLETED,
+    STAGE_LOADING_MODEL,
+    STAGE_PREPARING,
+    STAGE_TRANSCRIBING,
+    STAGE_WRITING_SUBTITLE,
+    EventEmitter,
+    emitter_for,
+)
+from .models.cache import GLOBAL_MODEL_CACHE
+from .models.faster_whisper_backend import FasterWhisperBackend
+from .models.manager import ModelManager
+from .models.whisper_container import TranscribeResult
+from .progress import NullProgressListener, ProgressListener
+from .prompts.base import InitialPromptMode
+from .prompts.json_prompt import JsonPromptStrategy
+from .prompts.prepend import PrependPromptStrategy
+from .subtitles.writers import write_srt, write_txt, write_vtt
+from .vad.base import (
+    AbstractVadTranscription,
+    NonSpeechStrategy,
+    PeriodicTranscriptionConfig,
+    TranscriptionConfig,
+)
+from .vad.parallel import ParallelContext, ParallelVadTranscription
+from .vad.periodic import PeriodicVad
+from .vad.silero import SileroVad
+
+_log = logging.getLogger(__name__)
+
+
+@dataclass
+class TranscribeOutputs:
+    """Paths written to disk, plus the in-memory result dict."""
+
+    srt_path: Optional[Path]
+    vtt_path: Optional[Path]
+    txt_path: Optional[Path]
+    json_path: Optional[Path]
+    result: TranscribeResult
+
+
+class Transcriber:
+    """High-level entry point for a single-file transcription job.
+
+    Typical use from the CLI::
+
+        transcriber = Transcriber(config)
+        outputs = transcriber.run()
+    """
+
+    def __init__(
+        self,
+        config: TranscribeConfig,
+        *,
+        emitter: Optional[EventEmitter] = None,
+        progress_listener: Optional[ProgressListener] = None,
+    ) -> None:
+        self._config = config
+        self._emitter = emitter or emitter_for(config.input_path)
+        self._listener = progress_listener or NullProgressListener()
+        self._model_manager = ModelManager(Path(config.models_dir) if config.models_dir else None)
+        self._vad_model: Optional[AbstractVadTranscription] = None
+        self._gpu_context: Optional[ParallelContext] = None
+        self._cpu_context: Optional[ParallelContext] = None
+
+    # --- public API ----------------------------------------------------
+
+    def run(self) -> TranscribeOutputs:
+        """Execute the full pipeline and return the on-disk output paths."""
+        cfg = self._config
+        if not cfg.input_path:
+            raise ValueError("TranscribeConfig.input_path is required")
+
+        input_path = Path(cfg.input_path)
+        if not input_path.is_file():
+            raise FileNotFoundError(f"input file does not exist: {input_path}")
+
+        self._model_manager.ensure_dirs()
+
+        self._emitter.stage(STAGE_PREPARING, "Preparing model and VAD", progress=5)
+
+        backend = self._build_backend()
+
+        self._emitter.stage(STAGE_LOADING_MODEL, f"Loading model {cfg.model}", progress=15)
+        backend.get_model()  # force eager load so subsequent progress is VAD time only
+
+        prompt_strategy = self._build_prompt_strategy()
+        decode_options = self._build_decode_options()
+        callback = backend.create_callback(
+            language=cfg.language,
+            task=cfg.task,
+            prompt_strategy=prompt_strategy,
+            **decode_options,
+        )
+
+        self._emitter.stage(STAGE_TRANSCRIBING, "Running VAD and Whisper", progress=30)
+        perf_start = time.perf_counter()
+        result = self._run_vad(str(input_path), callback)
+        _log.info("whisper + VAD took %.2fs", time.perf_counter() - perf_start)
+
+        self._emitter.stage(STAGE_WRITING_SUBTITLE, "Writing subtitle files", progress=92)
+        outputs = self._write_outputs(result, input_path)
+
+        self._emitter.completed()
+        return outputs
+
+    def clear_cache(self) -> None:
+        GLOBAL_MODEL_CACHE.clear()
+        self._vad_model = None
+
+    # --- model / VAD wiring --------------------------------------------
+
+    def _build_backend(self) -> FasterWhisperBackend:
+        cfg = self._config
+        model_path = self._model_manager.resolve_model_path(cfg.model)
+        return FasterWhisperBackend(
+            model_path,
+            device=cfg.device,
+            compute_type=cfg.compute_type,
+            model_dir=str(self._model_manager.models_dir),
+            cache=GLOBAL_MODEL_CACHE,
+        )
+
+    def _build_prompt_strategy(self):
+        cfg = self._config
+        if cfg.initial_prompt_mode is InitialPromptMode.JSON_PROMPT_MODE:
+            return JsonPromptStrategy(cfg.initial_prompt or "[]")
+        return PrependPromptStrategy(cfg.initial_prompt, cfg.initial_prompt_mode)
+
+    def _build_decode_options(self) -> dict:
+        cfg = self._config
+        return {
+            "temperature": cfg.temperature,
+            "beam_size": cfg.beam_size,
+            "best_of": cfg.best_of,
+            "patience": cfg.patience,
+            "length_penalty": cfg.length_penalty,
+            "suppress_tokens": cfg.suppress_tokens,
+            "condition_on_previous_text": cfg.condition_on_previous_text,
+            "compression_ratio_threshold": cfg.compression_ratio_threshold,
+            "log_prob_threshold": cfg.logprob_threshold,
+            "no_speech_threshold": cfg.no_speech_threshold,
+            "verbose": cfg.verbose,
+        }
+
+    def _ensure_silero_vad(self) -> SileroVad:
+        if isinstance(self._vad_model, SileroVad):
+            return self._vad_model
+        self._vad_model = SileroVad(
+            cache=GLOBAL_MODEL_CACHE,
+            torch_hub_dir=self._model_manager.torch_hub_dir,
+        )
+        return self._vad_model
+
+    def _build_vad_config(self, non_speech_strategy: NonSpeechStrategy) -> TranscriptionConfig:
+        cfg = self._config
+        return TranscriptionConfig(
+            non_speech_strategy=non_speech_strategy,
+            max_silent_period=cfg.vad_merge_window,
+            max_merge_size=cfg.vad_max_merge_size,
+            segment_padding_left=cfg.vad_padding,
+            segment_padding_right=cfg.vad_padding,
+            max_prompt_window=cfg.vad_prompt_window,
+        )
+
+    def _run_vad(self, audio_path: str, callback) -> TranscribeResult:
+        cfg = self._config
+
+        if cfg.vad == "none":
+            if self._has_parallel_devices():
+                vad = PeriodicVad()
+                periodic = PeriodicTranscriptionConfig(
+                    periodic_duration=float("inf"),
+                    max_prompt_window=1.0,
+                )
+                return self._dispatch_vad(vad, audio_path, callback, periodic)
+            return callback.invoke(audio_path, 0, None, None, progress_listener=self._listener)
+
+        if cfg.vad == "periodic-vad":
+            vad = PeriodicVad()
+            periodic = PeriodicTranscriptionConfig(
+                periodic_duration=cfg.vad_max_merge_size,
+                max_prompt_window=cfg.vad_prompt_window,
+            )
+            return self._dispatch_vad(vad, audio_path, callback, periodic)
+
+        # silero-vad variants ------------------------------------------------
+        if cfg.vad == "silero-vad":
+            strategy = NonSpeechStrategy.CREATE_SEGMENT
+        elif cfg.vad == "silero-vad-skip-gaps":
+            strategy = NonSpeechStrategy.SKIP
+        elif cfg.vad == "silero-vad-expand-into-gaps":
+            strategy = NonSpeechStrategy.EXPAND_SEGMENT
+        else:
+            raise ValueError(f"unknown VAD mode: {cfg.vad}")
+
+        vad = self._ensure_silero_vad()
+        vad_config = self._build_vad_config(strategy)
+        return self._dispatch_vad(vad, audio_path, callback, vad_config)
+
+    def _dispatch_vad(
+        self,
+        vad: AbstractVadTranscription,
+        audio_path: str,
+        callback,
+        vad_config: TranscriptionConfig,
+    ) -> TranscribeResult:
+        if not self._has_parallel_devices():
+            return vad.transcribe(audio_path, callback, vad_config, progress_listener=self._listener)
+
+        cfg = self._config
+        gpu_devices = list(cfg.gpu_devices) if cfg.gpu_devices else [os.environ.get("CUDA_VISIBLE_DEVICES")]
+
+        if self._gpu_context is None:
+            self._gpu_context = ParallelContext(num_processes=len(gpu_devices), idle_timeout_seconds=3600)
+        if self._cpu_context is None and cfg.cpu_parallelism > 1:
+            self._cpu_context = ParallelContext(num_processes=cfg.cpu_parallelism, idle_timeout_seconds=3600)
+
+        parallel = ParallelVadTranscription()
+        return parallel.transcribe_parallel(
+            vad=vad,
+            audio_path=audio_path,
+            callback=callback,
+            config=vad_config,
+            gpu_devices=[d for d in gpu_devices if d is not None] or gpu_devices,
+            cpu_parallelism=cfg.cpu_parallelism,
+            cpu_context=self._cpu_context,
+            gpu_context=self._gpu_context,
+            progress_listener=self._listener,
+        )
+
+    def _has_parallel_devices(self) -> bool:
+        cfg = self._config
+        return len(cfg.gpu_devices) > 0 or cfg.cpu_parallelism > 1
+
+    # --- output writing ------------------------------------------------
+
+    def _write_outputs(self, result: TranscribeResult, source: Path) -> TranscribeOutputs:
+        cfg = self._config
+        output_dir = Path(cfg.output_dir) if cfg.output_dir else source.parent
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        base_name = cfg.output_name or source.stem
+
+        srt_path = None
+        vtt_path = None
+        txt_path = None
+        json_path = None
+
+        if cfg.write_srt:
+            srt_path = output_dir / f"{base_name}.srt"
+            with srt_path.open("w", encoding="utf-8") as f:
+                write_srt(result["segments"], f, max_line_width=cfg.max_line_width)
+        if cfg.write_vtt:
+            vtt_path = output_dir / f"{base_name}.vtt"
+            with vtt_path.open("w", encoding="utf-8") as f:
+                write_vtt(result["segments"], f, max_line_width=cfg.max_line_width)
+        if cfg.write_txt:
+            txt_path = output_dir / f"{base_name}.txt"
+            with txt_path.open("w", encoding="utf-8") as f:
+                write_txt(result["segments"], f)
+        if cfg.write_json:
+            json_path = output_dir / f"{base_name}.json"
+            json_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        return TranscribeOutputs(
+            srt_path=srt_path,
+            vtt_path=vtt_path,
+            txt_path=txt_path,
+            json_path=json_path,
+            result=result,
+        )

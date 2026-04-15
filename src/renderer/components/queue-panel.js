@@ -1,5 +1,6 @@
 'use strict';
 
+import { setStage } from './console-log.js';
 import { getQueueState, subscribeQueueState } from './queue-state.js';
 import {
   getQueueViewState,
@@ -256,7 +257,11 @@ function renderProgress(state) {
   progressCard.hidden = false;
   progressStage.textContent = stageLabel(state.stage);
   progressStage.dataset.stage = state.stage;
-  progressBarFill.style.width = `${getBatchProgressPercent(state).toFixed(1)}%`;
+  // Show per-file progress while a job is active (cleaner 0→100% animation
+  // for each file), fall back to batch progress only when the queue is
+  // idle or paused.  The batch state is already conveyed via the stats
+  // line ("Pending X · Running Y · Done Z") so we don't lose information.
+  progressBarFill.style.width = `${getDisplayProgressPercent(state).toFixed(1)}%`;
 
   if (state.stats.total === 0) {
     progressHeadline.textContent = 'No missing subtitles found';
@@ -270,11 +275,14 @@ function renderProgress(state) {
     return;
   }
 
+  const fileIndex = Math.min(processedCount + 1, state.stats.total);
+  const fileCounter = `${fileIndex}/${state.stats.total}`;
+
   if (state.currentJob) {
     const currentLabel = state.currentJob.status === 'pending'
       ? 'Next up'
       : getJobStageLabel(state.currentJob);
-    progressHeadline.textContent = `${currentLabel} · ${state.currentJob.fileName}`;
+    progressHeadline.textContent = `${currentLabel} · File ${fileCounter} · ${state.currentJob.fileName}`;
   } else if (processedCount === state.stats.total) {
     progressHeadline.textContent = 'All queued files processed';
   } else {
@@ -286,17 +294,36 @@ function renderProgress(state) {
 
   const scanSummary = `Scanned ${state.scanSummary.scannedFiles} files in ${state.scanSummary.scannedDirectories} folders`;
   const completion = `${processedCount}/${state.stats.total} processed`;
-  progressCurrent.textContent = state.currentJob
-    ? `${completion} · ${scanSummary}`
-    : `${completion} · ${scanSummary}`;
+  progressCurrent.textContent = `${completion} · ${scanSummary}`;
 
   const timingText = buildProgressTiming(state);
   progressTiming.hidden = !timingText;
   progressTiming.textContent = timingText;
 
-  const stageMessage = state.currentJob?.stageMessage || state.lastRunnerEvent?.message || '';
+  // Only show the stage message for the CURRENTLY running job.  Falling
+  // back to `lastRunnerEvent.message` after a job finishes would carry
+  // "Subtitle files generated" (from the just-finished file) onto the
+  // display of the next pending file — misleading.
+  const stageMessage = state.currentJob && state.currentJob.status === 'running'
+    ? (state.currentJob.stageMessage || '')
+    : '';
   progressMessage.hidden = !stageMessage;
   progressMessage.textContent = stageMessage;
+}
+
+// Decides what percentage to show in the progress bar.  While a job is
+// actively running we show its 0→100% so each file animates fully; while
+// idle / between jobs we show the overall batch progress so the user can
+// see how much of the queue is still outstanding.
+function getDisplayProgressPercent(state) {
+  const job = state.currentJob;
+  if (job && (job.status === 'running' || job.status === 'paused')) {
+    const raw = Number(job.progress);
+    if (Number.isFinite(raw)) {
+      return Math.max(0, Math.min(100, raw));
+    }
+  }
+  return getBatchProgressPercent(state);
 }
 
 function renderActions(state) {
@@ -575,6 +602,13 @@ function initQueuePanel() {
   subscribeQueueState((state) => {
     latestQueueState = state;
     renderQueueState(state, latestViewState);
+    // Mirror the currently-running job's stage into the top-right status
+    // badge so it's always visible, even when the Batch Progress card is
+    // scrolled off screen or obscured by other left-panel cards.
+    const runningJob = state.currentJob;
+    if (runningJob && (runningJob.status === 'running' || runningJob.status === 'paused')) {
+      setStage(runningJob.stage || '');
+    }
   });
   subscribeQueueViewState((viewState) => {
     latestViewState = viewState;

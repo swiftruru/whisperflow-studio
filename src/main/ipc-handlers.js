@@ -8,7 +8,12 @@ const { readConfigMetadata, getSupportedMediaExtensions } = require('./config-me
 const { runPreflight, validateSettingField } = require('./preflight-checker');
 const { createQueueManager } = require('./queue-manager');
 const { runScript, stopProcess, pauseProcess, resumeProcess } = require('./python-runner');
-const { resolvePoetryPath } = require('./path-resolver');
+const {
+  getVenvRoot,
+  resolveBundledPython,
+  resolveSystemPython,
+} = require('./path-resolver');
+const { initializeBundledVenv, isVenvInitialized } = require('./venv-installer');
 const { ERROR_CODES, createAppError, normalizeUnknownError, toAppError } = require('./error-catalog');
 
 let activeQueueManager = null;
@@ -17,25 +22,31 @@ let beforeQuitPersistenceHookRegistered = false;
 function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveLocalSettings, setIsRunning) {
   const PYTHON_DIR = path.join(ELECTRON_APP_ROOT, 'python');
   const CONFIG_METADATA_PATH = path.join(PYTHON_DIR, 'config', 'config.metadata.json');
-  const QUEUE_STATE_PATH = path.join(app.getPath('userData'), 'queue-state.json');
+  const USER_DATA_DIR = app.getPath('userData');
+  const QUEUE_STATE_PATH = path.join(USER_DATA_DIR, 'queue-state.json');
 
-  // All paths are relative to the bundled python/ directory.
-  // whisperToolPath is read from python/config/config.json and used as the
-  // Poetry cwd so we reuse the faster-whisper-webui environment.
-  // (reuses faster-whisper-webui's env; our scripts need only stdlib).
+  // The bundled venv lives at one of two places depending on whether we're
+  // packaged: `<project>/python/.venv` in dev (writable, easy to inspect),
+  // or `<userData>/.venv` in a packaged build (the only writable spot
+  // available on macOS / Windows / Linux installers).  Computed once here
+  // and threaded through every helper that needs it.
+  const VENV_ROOT = getVenvRoot({
+    electronAppRoot: ELECTRON_APP_ROOT,
+    isPackaged: app.isPackaged,
+    userDataDir: USER_DATA_DIR,
+    configMetadataPath: CONFIG_METADATA_PATH,
+  });
+  const REQUIREMENTS_PATH = path.join(PYTHON_DIR, 'requirements.txt');
+
+  // All paths are relative to the bundled python/ directory.  The CLI and
+  // scan scripts are spawned via the in-app .venv, so there's no external
+  // Python project dependency anymore.
   function getPaths() {
-    const configPath = path.join(PYTHON_DIR, 'config', 'config.json');
-
-    let whisperToolPath = '';
-    try {
-      const cfg = readConfig(configPath);
-      whisperToolPath = cfg?.SETTING?.whisper_faster_tool_path || '';
-    } catch (_) {}
-
     return {
-      configPath,
+      configPath:      path.join(PYTHON_DIR, 'config', 'config.json'),
       configDir:       path.join(PYTHON_DIR, 'config'),
-      whisperToolPath,
+      pythonDir:       PYTHON_DIR,
+      venvRoot:        VENV_ROOT,
       scripts: {
         scan: path.join(PYTHON_DIR, 'config_setting.py'),
         cli:  path.join(ELECTRON_APP_ROOT, 'bridge', 'run_cli.py'),
@@ -43,9 +54,38 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
     };
   }
 
+  // Compute the cross-platform managed models directory and persist it to
+  // config.json so the Python side (ModelManager) reads a single source of
+  // truth.  Called lazily when the renderer asks for config or kicks off
+  // a run.
+  function ensureModelsDirInConfig() {
+    const { configPath } = getPaths();
+    let cfg;
+    try {
+      cfg = readConfig(configPath);
+    } catch (_) {
+      return null;
+    }
+
+    const existing = cfg?.SETTING?.models_dir?.trim?.() || '';
+    if (existing) return existing;
+
+    const defaultModelsDir = path.join(app.getPath('userData'), 'models');
+    cfg.SETTING = cfg.SETTING || {};
+    cfg.SETTING.models_dir = defaultModelsDir;
+    try {
+      fs.mkdirSync(defaultModelsDir, { recursive: true });
+      writeConfig(configPath, cfg);
+    } catch (_) {
+      // Non-fatal: the Python side will fall back to its own default.
+    }
+    return defaultModelsDir;
+  }
+
   function getPreflightContext() {
     return {
       electronAppRoot: ELECTRON_APP_ROOT,
+      venvRoot: VENV_ROOT,
       configMetadataPath: CONFIG_METADATA_PATH,
       getLocalSettings,
     };
@@ -252,9 +292,13 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
   });
 
   ipcMain.on('run:cli', () => {
-    const { whisperToolPath, scripts } = getPaths();
+    const { scripts, pythonDir, venvRoot } = getPaths();
+    ensureModelsDirInConfig();
     const preflight = runPreflight(getPreflightContext());
 
+    // Preflight errors block; the venv-not-initialized warning does NOT (we
+    // let the user trigger initialisation via a separate IPC, and block
+    // later if they still try to run without it).
     if (!preflight.ok) {
       sendRunError(
         preflight.blockingChecks[0] || createAppError({
@@ -272,27 +316,13 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
       return;
     }
 
-    if (!whisperToolPath) {
+    const venvPython = resolveBundledPython(venvRoot);
+    if (!venvPython || !isVenvInitialized(venvRoot)) {
       sendRunError(createAppError({
-        code: ERROR_CODES.MISSING_WHISPER_TOOL_PATH,
-        title: 'Whisper 工具路徑未設定',
-        message: '請先在 Settings 指定 faster-whisper-webui 路徑。',
-        suggestedAction: 'open-settings',
-        actionPayload: { section: 'SETTING', key: 'whisper_faster_tool_path' },
-        source: 'run',
-      }));
-      sendDone(1);
-      return;
-    }
-
-    const poetryPath = resolvePoetryPath(getLocalSettings().poetryPath, CONFIG_METADATA_PATH);
-    if (!poetryPath) {
-      sendRunError(createAppError({
-        code: ERROR_CODES.POETRY_NOT_FOUND,
-        title: '找不到 Poetry',
-        message: 'Poetry not found. Please set the Poetry path in settings.',
-        suggestedAction: 'open-settings',
-        actionPayload: { section: 'APP_SETTINGS', key: 'poetryPath' },
+        code: ERROR_CODES.VENV_NOT_INITIALIZED,
+        title: 'Python 虛擬環境尚未建立',
+        message: '第一次執行前請先建立虛擬環境（會自動安裝依賴，約數百 MB）。',
+        suggestedAction: 'initialize-venv',
         source: 'run',
       }));
       sendDone(1);
@@ -310,10 +340,10 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
     sendLog(`[WhisperFlow] Starting CLI transcription for "${job.fileName}"...\n`);
 
     runScript(
-      poetryPath,
+      venvPython,
       scripts.cli,
       [],
-      whisperToolPath,
+      pythonDir,
       (text) => {
         sendLog(text);
         queueManager.handleRunnerOutput(text);
@@ -399,6 +429,97 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
 
     queueManager.markSkippingCurrent();
     sendLog('[WhisperFlow] Skipping current file. Waiting for current process to exit...\n');
+  });
+
+  // ── Bundled venv initialisation ──────────────────────────────────────────
+
+  ipcMain.handle('venv:status', () => {
+    const { venvRoot } = getPaths();
+    const venvPython = resolveBundledPython(venvRoot);
+    return {
+      initialized: Boolean(venvPython) && isVenvInitialized(venvRoot),
+      pythonPath: venvPython,
+      venvRoot,
+    };
+  });
+
+  ipcMain.handle('venv:initialize', async () => {
+    const { venvRoot } = getPaths();
+    const systemPython = resolveSystemPython(getLocalSettings()?.pythonPath, CONFIG_METADATA_PATH);
+    if (!systemPython) {
+      throw new Error('No system Python 3 interpreter found. Please install Python 3.10+ or set one in Settings.');
+    }
+
+    // Make sure models_dir is in config.json BEFORE the venv finishes — that
+    // way, when the renderer re-reads config after the install completes,
+    // the Models tab and Settings tab both see the auto-populated path.
+    ensureModelsDirInConfig();
+
+    try {
+      await initializeBundledVenv({
+        systemPython,
+        venvRoot,
+        requirementsPath: REQUIREMENTS_PATH,
+        onLog: (text) => sendLog(text),
+      });
+      return { ok: true };
+    } catch (error) {
+      sendRunError(createAppError({
+        code: ERROR_CODES.VENV_INIT_FAILED,
+        title: '虛擬環境建立失敗',
+        message: error.message || 'Failed to initialize the bundled Python virtual environment.',
+        details: error.stack || '',
+        source: 'venv',
+      }));
+      throw error;
+    }
+  });
+
+  // ── Model Manager ────────────────────────────────────────────────────────
+  //
+  // These delegate to `whisperflow.cli` sub-commands running inside the
+  // bundled venv.  Each call is a one-shot child process whose JSON output
+  // is parsed and returned to the renderer.
+
+  function runVenvPython(args) {
+    return new Promise((resolve, reject) => {
+      const { pythonDir, venvRoot } = getPaths();
+      const venvPython = resolveBundledPython(venvRoot);
+      if (!venvPython) {
+        reject(new Error('Bundled Python venv is not initialised.'));
+        return;
+      }
+
+      const { spawn } = require('child_process');
+      const child = spawn(venvPython, args, { cwd: pythonDir });
+      let stdout = '';
+      let stderr = '';
+      child.stdout.on('data', (chunk) => { stdout += chunk.toString('utf-8'); });
+      child.stderr.on('data', (chunk) => { stderr += chunk.toString('utf-8'); });
+      child.on('close', (code) => {
+        if (code === 0) resolve(stdout);
+        else reject(new Error(stderr.trim() || `python exited with code ${code}`));
+      });
+      child.on('error', reject);
+    });
+  }
+
+  ipcMain.handle('models:list', async () => {
+    ensureModelsDirInConfig();
+    const stdout = await runVenvPython(['-m', 'whisperflow.cli', '--list-models']);
+    return JSON.parse(stdout);
+  });
+
+  ipcMain.handle('models:download', async (_event, name) => {
+    ensureModelsDirInConfig();
+    const stdout = await runVenvPython(['-m', 'whisperflow.cli', '--download-model', name]);
+    return JSON.parse(stdout);
+  });
+
+  ipcMain.handle('models:delete', async (_event, name) => {
+    ensureModelsDirInConfig();
+    const stdout = await runVenvPython(['-m', 'whisperflow.cli', '--delete-model', name]);
+    return JSON.parse(stdout);
   });
 
   ipcMain.on('run:stop', () => {

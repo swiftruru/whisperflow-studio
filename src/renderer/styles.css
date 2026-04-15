@@ -122,24 +122,56 @@ body {
 }
 
 /* ── Titlebar ────────────────────────────────────────────────────────────────── */
+/*
+ * The Electron main process uses `titleBarStyle: 'hiddenInset'` on macOS and
+ * `titleBarStyle: 'hidden' + titleBarOverlay` on Windows, so this element IS
+ * the top of the window — there is no native bar above it.  `-webkit-app-region:
+ * drag` on the container lets the user move the window by grabbing the bar,
+ * and we opt interactive children out with `no-drag` individually below.
+ */
 .titlebar {
   display: flex;
   align-items: center;
   padding: 0 16px 0 0;
-  background: var(--surface0);
+  background: var(--mantle);
   border-bottom: 1px solid var(--border);
   -webkit-app-region: drag;
   user-select: none;
   gap: 12px;
 }
 
-.titlebar-traffic { width: 72px; flex-shrink: 0; }
+/*
+ * macOS traffic-light gutter: reserve 72px so the hiddenInset-positioned
+ * traffic lights don't overlap the logo.  On Windows/Linux this spacer is
+ * hidden entirely (Windows gets its controls on the right via
+ * titleBarOverlay; Linux falls back to a native frame).
+ */
+.titlebar-traffic { display: none; }
+html[data-platform="darwin"] .titlebar-traffic {
+  display: block;
+  width: 72px;
+  flex-shrink: 0;
+}
+
+/*
+ * Windows with `titleBarOverlay` paints min/max/close in the top-right.
+ * Reserve equivalent space on that side so our theme toggle + status badge
+ * don't collide with the overlay's hit targets (~138px on Windows 10/11).
+ */
+html[data-platform="win32"] .titlebar {
+  padding-right: 150px;
+}
 
 .titlebar-logo {
   display: flex;
   align-items: center;
   gap: 8px;
   flex: 1;
+}
+
+/* On non-mac, nudge the logo in so it doesn't hug the window edge. */
+html:not([data-platform="darwin"]) .titlebar-logo {
+  padding-left: 16px;
 }
 
 .logo-icon {
@@ -1936,3 +1968,274 @@ kbd {
 }
 
 .btn-secondary:disabled { opacity: 0.35; cursor: default; }
+
+/* ── Model Manager tab ──────────────────────────────────────────────────────── */
+.models-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface1);
+}
+
+.models-toolbar .btn-secondary {
+  padding: 0 16px;
+  min-width: 84px;
+  flex-shrink: 0;
+}
+
+.models-toolbar-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.models-toolbar-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.3px;
+}
+
+.models-dir-label {
+  font-size: 11px;
+  color: var(--subtext0);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.models-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px 20px;
+}
+
+.models-empty-msg {
+  padding: 28px 12px;
+  text-align: center;
+  color: var(--subtext0);
+  font-size: 12px;
+}
+
+.models-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.model-row {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface0);
+  transition: border-color 0.18s var(--easing), background 0.18s var(--easing);
+}
+
+.model-row.installed {
+  border-color: rgba(59, 170, 110, 0.35);
+  background: linear-gradient(180deg, rgba(59,170,110,0.06), rgba(59,170,110,0));
+}
+
+.model-row-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.model-row-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.model-row-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+
+.model-row-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+}
+
+.model-row-badge.installed {
+  background: rgba(59, 170, 110, 0.18);
+  color: var(--success);
+}
+
+.model-row-repo {
+  font-size: 11px;
+  color: var(--subtext0);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.model-row-description {
+  font-size: 12px;
+  color: var(--subtext1);
+  line-height: 1.4;
+}
+
+.model-row-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 88px;
+}
+
+.model-row-size {
+  font-size: 11px;
+  color: var(--subtext0);
+  font-family: var(--font-mono);
+}
+
+.model-row-btn {
+  min-width: 84px;
+  height: 30px;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+}
+
+.model-row-btn:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+/* ── Model Manager: venv bootstrap CTA ──────────────────────────────────── */
+.models-empty-msg.models-needs-venv {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 20px;
+  text-align: center;
+}
+
+.models-cta-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.models-cta-desc {
+  font-size: 12px;
+  color: var(--subtext1);
+  line-height: 1.5;
+  max-width: 320px;
+}
+
+.models-cta-btn {
+  margin-top: 6px;
+  min-width: 180px;
+  height: 36px;
+  font-size: 13px;
+}
+
+/* ── Venv bootstrap stage lines (shared by Preflight + Models CTA) ────── */
+.preflight-item-stage {
+  margin-top: 8px;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--subtext1);
+  background: var(--surface1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.models-cta-stage {
+  margin-top: 10px;
+  padding: 6px 12px;
+  font-size: 11px;
+  color: var(--subtext1);
+  background: var(--surface1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  line-height: 1.5;
+  word-break: break-all;
+  max-width: 320px;
+}
+
+/* ── Confirm dialog (themed replacement for window.confirm) ─────────────── */
+.confirm-dialog {
+  max-width: 440px;
+  padding: 28px 28px 22px;
+}
+
+.confirm-dialog h2 {
+  text-align: left;
+  margin-bottom: 12px;
+}
+
+.confirm-dialog-message {
+  text-align: left;
+  color: var(--subtext1);
+  font-size: 13px;
+  line-height: 1.65;
+  margin: 0 0 22px;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.confirm-dialog-btn {
+  min-width: 96px;
+  height: 36px;
+  padding: 0 18px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/*
+ * Danger variant for destructive actions (delete, reset, etc.).  We
+ * override the .btn-primary's yellow accent with a red gradient so the
+ * action visibly carries weight without breaking the theme.
+ */
+.confirm-dialog-btn--danger {
+  background: var(--red);
+  color: #fff;
+  border-color: color-mix(in srgb, var(--red) 70%, #000);
+}
+
+.confirm-dialog-btn--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--red) 88%, #000);
+  border-color: color-mix(in srgb, var(--red) 60%, #000);
+}
+
+.confirm-dialog-btn--danger:active:not(:disabled) {
+  background: color-mix(in srgb, var(--red) 75%, #000);
+  transform: scale(0.98);
+}
+
+.confirm-dialog-btn--danger:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--red) 50%, transparent);
+  outline-offset: 2px;
+}

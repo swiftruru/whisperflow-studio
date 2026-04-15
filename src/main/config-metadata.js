@@ -1,7 +1,6 @@
 'use strict';
 
 const fs = require('fs');
-const os = require('os');
 
 function cloneJson(value = {}) {
   return JSON.parse(JSON.stringify(value));
@@ -18,9 +17,9 @@ function getEmptyMetadata() {
       },
     },
     appRuntime: {
-      macPathPrefixes: [],
       windowDefaults: {},
-      knownPoetryPaths: {},
+      bundledPython: {},
+      knownPythonPaths: {},
     },
     media: {
       supportedMediaExtensions: [],
@@ -49,20 +48,8 @@ function getAppRuntimeConfig(filePath) {
   return cloneJson(metadata.appRuntime || {});
 }
 
-function expandHomePath(value) {
-  return typeof value === 'string'
-    ? value.replace(/\$\{HOME\}/g, os.homedir())
-    : value;
-}
-
-function getKnownPoetryPaths(filePath, platform = process.platform) {
-  const config = getAppRuntimeConfig(filePath);
-  return cloneJson(config.knownPoetryPaths?.[platform] || []).map(expandHomePath);
-}
-
 module.exports = {
   readConfigMetadata,
   getSupportedMediaExtensions,
   getAppRuntimeConfig,
-  getKnownPoetryPaths,
 };

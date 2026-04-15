@@ -3,6 +3,9 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  // ── Environment ──────────────────────────────────────────────────────────
+  platform: process.platform,
+
   // ── Config ───────────────────────────────────────────────────────────────
   readConfig:    ()              => ipcRenderer.invoke('config:read'),
   readConfigMetadata: ()         => ipcRenderer.invoke('config:metadata:read'),
@@ -35,6 +38,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readHistory:     ()             => ipcRenderer.invoke('history:read'),
   writeHistory:    (entries)      => ipcRenderer.invoke('history:write', entries),
 
+  // ── Bundled Python venv ──────────────────────────────────────────────────
+  getVenvStatus:    ()            => ipcRenderer.invoke('venv:status'),
+  initializeVenv:   ()            => ipcRenderer.invoke('venv:initialize'),
+
+  // ── Model Manager ────────────────────────────────────────────────────────
+  listModels:       ()            => ipcRenderer.invoke('models:list'),
+  downloadModel:    (name)        => ipcRenderer.invoke('models:download', name),
+  deleteModel:      (name)        => ipcRenderer.invoke('models:delete', name),
+
   // ── Process Control ───────────────────────────────────────────────────────
   setRunning:    (val)          => ipcRenderer.send('app:set-running', val),
   notify:        (opts)         => ipcRenderer.send('app:notify', opts),
@@ -47,6 +59,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ── Streaming Log Events (renderer listens) ───────────────────────────────
   onLogData:     (cb)           => ipcRenderer.on('log:data',  (_e, v) => cb(v)),
+  // Scoped log listener that returns a disposer — used for transient taps
+  // (e.g. venv bootstrap progress parser) that shouldn't nuke the main
+  // console-log listener on teardown.
+  addLogDataListener: (cb) => {
+    const handler = (_e, v) => cb(v);
+    ipcRenderer.on('log:data', handler);
+    return () => ipcRenderer.removeListener('log:data', handler);
+  },
   onRunDone:     (cb)           => ipcRenderer.on('run:done',  (_e, v) => cb(v)),
   onRunError:    (cb)           => ipcRenderer.on('run:error', (_e, v) => cb(v)),
   onRunnerEvent: (cb)           => ipcRenderer.on('runner:event', (_e, v) => cb(v)),

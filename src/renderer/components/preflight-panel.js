@@ -1,5 +1,8 @@
 'use strict';
 
+import { showToast } from './toast.js';
+import { initializeVenvWithProgress, VENV_INITIALIZED_EVENT } from '../lib/venv-bootstrap.js';
+
 const panel = document.getElementById('preflight-panel');
 const summaryEl = document.getElementById('preflight-summary');
 const listEl = document.getElementById('preflight-list');
@@ -81,7 +84,35 @@ async function handleCheckAction(action) {
   }
 }
 
-function createActionButton(check) {
+async function runVenvInitializeFromButton(button, bodyEl) {
+  const stageLine = document.createElement('div');
+  stageLine.className = 'preflight-item-stage';
+  stageLine.textContent = '正在啟動 Python 子程序…';
+  bodyEl?.appendChild(stageLine);
+
+  button.disabled = true;
+  const originalLabel = button.textContent;
+  button.textContent = '建立中…';
+  showToast('正在建立 Python 虛擬環境並安裝依賴（可能需要數分鐘）…', 'info', 5000);
+
+  try {
+    await initializeVenvWithProgress({
+      onStage: (stage) => {
+        stageLine.textContent = `目前階段：${stage}`;
+      },
+    });
+    stageLine.textContent = '環境建立完成';
+    showToast('Python 環境建立完成', 'success', 3000);
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = originalLabel;
+    stageLine.remove();
+    showToast(`環境建立失敗：${error?.message || error}`, 'error', 6000);
+    throw error;
+  }
+}
+
+function createActionButton(check, rowEl) {
   if (!check.action?.type) return null;
 
   const button = document.createElement('button');
@@ -92,11 +123,23 @@ function createActionButton(check) {
     button.textContent = '前往設定';
   } else if (check.action.type === 'browse-media-root') {
     button.textContent = '選擇資料夾';
+  } else if (check.action.type === 'initialize-venv') {
+    button.textContent = '立即建立環境';
   } else {
     return null;
   }
 
   button.addEventListener('click', async () => {
+    if (check.action.type === 'initialize-venv') {
+      const bodyEl = rowEl?.querySelector('.preflight-item-body');
+      try {
+        await runVenvInitializeFromButton(button, bodyEl);
+      } catch (_) {
+        return;
+      }
+      await refreshPreflight();
+      return;
+    }
     await handleCheckAction(check.action);
     await refreshPreflight();
   });
@@ -105,8 +148,6 @@ function createActionButton(check) {
 }
 
 function renderChecks() {
-  const visibleChecks = getVisibleChecks();
-
   if (state.pending) {
     panel.hidden = false;
     countEl.textContent = '檢查中';
@@ -115,15 +156,21 @@ function renderChecks() {
     return;
   }
 
-  if (state.ok) {
+  const visibleChecks = getVisibleChecks();
+  if (state.ok && visibleChecks.length === 0) {
     panel.hidden = true;
     listEl.innerHTML = '';
     return;
   }
 
   panel.hidden = false;
-  countEl.textContent = `${state.blockingChecks.length} 項阻擋`;
-  summaryEl.textContent = `還有 ${state.blockingChecks.length} 個環境問題需要先修正。`;
+  if (state.blockingChecks.length > 0) {
+    countEl.textContent = `${state.blockingChecks.length} 項阻擋`;
+    summaryEl.textContent = `還有 ${state.blockingChecks.length} 個環境問題需要先修正。`;
+  } else {
+    countEl.textContent = `${visibleChecks.length} 項提醒`;
+    summaryEl.textContent = `有 ${visibleChecks.length} 個環境提醒，可以先設定再執行。`;
+  }
   listEl.innerHTML = '';
 
   visibleChecks.forEach((check) => {
@@ -158,7 +205,7 @@ function renderChecks() {
     row.appendChild(icon);
     row.appendChild(body);
 
-    const actionButton = createActionButton(check);
+    const actionButton = createActionButton(check, row);
     if (actionButton) row.appendChild(actionButton);
 
     listEl.appendChild(row);
@@ -245,6 +292,12 @@ function initPreflightPanel(options = {}) {
   onApplyDirectory = options.onApplyDirectory || null;
 
   recheckBtn?.addEventListener('click', () => {
+    refreshPreflight();
+  });
+
+  // After a successful venv bootstrap the preflight result is stale even
+  // if the user kicked off the install from another tab — re-run.
+  window.addEventListener(VENV_INITIALIZED_EVENT, () => {
     refreshPreflight();
   });
 

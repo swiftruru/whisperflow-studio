@@ -2,6 +2,30 @@ node_modules/
 dist/
 settings.json
 python/config/config.json
+test.mjs
+
+# Claude Code local session state (permissions, memory, plans).
+# Machine-local, must never be committed.
+.claude/
+
+# ── Python ─────────────────────────────────────────────────────────────────
+# Bundled virtualenvs (created on first launch via venv-installer.js).
+# These are machine-local and ~2 GB each — must never be committed.
+python/.venv/
+python/.venv-test/
+.venv/
+.venv-test/
+
+# Byte-compiled / optimised / test caches
 __pycache__/
 *.pyc
-test.mjs
+*.pyo
+.pytest_cache/
+
+# setuptools / pip build artefacts
+python/*.egg-info/
+python/build/
+python/dist/
+
+# ── Vendored upstream (removed in v1.4.0, keep the ignore as a safety net) ─
+_faster-whisper-webui/

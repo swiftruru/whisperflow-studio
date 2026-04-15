@@ -70,17 +70,17 @@ function createLineBuffer(onLine) {
 /**
  * Spawn a Python script and stream stdout/stderr back via callbacks.
  *
- * @param {string} poetryPath   - absolute path to the poetry executable
+ * @param {string} pythonPath   - absolute path to the Python interpreter (bundled venv)
  * @param {string} scriptPath   - absolute path to the Python script
  * @param {string[]} args       - additional CLI arguments for the script
- * @param {string} cwd          - working directory (Python project root)
+ * @param {string} cwd          - working directory
  * @param {Function} onData     - called with each stdout text chunk (string)
  * @param {Function} onError    - called with each stderr text chunk (string)
  * @param {Function} onClose    - called with exit code (number) when process ends
  * @param {Function|null} onEvent - called with structured runner event objects
  * @returns {ChildProcess}
  */
-function runScript(poetryPath, scriptPath, args, cwd, onData, onError, onClose, onEvent = null) {
+function runScript(pythonPath, scriptPath, args, cwd, onData, onError, onClose, onEvent = null) {
   if (activeProcess) {
     stopProcess(-2);
   }
@@ -89,8 +89,8 @@ function runScript(poetryPath, scriptPath, args, cwd, onData, onError, onClose, 
   activeState = 'running';
 
   const child = spawn(
-    poetryPath,
-    ['run', 'python', scriptPath, ...args],
+    pythonPath,
+    [scriptPath, ...args],
     {
       cwd,
       detached: isUnixLike(),
@@ -98,7 +98,6 @@ function runScript(poetryPath, scriptPath, args, cwd, onData, onError, onClose, 
         ...process.env,
         PYTHONUNBUFFERED: '1',
         PYTHONIOENCODING: 'utf-8',
-        WHISPERFLOW_POETRY_PATH: poetryPath,
       },
     }
   );

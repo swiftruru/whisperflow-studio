@@ -1,5 +1,15 @@
 'use strict';
 
+// Tag <html> with the host platform so CSS can conditionally reserve space
+// for macOS traffic lights (and nothing on Windows/Linux).  Must run before
+// first paint, so it lives here in bootstrap.js rather than in index.js.
+try {
+  const platform = window.electronAPI?.platform || 'unknown';
+  document.documentElement.dataset.platform = platform;
+} catch (_) {
+  document.documentElement.dataset.platform = 'unknown';
+}
+
 function appendBootLog(message, type = 'error') {
   const output = document.getElementById('console-output');
   if (!output) return;

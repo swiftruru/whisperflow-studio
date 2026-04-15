@@ -102,6 +102,36 @@ let isRunning = false;
 let isAppQuitting = false;
 let isForceClosingWindow = false;
 
+function getPlatformWindowOptions() {
+  // On macOS we use `hiddenInset` so the native titlebar background is gone
+  // and the traffic lights float over our custom ``.titlebar`` element,
+  // which already reserves 72px on the left specifically for them.
+  //
+  // On Windows we ask Electron to hide the native titlebar text area while
+  // leaving min/max/close buttons painted via `titleBarOverlay`.  The
+  // overlay colours roughly match the light theme; the user toggling dark
+  // mode will leave them as-is (the renderer only re-themes the HTML, not
+  // the native overlay), which is acceptable for a non-primary platform.
+  //
+  // On Linux we leave the default frame — Linux WM decorations vary too
+  // much to safely hide, and a double titlebar on Linux is acceptable per
+  // the "Windows / Linux 至少不要壞掉" guidance.
+  if (process.platform === 'darwin') {
+    return { titleBarStyle: 'hiddenInset' };
+  }
+  if (process.platform === 'win32') {
+    return {
+      titleBarStyle: 'hidden',
+      titleBarOverlay: {
+        color: '#fbf8ef',        // matches --mantle in styles.css
+        symbolColor: '#1e1a0e',  // matches --text
+        height: 44,              // matches --titlebar-h
+      },
+    };
+  }
+  return {};
+}
+
 function createWindow() {
   const state = readWindowState();
 
@@ -114,6 +144,7 @@ function createWindow() {
     minHeight: WINDOW_DEFAULTS.minHeight,
     title: 'WhisperFlow Studio',
     icon: path.join(ELECTRON_APP_ROOT, 'assets', 'icon.png'),
+    ...getPlatformWindowOptions(),
     webPreferences: {
       preload: path.join(__dirname, '..', '..', 'preload', 'preload.js'),
       contextIsolation: true,

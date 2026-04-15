@@ -8,6 +8,7 @@ import { initErrorBanner } from './components/error-banner.js';
 import { initErrorDialog } from './components/error-dialog.js';
 import { initQueueState } from './components/queue-state.js';
 import { initQueuePanel } from './components/queue-panel.js';
+import { initModelManager } from './components/model-manager.js';
 import './components/controls-bar.js';
 
 // ── Theme toggle ──────────────────────────────────────────────────────────────
@@ -263,6 +264,7 @@ async function init() {
   initPreflightPanel({ onApplyDirectory: applyDirectory });
   await initQueueState();
   initQueuePanel();
+  initModelManager();
   const startupTasks = [
     refreshPreflight(),
     Promise.resolve().then(() => renderSettings()),

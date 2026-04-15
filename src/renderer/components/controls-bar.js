@@ -146,8 +146,33 @@ async function triggerRun() {
 
   lastAction = 'cli';
   setRunning(true);
+  // Arm the progress-card scroll before we kick off the run.  The actual
+  // scroll happens the first time queue state reports a running job,
+  // which is after Python has emitted its first [WhisperFlowEvent] —
+  // guaranteeing the Batch Progress card is already unhidden at the
+  // moment we scroll it into view.
+  armProgressCardScroll();
   window.electronAPI.runCli();
   return true;
+}
+
+let _progressCardScrollArmed = false;
+
+function armProgressCardScroll() {
+  _progressCardScrollArmed = true;
+}
+
+function maybeScrollProgressCardIntoView(state) {
+  if (!_progressCardScrollArmed) return;
+  const job = state?.currentJob;
+  if (!job || (job.status !== 'running' && job.status !== 'paused')) return;
+
+  _progressCardScrollArmed = false;
+  requestAnimationFrame(() => {
+    const progressCard = document.getElementById('progress-card');
+    if (!progressCard || progressCard.hidden) return;
+    progressCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
 }
 
 btnScan.addEventListener('click', async () => {
@@ -185,8 +210,9 @@ subscribePreflight(() => {
   if (!isRunning) syncActionState();
 });
 
-subscribeQueueState(() => {
+subscribeQueueState((state) => {
   syncActionState();
+  maybeScrollProgressCardIntoView(state);
 });
 
 window.electronAPI.onRunDone(async (code) => {

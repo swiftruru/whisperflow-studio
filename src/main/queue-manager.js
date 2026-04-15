@@ -357,7 +357,16 @@ function createQueueManager({
 
     const currentJob = getCurrentJob();
     const stats = computeStats(state.jobs);
-    config.SETTING.media_root_path = state.rootPath || config.SETTING.media_root_path || '';
+
+    // Only assert media_root_path when we actually have one in queue state.
+    // The renderer's `applyDirectory()` writes the path to config.json
+    // directly without going through the queue manager, so `state.rootPath`
+    // can legitimately be empty even when the user has set a directory.
+    // Writing back empty here would silently nuke their setting.
+    if (state.rootPath) {
+      config.SETTING.media_root_path = state.rootPath;
+    }
+
     config.SETTING.media_file_path = currentJob?.dirPath || '';
     config.SETTING.media_file_name = currentJob?.fileName || '';
     config.SETTING.missing_count = stats.pending + stats.running + stats.paused + stats.failed;

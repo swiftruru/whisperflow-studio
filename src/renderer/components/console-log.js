@@ -51,6 +51,19 @@ function copyLog() {
 
 let _timerInterval = null;
 let _timerStart    = null;
+let _currentStage  = '';
+
+// Map from the Python EventEmitter's stage string to a short human label
+// shown next to the "Running 00:47" timer.  The values come from
+// python/whisperflow/events.py STAGE_* constants.
+const STAGE_LABELS = {
+  'preparing':       'Preparing',
+  'loading-model':   'Loading model',
+  'transcribing':    'Transcribing',
+  'writing-subtitle': 'Writing SRT',
+  'completed':       'Completed',
+  'failed':          'Failed',
+};
 
 function renderRunningTimer() {
   if (_timerStart === null) return;
@@ -58,7 +71,8 @@ function renderRunningTimer() {
   const elapsed = Math.max(0, Math.floor((Date.now() - _timerStart) / 1000));
   const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
   const ss = String(elapsed % 60).padStart(2, '0');
-  statusLabel.textContent = `Running ${mm}:${ss}`;
+  const suffix = _currentStage ? ` · ${_currentStage}` : '';
+  statusLabel.textContent = `Running ${mm}:${ss}${suffix}`;
 }
 
 function startTimer() {
@@ -82,15 +96,30 @@ function setStatus(state) {
   if (state === 'Running') {
     statusLabel.classList.add('running');
     statusDot.classList.add('running');
+    _currentStage = '';  // reset stage on every fresh run
     startTimer();
   } else {
     stopTimer();
+    _currentStage = '';
     statusLabel.textContent = state;
     if (state === 'Error') {
       statusLabel.classList.add('error');
       statusDot.classList.add('error');
     }
   }
+}
+
+// Called from queue-panel.js whenever a [WhisperFlowEvent] with a
+// ``stage`` field arrives, so the top-right status badge always shows
+// the current transcription phase even when the Batch Progress card is
+// scrolled off screen.
+function setStage(stage) {
+  const label = STAGE_LABELS[stage] || '';
+  if (label === _currentStage) return;
+  _currentStage = label;
+  // If the timer is running, re-render immediately so the change shows
+  // without waiting for the next 1-second tick.
+  if (_timerStart !== null) renderRunningTimer();
 }
 
 async function saveLog() {
@@ -187,4 +216,4 @@ window.electronAPI.onRunError((payload) => {
   setStatus('Error');
 });
 
-export { appendLog, clearLog, setStatus };
+export { appendLog, clearLog, setStage, setStatus };
