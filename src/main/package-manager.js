@@ -51,17 +51,18 @@ const MANAGERS = [
   },
 
   // --- Windows (admin-free first) ----------------------------------
-  {
-    id: 'scoop',
-    label: 'Scoop',
-    platforms: ['win32'],
-    needsAdmin: false,
-    installDocsUrl: 'https://scoop.sh/',
-    buildInstallCommand: (name) => ({
-      command: 'scoop',
-      args: ['install', name],
-    }),
-  },
+  //
+  // winget is listed before Scoop on Windows because:
+  //   1. Windows 10/11 ships with winget pre-installed (App Installer),
+  //      so it's almost guaranteed to be there without the user having
+  //      bootstrapped Scoop themselves.
+  //   2. `scoop install <pkg>` first runs a full `scoop update` across
+  //      every installed bucket (main, extras, java, versions, ...),
+  //      which on a user with many apps can take 5–15 minutes before
+  //      the actual ffmpeg download starts — users reasonably think
+  //      the install is hung.  winget's `install` hits exactly one
+  //      package and typically finishes in under a minute.
+  //   3. Chocolatey is kept last because its install path needs admin.
   {
     id: 'winget',
     label: 'winget',
@@ -74,6 +75,17 @@ const MANAGERS = [
     buildInstallCommand: (name) => ({
       command: 'winget',
       args: ['install', '--id', resolveWingetPackageId(name), '--accept-source-agreements', '--accept-package-agreements', '--silent'],
+    }),
+  },
+  {
+    id: 'scoop',
+    label: 'Scoop',
+    platforms: ['win32'],
+    needsAdmin: false,
+    installDocsUrl: 'https://scoop.sh/',
+    buildInstallCommand: (name) => ({
+      command: 'scoop',
+      args: ['install', name],
     }),
   },
   {

@@ -53,6 +53,19 @@ function renderManagerRow(manager) {
     status.textContent = t('dialogs:installFfmpeg.statusAvailable');
   }
   info.appendChild(status);
+
+  // Scoop runs a full `scoop update` across every installed bucket
+  // before `install`, which on a user with many apps can take several
+  // minutes before ffmpeg itself starts downloading.  Warn up front
+  // so users don't think the install is hung — other package
+  // managers don't have this behaviour and don't need the note.
+  if (manager.id === 'scoop' && manager.available) {
+    const hint = document.createElement('div');
+    hint.className = 'install-ffmpeg-row-hint';
+    hint.textContent = t('dialogs:installFfmpeg.scoopUpdateWarning');
+    info.appendChild(hint);
+  }
+
   row.appendChild(info);
 
   const actions = document.createElement('div');

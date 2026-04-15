@@ -37,7 +37,8 @@
     "copyCommand": "複製指令",
     "openDocsFailed": "無法開啟網址：{{error}}",
     "commandCopied": "已複製：{{command}}",
-    "copyCommandFailed": "無法複製指令"
+    "copyCommandFailed": "無法複製指令",
+    "scoopUpdateWarning": "⚠ 首次使用 Scoop 會先檢查所有 bucket 更新，可能需要數分鐘；之後才會開始下載 ffmpeg 本體。"
   },
   "confirm": {
     "confirmLabel": "確定",

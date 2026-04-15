@@ -37,7 +37,8 @@
     "copyCommand": "Copy command",
     "openDocsFailed": "Failed to open URL: {{error}}",
     "commandCopied": "Copied: {{command}}",
-    "copyCommandFailed": "Failed to copy command"
+    "copyCommandFailed": "Failed to copy command",
+    "scoopUpdateWarning": "⚠ The first Scoop install runs a full bucket update first — this can take several minutes before ffmpeg itself starts downloading."
   },
   "confirm": {
     "confirmLabel": "Confirm",

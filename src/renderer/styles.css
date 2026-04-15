@@ -2081,6 +2081,17 @@ select { appearance: auto; cursor: pointer; }
   line-height: 1.5;
 }
 
+.install-ffmpeg-row-hint {
+  margin-top: 4px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--yellow) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--yellow) 28%, transparent);
+  color: var(--amber);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
 .install-ffmpeg-row-actions {
   display: flex;
   gap: 6px;
