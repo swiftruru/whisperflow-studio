@@ -498,6 +498,13 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
     return { ok: true };
   });
 
+  // ── App metadata ─────────────────────────────────────────────────────────
+  // Used by the About tab to render `v{version}` in the hero badge.
+  // Reads straight from Electron's `app.getVersion()` (which itself
+  // comes from package.json), so a release bump propagates without
+  // touching any About-specific constants.
+  ipcMain.handle('app:get-version', () => app.getVersion());
+
   ipcMain.handle('venv:status', () => {
     const { venvRoot } = getPaths();
     const venvPython = resolveBundledPython(venvRoot);

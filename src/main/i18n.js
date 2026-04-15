@@ -37,6 +37,7 @@ const NAMESPACES = [
   'errors',
   'events',
   'toasts',
+  'about',
 ];
 
 /**

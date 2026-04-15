@@ -5,6 +5,7 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   // ── Environment ──────────────────────────────────────────────────────────
   platform: process.platform,
+  getAppVersion: ()      => ipcRenderer.invoke('app:get-version'),
 
   // ── i18n ────────────────────────────────────────────────────────────────
   i18n: {

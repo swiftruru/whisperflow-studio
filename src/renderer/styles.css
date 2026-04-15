@@ -56,36 +56,95 @@
   color-scheme: light;
 }
 
-/* ── Dark Theme ──────────────────────────────────────────────────────────────── */
+/* ── Dark Theme — Cocoa Cream ────────────────────────────────────────────────
+ * "可愛的深色，不是嚇人的暗色."  A soft, warm-cocoa dark palette that
+ * feels like the same app as the cream light theme after sundown —
+ * not a hacker tool at midnight.
+ *
+ * Design brief (after three earlier iterations that were either too
+ * sepia, too cold, or too black):
+ *
+ *  - Canvas sits in the MEDIUM-DARK zone (~16-22% lightness), not
+ *    the near-black zone.  Think cafe-au-lait, not asphalt.  The
+ *    GitHub dark-dimmed / Catppuccin Frappe / Bear dark vibe —
+ *    clearly a dark theme, but never intimidating.
+ *  - Warm brown undertone across every surface so the cream-yellow
+ *    light theme and this palette read as the SAME brand family.
+ *    The old sepia problem was SATURATED brown at ~40% L; this
+ *    palette is DESATURATED brown at ~18% L, which is very different
+ *    visually even though the hue name is similar.
+ *  - Text is bright and contrasty.  `--text` sits at ~96% lightness
+ *    so primary body is ~15:1 on the canvas.  Every subtext tier
+ *    still clears WCAG AA.
+ *  - Brand yellow / amber / gold carry over with almost the same
+ *    hex codes as the light theme — they were already designed for
+ *    warm backgrounds and work here unchanged.
+ *  - Borders are cream-white alpha (not pure white), so card edges
+ *    feel tonally native to the palette without carrying a yellow
+ *    cast like the old theme.
+ *
+ * Reference taste: Catppuccin Frappe · Bear dark · Things 3 dark —
+ * "cozy pastel dark" for a warm brand.
+ * ─────────────────────────────────────────────────────────────────────── */
 html:not([data-theme="light"]) {
-  --crust:    #12100a;
-  --mantle:   #1c1910;
-  --base:     #242018;
-  --surface0: #302c1e;
-  --surface1: #3c3828;
-  --surface2: #4c4732;
-  --overlay0: #bfa466;
-  --overlay1: #d4bd84;
-  --text:     #faf3d8;
-  --subtext1: #ebdcaa;
-  --subtext0: #d6c384;
+  /* Surfaces: six-step soft-cocoa ladder.  Each step is ~4-5%
+     lightness above the previous so layering is obvious without the
+     whole thing getting pitch black.  Compared to the previous
+     near-black pass the canvas is ~10% brighter, which is why it
+     reads as "approachable" instead of "brooding". */
+  --crust:    #1f1a14;   /* titlebar outer frame — darkest  (~11% L) */
+  --mantle:   #28221a;   /* sidebar background               (~14% L) */
+  --base:     #302921;   /* main content canvas              (~17% L) */
+  --surface0: #3a3229;   /* cards, primary surfaces          (~20% L) */
+  --surface1: #453c31;   /* inputs, button idle              (~24% L) */
+  --surface2: #504639;   /* hover states                     (~28% L) */
 
-  --yellow:   #f0d060;
-  --amber:    #e8c040;
-  --gold:     #c8a020;
-  --peach:    #f4a060;
-  --green:    #50c88a;
-  --red:      #f07070;
-  --blue:     #70a8f0;
-  --sapphire: #50c0d8;
+  /* Text: warm cream-white.  Keep the warm tint so letterforms feel
+     tonally related to the light theme's dark-gold text — the
+     brand's "voice" is the same, just inverted for the dark canvas.
+     Contrast on --base (#302921, ~17% L):
+       text     ~fbf5e6 → ~13:1
+       subtext1 ~eadfc2 → ~10:1
+       subtext0 ~c9bc96 → ~ 6:1
+       overlay1 ~a2946f → ~4:1
+       overlay0 ~bdab7a → ~5:1   (card labels, prominent muted gold) */
+  --text:     #fbf5e6;
+  --subtext1: #eadfc2;
+  --subtext0: #c9bc96;
+  --overlay1: #a2946f;
+  --overlay0: #bdab7a;
 
-  --border:       rgba(220,190,80,0.25);
-  --border-modal: rgba(220,190,80,0.34);
+  /* Brand accent — nearly identical hues to the light theme.  Yellow
+     pops on a soft cocoa canvas more than it pops on pitch black,
+     which is how we avoid the "black + yellow construction sign"
+     problem the near-black pass had. */
+  --yellow:   #f5d45a;
+  --amber:    #e8b830;
+  --gold:     #f0c848;   /* slightly brighter for dark text roles */
+  --peach:    #f4a97a;
 
-  --shadow-xs:  0 1px 3px rgba(0,0,0,0.3);
-  --shadow-sm:  0 2px 10px rgba(0,0,0,0.38), 0 1px 4px rgba(0,0,0,0.22);
-  --shadow-md:  0 4px 24px rgba(0,0,0,0.48), 0 2px 8px rgba(0,0,0,0.28);
-  --shadow-glow: 0 4px 20px rgba(240,208,96,0.25);
+  /* Status palette — pastel-y, slightly desaturated so they sit on
+     the warm cocoa canvas without screaming.  Still clearly modern,
+     no sepia vintage. */
+  --green:    #6dd89a;
+  --red:      #f08a8a;
+  --blue:     #8db4f0;
+  --sapphire: #5fc8d8;
+
+  /* Borders: cream-white alpha, pushed up one step from the previous
+     pass because the canvas is brighter now and the border needs a
+     touch more weight to remain visible. */
+  --border:       rgba(255,240,200,0.14);
+  --border-modal: rgba(255,240,200,0.22);
+
+  /* Shadows: softer than the near-black pass.  The canvas isn't
+     black anymore so aggressive shadows would look unnatural — we
+     keep just enough depth for card lift. */
+  --shadow-xs:  0 1px 3px rgba(0,0,0,0.28);
+  --shadow-sm:  0 2px 10px rgba(0,0,0,0.38), 0 1px 3px rgba(0,0,0,0.25);
+  --shadow-md:  0 8px 32px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.28);
+  --shadow-glow: 0 0 0 1px color-mix(in srgb, var(--amber) 35%, transparent),
+                 0 4px 20px rgba(232,184,48,0.28);
 
   color-scheme: dark;
 }
@@ -1086,10 +1145,16 @@ html:not([data-platform="darwin"]) .titlebar-logo {
 }
 
 html:not([data-theme="light"]) .btn-scan {
-  background: linear-gradient(160deg, #e8d068 0%, #d0b030 100%);
+  /* Midnight Studio: the yellow gradient pops on the cool neutral
+     background.  Keep the dark brown-black text (#1a1200) for high
+     contrast on the yellow fill; the glow is tightened and deepened
+     so it reads as a real light source, not a paper stain. */
+  background: linear-gradient(160deg, #f0d268 0%, #d6a82a 100%);
   color: #1a1200;
-  border-color: rgba(220,180,50,0.25);
-  box-shadow: 0 3px 16px rgba(240,208,96,0.30), 0 1px 4px rgba(0,0,0,0.2);
+  border-color: rgba(240,185,76,0.35);
+  box-shadow: 0 4px 20px rgba(240,185,76,0.28),
+              0 1px 4px rgba(0,0,0,0.4),
+              inset 0 1px 0 rgba(255,255,255,0.25);
 }
 
 .btn-scan:hover:not(:disabled) {
@@ -1124,9 +1189,19 @@ html:not([data-theme="light"]) .btn-scan {
 }
 
 html:not([data-theme="light"]) .btn-primary {
-  background: rgba(220,185,60,0.10);
-  border-color: rgba(220,185,60,0.28);
+  /* Midnight Studio: ghost-style secondary CTA — faint amber tint
+     on dark surface, border slightly more visible so it reads as
+     "tappable" but doesn't compete with the primary scan button. */
+  background: color-mix(in srgb, var(--amber) 8%, var(--surface1));
+  border-color: color-mix(in srgb, var(--amber) 32%, transparent);
   color: var(--amber);
+}
+
+html:not([data-theme="light"]) .btn-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--amber) 14%, var(--surface1));
+  border-color: color-mix(in srgb, var(--amber) 55%, transparent);
+  color: #ffd882;
+  box-shadow: 0 4px 18px rgba(240,185,76,0.18);
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -2419,4 +2494,279 @@ kbd {
 .confirm-dialog-btn--danger:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--red) 50%, transparent);
   outline-offset: 2px;
+}
+
+/* ── About Tab ─────────────────────────────────────────────────────────────── */
+/* Self-contained tab with its own hero block + three cards + footer.
+   All colours come from CSS variables so light/dark themes apply
+   automatically.  Constrained to the 340px left panel — no horizontal
+   splits, everything is one column. */
+
+.about-tab {
+  padding: 18px 16px 24px;
+  gap: 14px;
+  overflow-y: auto;
+}
+
+/* ── ① Hero block ──────────────────────────────────────────────── */
+.about-hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 6px 4px 2px;
+  flex-wrap: wrap;
+}
+
+.about-hero-icon {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface1);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.about-hero-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+.about-hero-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.about-hero-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.about-version-badge {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 2px 9px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--yellow) 20%, var(--surface0));
+  border: 1px solid color-mix(in srgb, var(--yellow) 35%, transparent);
+  color: var(--gold);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
+
+.about-tagline {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--subtext0);
+}
+
+/* ── ② Author card ─────────────────────────────────────────────── */
+.author-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.author-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.author-avatar {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--yellow) 0%, var(--peach) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--yellow) 25%, transparent);
+  position: relative;
+  overflow: hidden;
+}
+
+/* If a real <img> is dropped inside .author-avatar, it covers the
+   monogram gradient without needing any JS toggling. */
+.author-avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.author-monogram {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--mantle);
+  text-shadow: 0 1px 2px color-mix(in srgb, var(--gold) 30%, transparent);
+}
+
+.author-name-block {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.author-name {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  flex-wrap: wrap;
+}
+
+.author-name-latin {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--subtext0);
+  letter-spacing: 0.01em;
+}
+
+.author-role {
+  font-size: 11px;
+  color: var(--subtext0);
+  line-height: 1.5;
+}
+
+.author-links {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.author-link-btn {
+  flex: 1;
+  min-width: 120px;
+  height: 34px;
+  padding: 0 12px;
+  font-size: 11px;
+  gap: 6px;
+}
+
+.author-link-btn svg {
+  flex-shrink: 0;
+}
+
+/* ── ③ Tech stack card ─────────────────────────────────────────── */
+.tech-card {
+  /* Inherits base .card styles; no extra work needed */
+}
+
+.tech-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.tech-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--border);
+}
+
+.tech-group:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.tech-group-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+}
+
+.tech-group-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.tech-group-item {
+  position: relative;
+  padding-left: 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--subtext1);
+}
+
+.tech-group-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--yellow);
+}
+
+/* Accent colour rotation so each item's dot has a slightly different
+   hue — 4-step cycle through the warm-palette accents.  Purely
+   decorative; falls back to --yellow for any item beyond the cycle. */
+.tech-group-item:nth-child(4n+2)::before { background: var(--peach); }
+.tech-group-item:nth-child(4n+3)::before { background: var(--green); }
+.tech-group-item:nth-child(4n+4)::before { background: var(--sapphire); }
+
+/* ── ④ Credits card ────────────────────────────────────────────── */
+.credits-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.credits-text {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--subtext0);
+}
+
+.credits-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────── */
+.about-footer {
+  text-align: center;
+  font-size: 10px;
+  color: var(--overlay0);
+  padding: 20px 0 6px;
+  letter-spacing: 0.02em;
 }

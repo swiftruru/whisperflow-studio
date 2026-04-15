@@ -66,9 +66,31 @@ jobs:
 
       - name: Upload release assets
         shell: bash
+        # Upload every built artifact twice:
+        #   1. Under its real versioned name (what electron-builder
+        #      produced — e.g. WhisperFlow-Studio-1.5.0-arm64.dmg) so
+        #      users who download from the Release page can tell at
+        #      a glance which version they're holding.
+        #   2. Under a stable, version-less alias (e.g.
+        #      WhisperFlow-Studio-arm64.dmg) so the README's
+        #      `https://github.com/.../releases/latest/download/<file>`
+        #      buttons keep resolving across every release without
+        #      editing the README.
+        #
+        # The alias is derived by stripping any `-X.Y.Z` segment from
+        # the filename.  `--clobber` lets us safely re-run this step
+        # (or a failed workflow) against the same release without
+        # tripping over "asset already exists".
         run: |
           for f in ${{ matrix.artifact_glob }}; do
-            [ -f "$f" ] && gh release upload "${{ github.ref_name }}" "$f" --clobber
+            [ -f "$f" ] || continue
+            gh release upload "${{ github.ref_name }}" "$f" --clobber
+            base=$(basename "$f")
+            alias=$(printf '%s' "$base" | sed -E 's/-[0-9]+\.[0-9]+\.[0-9]+//')
+            if [ "$alias" != "$base" ]; then
+              cp "$f" "dist/$alias"
+              gh release upload "${{ github.ref_name }}" "dist/$alias" --clobber
+            fi
           done
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

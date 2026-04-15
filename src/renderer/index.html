@@ -52,6 +52,7 @@
         <button class="tab-btn active" data-tab="main" role="tab" data-i18n="sidebar:tabs.main">Main</button>
         <button class="tab-btn" data-tab="models" role="tab" data-i18n="sidebar:tabs.models">Models</button>
         <button class="tab-btn" data-tab="settings" role="tab" data-i18n="sidebar:tabs.settings">Settings</button>
+        <button class="tab-btn" data-tab="about" role="tab" data-i18n="sidebar:tabs.about">About</button>
         <div class="tab-indicator" id="tab-indicator"></div>
       </nav>
 
@@ -271,6 +272,159 @@
           <p class="loading-msg" data-i18n="settings:loading">Loading config…</p>
         </div>
       </div>
+
+      <!-- ── Tab: About ─────────────────────────────────────────────────── -->
+      <div class="tab-pane about-tab" id="tab-about">
+
+        <!-- ① Hero — app identity -->
+        <section class="about-hero">
+          <div class="about-hero-icon" aria-hidden="true">
+            <img src="../../assets/icon.png" alt="" draggable="false" />
+          </div>
+          <div class="about-hero-text">
+            <h2 class="about-hero-title">WhisperFlow Studio</h2>
+            <span class="about-version-badge" id="about-version-badge">v0.0.0</span>
+            <p class="about-tagline" data-i18n="about:hero.tagline">
+              Self-contained desktop transcription powered by faster-whisper.
+            </p>
+          </div>
+        </section>
+
+        <!-- ② Author card -->
+        <section class="card author-card">
+          <div class="card-label">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M8 8a3 3 0 100-6 3 3 0 000 6zm0 1.5c-3.2 0-5.5 1.6-5.5 3.5v1a.5.5 0 00.5.5h10a.5.5 0 00.5-.5v-1c0-1.9-2.3-3.5-5.5-3.5z"/>
+            </svg>
+            <span data-i18n="about:author.cardLabel">Author</span>
+          </div>
+          <div class="author-identity">
+            <div class="author-avatar" aria-hidden="true">
+              <!-- To swap in a real photo, drop an <img src="..."> inside
+                   .author-avatar; the monogram will be covered. -->
+              <span class="author-monogram" data-i18n="about:author.monogram">YR</span>
+            </div>
+            <div class="author-name-block">
+              <div class="author-name">
+                <span data-i18n="about:author.nameZh">潘昱如</span>
+                <span class="author-name-latin" data-i18n="about:author.nameLatin">Yu-Ru Pan</span>
+              </div>
+              <div class="author-role" data-i18n="about:author.role">Independent developer / designer</div>
+            </div>
+          </div>
+          <div class="author-links">
+            <button class="btn-secondary author-link-btn" type="button"
+                    data-about-link="https://github.com/swiftruru/whisperflow-studio"
+                    aria-label="Open GitHub repository in browser">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">
+                <path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 005.47 7.59c.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+              </svg>
+              <span data-i18n="about:author.github">GitHub repository</span>
+            </button>
+            <button class="btn-secondary author-link-btn" type="button"
+                    data-about-link="https://swift.moe"
+                    aria-label="Open personal site in browser">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="8" cy="8" r="6.25"/>
+                <path d="M2 8h12"/>
+                <path d="M8 1.75c1.6 2 2.4 4 2.4 6.25S9.6 12.25 8 14.25"/>
+                <path d="M8 1.75c-1.6 2-2.4 4-2.4 6.25S6.4 12.25 8 14.25"/>
+              </svg>
+              <span data-i18n="about:author.personalSite">Personal site</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- ③ Tech stack card -->
+        <section class="card tech-card">
+          <div class="card-label">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M2 3a1 1 0 011-1h10a1 1 0 011 1v7a1 1 0 01-1 1H3a1 1 0 01-1-1V3zm1 0v7h10V3H3zm-1.5 9.5h13v1H1.5v-1z"/>
+            </svg>
+            <span data-i18n="about:tech.cardLabel">Tech Stack</span>
+          </div>
+          <div class="tech-groups">
+            <div class="tech-group">
+              <div class="tech-group-label" data-i18n="about:tech.groups.shell.label">Desktop Shell</div>
+              <ul class="tech-group-items">
+                <li class="tech-group-item" data-i18n="about:tech.groups.shell.items.electron">Electron 35</li>
+                <li class="tech-group-item" data-i18n="about:tech.groups.shell.items.vanillaJs">Vanilla JavaScript (ES Modules)</li>
+                <li class="tech-group-item" data-i18n="about:tech.groups.shell.items.contextIsolation">contextIsolation: enabled</li>
+              </ul>
+            </div>
+            <div class="tech-group">
+              <div class="tech-group-label" data-i18n="about:tech.groups.core.label">Transcription Core</div>
+              <ul class="tech-group-items">
+                <li class="tech-group-item" data-i18n="about:tech.groups.core.items.fasterWhisper">faster-whisper 0.10+</li>
+                <li class="tech-group-item" data-i18n="about:tech.groups.core.items.ctranslate2">CTranslate2 3.24+</li>
+                <li class="tech-group-item" data-i18n="about:tech.groups.core.items.sileroVad">Silero VAD</li>
+                <li class="tech-group-item" data-i18n="about:tech.groups.core.items.whisperModels">OpenAI Whisper model weights</li>
+              </ul>
+            </div>
+            <div class="tech-group">
+              <div class="tech-group-label" data-i18n="about:tech.groups.python.label">Python Runtime</div>
+              <ul class="tech-group-items">
+                <li class="tech-group-item" data-i18n="about:tech.groups.python.items.python">Python 3.10+</li>
+                <li class="tech-group-item" data-i18n="about:tech.groups.python.items.venv">Bundled venv + requirements.txt</li>
+                <li class="tech-group-item" data-i18n="about:tech.groups.python.items.bundled">Auto-bootstrap on first launch</li>
+              </ul>
+            </div>
+            <div class="tech-group">
+              <div class="tech-group-label" data-i18n="about:tech.groups.ui.label">UI &amp; Styling</div>
+              <ul class="tech-group-items">
+                <li class="tech-group-item" data-i18n="about:tech.groups.ui.items.customTheme">CSS-variable theming</li>
+                <li class="tech-group-item" data-i18n="about:tech.groups.ui.items.pastelPalette">Cream-yellow pastel palette</li>
+                <li class="tech-group-item" data-i18n="about:tech.groups.ui.items.nativeTitlebar">Native titleBarOverlay</li>
+              </ul>
+            </div>
+            <div class="tech-group">
+              <div class="tech-group-label" data-i18n="about:tech.groups.i18n.label">Internationalization</div>
+              <ul class="tech-group-items">
+                <li class="tech-group-item" data-i18n="about:tech.groups.i18n.items.i18next">i18next (zh-TW / en)</li>
+                <li class="tech-group-item" data-i18n="about:tech.groups.i18n.items.namespaces">14 feature-oriented namespaces</li>
+                <li class="tech-group-item" data-i18n="about:tech.groups.i18n.items.lintCi">i18n-lint gating CI</li>
+              </ul>
+            </div>
+            <div class="tech-group">
+              <div class="tech-group-label" data-i18n="about:tech.groups.packaging.label">Packaging</div>
+              <ul class="tech-group-items">
+                <li class="tech-group-item" data-i18n="about:tech.groups.packaging.items.electronBuilder">electron-builder</li>
+                <li class="tech-group-item" data-i18n="about:tech.groups.packaging.items.ci">GitHub Actions release pipeline</li>
+                <li class="tech-group-item" data-i18n="about:tech.groups.packaging.items.targets">macOS / Windows / Linux</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- ④ Credits & License card -->
+        <section class="card credits-card">
+          <div class="card-label">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M8 .5a7.5 7.5 0 107.5 7.5A7.51 7.51 0 008 .5zm0 13.5a6 6 0 116-6 6 6 0 01-6 6zM7.25 4.5h1.5v5h-1.5zm0 6h1.5V12h-1.5z"/>
+            </svg>
+            <span data-i18n="about:credits.cardLabel">Credits &amp; License</span>
+          </div>
+          <p class="credits-text" data-i18n="about:credits.intro">
+            WhisperFlow Studio is released under the MIT License.
+          </p>
+          <p class="credits-text" data-i18n="about:credits.upstream">
+            The transcription core was rewritten from aadnk's faster-whisper-webui (Apache 2.0). Runtime dependencies include faster-whisper, CTranslate2, and Silero VAD, all MIT-licensed.
+          </p>
+          <div class="credits-actions">
+            <button class="btn-inline-action" type="button"
+                    data-about-link="https://github.com/swiftruru/whisperflow-studio/blob/main/NOTICES.md"
+                    data-i18n="about:credits.viewNotices">View full NOTICES</button>
+            <button class="btn-inline-action" type="button"
+                    data-about-link="https://github.com/swiftruru/whisperflow-studio/issues/new"
+                    data-i18n="about:credits.reportIssue">Report an issue</button>
+          </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="about-footer" data-i18n="about:footer.copyright">
+          © 2026 Yu-Ru Pan · MIT License
+        </footer>
+      </div><!-- /tab-about -->
 
     </aside><!-- /left-panel -->
 

@@ -1,0 +1,81 @@
+{
+  "hero": {
+    "tagline": "自包含桌面轉錄工具，以 faster-whisper 為核心，支援中英切換、模型管理與批次佇列。"
+  },
+  "author": {
+    "cardLabel": "關於作者",
+    "monogram": "RU",
+    "nameZh": "潘昱如",
+    "nameLatin": "Yu-Ru Pan",
+    "role": "獨立開發者 / 設計師",
+    "github": "GitHub 專案",
+    "personalSite": "個人首頁"
+  },
+  "tech": {
+    "cardLabel": "技術規格",
+    "groups": {
+      "shell": {
+        "label": "桌面容器",
+        "items": {
+          "electron": "Electron 35",
+          "vanillaJs": "Vanilla JavaScript（ES Modules）",
+          "contextIsolation": "contextIsolation：開啟"
+        }
+      },
+      "core": {
+        "label": "轉錄核心",
+        "items": {
+          "fasterWhisper": "faster-whisper 0.10+",
+          "ctranslate2": "CTranslate2 3.24+",
+          "sileroVad": "Silero VAD（語音活動偵測）",
+          "whisperModels": "OpenAI Whisper 模型權重"
+        }
+      },
+      "python": {
+        "label": "Python 環境",
+        "items": {
+          "python": "Python 3.10 以上",
+          "venv": "內建 venv + requirements.txt",
+          "bundled": "首次啟動自動建立虛擬環境"
+        }
+      },
+      "ui": {
+        "label": "介面與樣式",
+        "items": {
+          "customTheme": "CSS 變數主題系統（亮／暗）",
+          "pastelPalette": "奶油黃色系調色盤",
+          "nativeTitlebar": "原生 titleBarOverlay（macOS / Windows）"
+        }
+      },
+      "i18n": {
+        "label": "國際化",
+        "items": {
+          "i18next": "i18next（zh-TW / en）",
+          "namespaces": "13 個 feature 導向 namespace",
+          "lintCi": "i18n-lint 在 CI 守門"
+        }
+      },
+      "packaging": {
+        "label": "打包與分發",
+        "items": {
+          "electronBuilder": "electron-builder",
+          "ci": "GitHub Actions Release Pipeline",
+          "targets": "macOS（DMG）／ Windows（NSIS）／ Linux（AppImage）"
+        }
+      }
+    }
+  },
+  "credits": {
+    "cardLabel": "致謝與授權",
+    "intro": "WhisperFlow Studio 以 MIT License 釋出。",
+    "upstream": "轉錄核心重寫自 aadnk 的 faster-whisper-webui（Apache 2.0），執行時依賴 faster-whisper、CTranslate2、Silero VAD，皆為 MIT License。",
+    "viewNotices": "查看完整 NOTICES",
+    "reportIssue": "回報問題 / 建議"
+  },
+  "footer": {
+    "copyright": "© 2026 Yu-Ru Pan · MIT License"
+  },
+  "toast": {
+    "openLinkFailed": "無法開啟連結：{{error}}"
+  }
+}

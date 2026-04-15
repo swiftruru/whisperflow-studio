@@ -2,7 +2,8 @@
   "tabs": {
     "main": "Main",
     "models": "Models",
-    "settings": "Settings"
+    "settings": "Settings",
+    "about": "關於"
   },
   "titlebar": {
     "appName": "WhisperFlow Studio",

@@ -122,8 +122,15 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 
 ### Appearance
 
-- **Light / dark theme toggle** — pastel cream yellow (light) and warm dark (dark); persisted
+- **Light / dark theme toggle** — pastel cream yellow for day, warm **Cocoa Cream** for night; both palettes are tonally related so switching feels like "the same app with the lights turned down" instead of two separate apps
+- **Soft-cocoa dark mode** — mid-dark warm-neutral surfaces (not near-black, not saturated brown), cream-white text, brand yellow accent kept unchanged from light theme; designed to feel cosy and readable rather than intimidating
 - **System theme detection** — defaults to OS preference on first launch
+
+### About page
+
+- **Dedicated About tab** — hero block with app icon + live version badge (reads from `package.json` via IPC), author card with monogram avatar placeholder, tech stack card grouped by feature area, credits & license card with inline links to `NOTICES.md` and GitHub Issues
+- **One-click external links** — GitHub repo, personal site, notices, and issue reporter all go through the sandboxed `shell:open-external` IPC (http(s) only)
+- **Fully bilingual** — 42 keys in the `about` namespace, live-switches with the titlebar language toggle
 
 ### Internationalization (zh-TW / en)
 

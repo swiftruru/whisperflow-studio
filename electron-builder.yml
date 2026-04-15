@@ -4,10 +4,13 @@ publish: null
 directories:
   output: dist
 
-# Stable, version-less artifact names so the README's
-# `https://github.com/<repo>/releases/latest/download/<file>` buttons keep
-# working across every release without editing the README.  ${arch}
-# expands to arm64 / x64 / armv7l depending on the target.
+# Versioned artifact names so users can tell at a glance which release
+# they're holding on disk.  electron-builder substitutes ${version}
+# from package.json automatically.  The release workflow also uploads
+# a stable, version-less alias for each artifact so the README's
+# `https://github.com/<repo>/releases/latest/download/<file>` buttons
+# keep working across every release without editing the README —
+# see `.github/workflows/release.yml :: Upload release assets`.
 files:
   - src/**
   - preload/**
@@ -40,14 +43,14 @@ mac:
         - x64
   icon: assets/icon.icns
   category: public.app-category.utilities
-  artifactName: WhisperFlow-Studio-${arch}.${ext}
+  artifactName: WhisperFlow-Studio-${version}-${arch}.${ext}
 
 win:
   target: nsis
   icon: assets/icon.png
-  artifactName: WhisperFlow-Studio-Setup.${ext}
+  artifactName: WhisperFlow-Studio-Setup-${version}.${ext}
 
 linux:
   target: AppImage
   icon: assets/icon.png
-  artifactName: WhisperFlow-Studio.${ext}
+  artifactName: WhisperFlow-Studio-${version}.${ext}

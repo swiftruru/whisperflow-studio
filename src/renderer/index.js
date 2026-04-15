@@ -8,6 +8,7 @@ import { initErrorBanner } from './components/error-banner.js';
 import { initErrorDialog } from './components/error-dialog.js';
 import { initInstallFfmpegDialog } from './components/install-ffmpeg-dialog.js';
 import { initLanguageToggle } from './components/language-toggle.js';
+import { initAboutPanel } from './components/about-panel.js';
 import { initRendererI18n } from './lib/i18n.js';
 import { applyTranslations } from './lib/i18n-dom.js';
 import { initQueueState } from './components/queue-state.js';
@@ -280,6 +281,7 @@ async function init() {
   await initQueueState();
   initQueuePanel();
   initModelManager();
+  await initAboutPanel();
   const startupTasks = [
     refreshPreflight(),
     Promise.resolve().then(() => renderSettings()),

@@ -1,0 +1,81 @@
+{
+  "hero": {
+    "tagline": "Self-contained desktop transcription powered by faster-whisper, with bilingual UI, model management, and a batch queue."
+  },
+  "author": {
+    "cardLabel": "Author",
+    "monogram": "RU",
+    "nameZh": "潘昱如",
+    "nameLatin": "Yu-Ru Pan",
+    "role": "Independent developer / designer",
+    "github": "GitHub repository",
+    "personalSite": "Personal site"
+  },
+  "tech": {
+    "cardLabel": "Tech Stack",
+    "groups": {
+      "shell": {
+        "label": "Desktop Shell",
+        "items": {
+          "electron": "Electron 35",
+          "vanillaJs": "Vanilla JavaScript (ES Modules)",
+          "contextIsolation": "contextIsolation: enabled"
+        }
+      },
+      "core": {
+        "label": "Transcription Core",
+        "items": {
+          "fasterWhisper": "faster-whisper 0.10+",
+          "ctranslate2": "CTranslate2 3.24+",
+          "sileroVad": "Silero VAD (voice activity detection)",
+          "whisperModels": "OpenAI Whisper model weights"
+        }
+      },
+      "python": {
+        "label": "Python Runtime",
+        "items": {
+          "python": "Python 3.10 or newer",
+          "venv": "Bundled venv + requirements.txt",
+          "bundled": "Auto-bootstrap on first launch"
+        }
+      },
+      "ui": {
+        "label": "UI & Styling",
+        "items": {
+          "customTheme": "CSS-variable theming (light / dark)",
+          "pastelPalette": "Cream-yellow pastel palette",
+          "nativeTitlebar": "Native titleBarOverlay (macOS / Windows)"
+        }
+      },
+      "i18n": {
+        "label": "Internationalization",
+        "items": {
+          "i18next": "i18next (zh-TW / en)",
+          "namespaces": "13 feature-oriented namespaces",
+          "lintCi": "i18n-lint gating every CI build"
+        }
+      },
+      "packaging": {
+        "label": "Packaging & Distribution",
+        "items": {
+          "electronBuilder": "electron-builder",
+          "ci": "GitHub Actions release pipeline",
+          "targets": "macOS (DMG), Windows (NSIS), Linux (AppImage)"
+        }
+      }
+    }
+  },
+  "credits": {
+    "cardLabel": "Credits & License",
+    "intro": "WhisperFlow Studio is released under the MIT License.",
+    "upstream": "The transcription core was rewritten from aadnk's faster-whisper-webui (Apache 2.0). Runtime dependencies include faster-whisper, CTranslate2, and Silero VAD, all MIT-licensed.",
+    "viewNotices": "View full NOTICES",
+    "reportIssue": "Report an issue"
+  },
+  "footer": {
+    "copyright": "© 2026 Yu-Ru Pan · MIT License"
+  },
+  "toast": {
+    "openLinkFailed": "Couldn't open link: {{error}}"
+  }
+}
