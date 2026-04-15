@@ -15,6 +15,7 @@ const {
 } = require('./path-resolver');
 const { initializeBundledVenv, isVenvInitialized } = require('./venv-installer');
 const { detectAvailableManagers, installPackage, cancelActiveInstall } = require('./package-manager');
+const { refreshSystemPathFromRegistry } = require('./env-path');
 const { ERROR_CODES, createAppError, normalizeUnknownError, toAppError } = require('./error-catalog');
 
 let activeQueueManager = null;
@@ -190,7 +191,16 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
 
   ipcMain.handle('appsettings:read', () => getLocalSettings());
   ipcMain.handle('appsettings:write', (_event, data) => saveLocalSettings(data));
-  ipcMain.handle('app:run-preflight', () => runPreflight(getPreflightContext()));
+  ipcMain.handle('app:run-preflight', () => {
+    // Opportunistically refresh PATH from the Windows registry on
+    // every preflight so any external change the user made (manually
+    // installing ffmpeg from the ffmpeg.org zip, running `scoop
+    // install` from a terminal, etc.) is picked up by the next
+    // "重新檢查" click without needing an app restart.  No-op on
+    // macOS / Linux.
+    refreshSystemPathFromRegistry();
+    return runPreflight(getPreflightContext());
+  });
   ipcMain.handle('app:validate-setting-field', (_event, payload = {}) => {
     return validateSettingField({
       ...payload,
@@ -489,6 +499,20 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
         packageName,
         onLog: (text) => sendLog(text),
       });
+      // Refresh PATH from the Windows registry (no-op on macOS/Linux).
+      // winget / scoop / choco all drop their shim directories into
+      // HKCU\Environment\Path when they install a new tool, but the
+      // Electron main process's process.env.PATH was captured at
+      // launch time and never sees those writes until the app is
+      // restarted.  Without this refresh, the dialog's post-install
+      // preflight verification walks the stale PATH, doesn't find
+      // ffmpeg, and reports a false "package manager said success
+      // but tool is still missing" failure — which is exactly what
+      // users hit with winget install ffmpeg on Windows.
+      const changed = refreshSystemPathFromRegistry();
+      if (changed) {
+        sendLog('[WhisperFlow] PATH refreshed from registry after install.\n');
+      }
       sendLog(`[WhisperFlow] ${packageName} install via ${managerId} finished.\n`);
       return { ok: true };
     } catch (error) {

@@ -39,17 +39,8 @@ const APP_RUNTIME_CONFIG = getAppRuntimeConfig(CONFIG_METADATA_PATH);
 // Without this fix, hitting Run Transcription on a freshly-installed app
 // fails inside Python with "[Errno 2] No such file or directory: 'ffprobe'"
 // even though ``which ffprobe`` works fine in the user's terminal.
-{
-  const extraByPlatform = APP_RUNTIME_CONFIG.extraPathPrefixes || {};
-  const extra = (extraByPlatform[process.platform] || []).map((p) =>
-    typeof p === 'string' ? p.replace(/\$\{HOME\}/g, require('os').homedir()) : p
-  );
-  if (extra.length > 0) {
-    const current = (process.env.PATH || '').split(path.delimiter);
-    const merged = [...new Set([...extra, ...current])].join(path.delimiter);
-    process.env.PATH = merged;
-  }
-}
+const { applyExtraPathPrefixes } = require('./env-path');
+applyExtraPathPrefixes(APP_RUNTIME_CONFIG.extraPathPrefixes?.[process.platform] || []);
 
 // settings.json: portable in dev (lives with the project), userData in packaged build.
 const SETTINGS_TEMPLATE_PATH = path.join(APP_SOURCE_ROOT, 'settings.example.json');

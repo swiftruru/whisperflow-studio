@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 const { readConfig } = require('./config-manager');
 const {
   resolveBundledPython,
@@ -86,6 +87,30 @@ function validateFfmpeg() {
 }
 
 function findExecutableOnPath(name) {
+  // On Windows, delegate to `where.exe` first.  winget installs
+  // ffmpeg / ffprobe as App Execution Aliases in
+  // %LOCALAPPDATA%\Microsoft\WinGet\Links\, which are APPEXECLINK
+  // reparse points rather than real .exe files.  A manual PATH walk
+  // backed by `fs.statSync(...).isFile()` returns false on these,
+  // so preflight would say "not found" right after a successful
+  // winget install.  `where` uses the OS's canonical resolver and
+  // correctly follows the alias to the real target executable.
+  // Falls back to the manual walk if `where` itself isn't reachable.
+  if (process.platform === 'win32') {
+    try {
+      const out = execFileSync('where', [name], {
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).toString('utf-8').trim();
+      if (out) {
+        const first = out.split(/\r?\n/)[0]?.trim();
+        if (first) return first;
+      }
+    } catch (_) {
+      // fall through to the manual walk
+    }
+  }
+
   const exts = process.platform === 'win32'
     ? (process.env.PATHEXT || '.EXE;.BAT;.CMD;.COM').split(';').map((e) => e.toLowerCase())
     : [''];
