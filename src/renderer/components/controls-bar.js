@@ -156,8 +156,13 @@ async function ensureRunReady() {
   // not initialised, IPC error), fall through silently and let the
   // Python layer handle it like before.
   try {
-    const values = collectFormValues();
-    const selectedModel = values?.SETTING?.model?.trim();
+    // Read the model name from config.json via IPC, NOT from the
+    // Settings form DOM.  If the user never opened the Settings tab,
+    // the form is empty and collectFormValues() returns undefined for
+    // SETTING.model — which silently skips the guard.  The IPC call
+    // always reads the on-disk config and is authoritative.
+    const config = await window.electronAPI.readConfig().catch(() => null);
+    const selectedModel = config?.SETTING?.model?.trim();
     if (selectedModel) {
       const result = await window.electronAPI.listModels();
       const downloaded = Array.isArray(result?.models) ? result.models : [];

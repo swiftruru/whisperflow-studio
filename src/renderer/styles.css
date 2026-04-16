@@ -2391,9 +2391,8 @@ kbd {
 }
 
 .download-history {
-  border-top: 1px solid var(--border);
   padding-top: 8px;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .download-history > summary {
