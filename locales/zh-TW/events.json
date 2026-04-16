@@ -2,6 +2,7 @@
   "stage": {
     "preparing": "準備模型與 VAD",
     "loadingModel": "載入模型 {{model}} 中…",
+    "loadingVad": "載入 Silero VAD 語音偵測模型（首次使用需下載約 10 MB）…",
     "transcribing": "執行 VAD 與 Whisper",
     "writingSubtitle": "寫入字幕檔",
     "completed": "字幕檔已產生"

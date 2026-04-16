@@ -187,6 +187,17 @@ class Transcriber:
     def _ensure_silero_vad(self) -> SileroVad:
         if isinstance(self._vad_model, SileroVad):
             return self._vad_model
+
+        # Emit a stage event so the user knows why the UI stalls for a
+        # few seconds on first run — Silero VAD (~10 MB) is downloaded
+        # from GitHub via torch.hub if no local cache exists.
+        self._emitter.stage(
+            "loading-vad",
+            message="Loading Silero VAD speech detection model",
+            message_key="events:stage.loadingVad",
+            progress=25,
+        )
+
         self._vad_model = SileroVad(
             cache=GLOBAL_MODEL_CACHE,
             torch_hub_dir=self._model_manager.torch_hub_dir,
