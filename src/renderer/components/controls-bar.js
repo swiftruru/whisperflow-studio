@@ -145,56 +145,13 @@ async function ensureRunReady() {
     return false;
   }
 
-  // Model-availability guard — added after users hit the
-  // "transcription silently tries to download the model from
-  // HuggingFace and takes 20 minutes while the UI looks hung" bug.
-  // If the model name configured in SETTING.model isn't in the list
-  // of locally-downloaded models, stop the run, ask the user whether
-  // they'd like to go to the Models tab, and redirect them there so
-  // they can explicitly initiate the download.  Only runs the check
-  // when we can actually ask the venv — if listModels fails (venv
-  // not initialised, IPC error), fall through silently and let the
-  // Python layer handle it like before.
-  try {
-    // Read the model name from config.json via IPC, NOT from the
-    // Settings form DOM.  If the user never opened the Settings tab,
-    // the form is empty and collectFormValues() returns undefined for
-    // SETTING.model — which silently skips the guard.  The IPC call
-    // always reads the on-disk config and is authoritative.
-    const config = await window.electronAPI.readConfig().catch(() => null);
-    const selectedModel = config?.SETTING?.model?.trim();
-    if (selectedModel) {
-      const result = await window.electronAPI.listModels();
-      const downloaded = Array.isArray(result?.models) ? result.models : [];
-      const isDownloaded = downloaded.some((m) => m?.name === selectedModel);
-      if (!isDownloaded) {
-        const goToModels = await confirmDialog({
-          title: t('controls:guard.modelMissingTitle', { model: selectedModel }),
-          message: t('controls:guard.modelMissingMessage', { model: selectedModel }),
-          confirmText: t('controls:guard.modelMissingConfirm'),
-          cancelText: t('controls:guard.modelMissingCancel'),
-        });
-        if (goToModels) {
-          const modelsTabBtn = document.querySelector('[data-tab="models"]');
-          modelsTabBtn?.click();
-          // Toast the user so they know what to do on the tab they
-          // were just switched to.  The model-manager UI will already
-          // be rendered by the time the toast fires.
-          showToast(
-            t('controls:guard.modelMissingGuide', { model: selectedModel }),
-            'info',
-            5000,
-          );
-        }
-        syncActionState();
-        return false;
-      }
-    }
-  } catch (_) {
-    // listModels failed (venv not ready, Python layer problem, …)
-    // — let the existing Python error path surface whatever the
-    // real issue is instead of swallowing it here.
-  }
+  // Model-availability is checked in the main-process `run:cli`
+  // handler (ipc-handlers.js) via a fast filesystem walk — no Python
+  // spawn needed.  If the model is missing, main broadcasts
+  // `run:model-missing` and the listener above shows the dialog.
+  // We removed the old renderer-side listModels() guard because it
+  // spawned Python (multi-second cold start) and caused a long
+  // freeze between the button click and the dialog appearing.
 
   return true;
 }
@@ -212,8 +169,16 @@ async function triggerScan() {
 }
 
 async function triggerRun() {
+  // Disable the button immediately so the user can't spam-click
+  // while the async preflight check runs.
+  btnCli.disabled = true;
+  btnScan.disabled = true;
+
   const isReady = await ensureRunReady();
-  if (!isReady) return false;
+  if (!isReady) {
+    syncActionState();
+    return false;
+  }
 
   lastAction = 'cli';
   setRunning(true);
