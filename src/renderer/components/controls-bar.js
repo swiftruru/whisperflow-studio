@@ -316,13 +316,16 @@ window.electronAPI.onRunDone(async (code) => {
     const finishedJob = queueState.lastFinishedJob;
 
     if (code === 0) {
-      showToast(t('controls:toast.transcriptionComplete'), 'success');
-      window.electronAPI.notify({
-        title: t('controls:notify.title'),
-        body: t('controls:notify.transcribeSuccess'),
-      });
-
+      // Only announce success if a job actually finished — prevents
+      // false "轉錄完成" notifications when run:done(0) arrives
+      // without a real transcription having run (e.g. stale event
+      // from a prior scan, or the queue was already empty).
       if (finishedJob?.fileName) {
+        showToast(t('controls:toast.transcriptionComplete'), 'success');
+        window.electronAPI.notify({
+          title: t('controls:notify.title'),
+          body: t('controls:notify.transcribeSuccess'),
+        });
         addHistoryEntry({
           fileName: finishedJob.fileName,
           filePath: finishedJob.filePath,
@@ -350,13 +353,12 @@ window.electronAPI.onRunDone(async (code) => {
     } else if (code === -2) {
       showToast(t('controls:toast.stoppedCurrent'), 'info');
     } else if (code !== -2) {
-      showToast(t('controls:toast.transcriptionFailed'), 'error');
-      window.electronAPI.notify({
-        title: t('controls:notify.title'),
-        body: t('controls:notify.transcribeFailed'),
-      });
-
       if (finishedJob?.fileName) {
+        showToast(t('controls:toast.transcriptionFailed'), 'error');
+        window.electronAPI.notify({
+          title: t('controls:notify.title'),
+          body: t('controls:notify.transcribeFailed'),
+        });
         addHistoryEntry({
           fileName: finishedJob.fileName,
           filePath: finishedJob.filePath,
