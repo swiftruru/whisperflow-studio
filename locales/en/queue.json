@@ -20,7 +20,7 @@
   "nextCard": {
     "label": "Next to Transcribe",
     "remainingBadge": "{{count}} remaining",
-    "revealInFinder": "Show in Finder"
+    "revealInFinder": "Show in folder"
   },
   "panel": {
     "label": "Queue",

@@ -97,11 +97,11 @@
       },
       "history": {
         "label": "Recent transcripts",
-        "body": "The <strong>Recent Transcripts</strong> list at the bottom of the Main tab tracks the last 10. Click <strong>Show in Finder</strong> to open the folder directly."
+        "body": "The <strong>Recent Transcripts</strong> list at the bottom of the Main tab tracks the last 10. Click <strong>Show in folder</strong> to open the folder directly."
       },
       "reveal": {
         "label": "Open folder directly",
-        "body": "When the <strong>Next to Transcribe</strong> card is visible, click <strong>Show in Finder</strong> to jump straight to the file's folder."
+        "body": "When the <strong>Next to Transcribe</strong> card is visible, click <strong>Show in folder</strong> to jump straight to the file's folder."
       }
     },
     "faq": {

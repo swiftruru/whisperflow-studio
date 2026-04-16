@@ -97,11 +97,11 @@
       },
       "history": {
         "label": "最近轉錄",
-        "body": "Main 分頁底下的 <strong>最近轉錄</strong> 清單會列出最近 10 筆。點 <strong>在 Finder 中顯示</strong> 可以直接開資料夾。"
+        "body": "Main 分頁底下的 <strong>最近轉錄</strong> 清單會列出最近 10 筆。點 <strong>在資料夾中顯示</strong> 可以直接開資料夾。"
       },
       "reveal": {
         "label": "直接開啟資料夾",
-        "body": "當 <strong>Next to Transcribe</strong> 卡片出現時，點 <strong>在 Finder 中顯示</strong> 會打開檔案所在的資料夾。"
+        "body": "當 <strong>Next to Transcribe</strong> 卡片出現時，點 <strong>在資料夾中顯示</strong> 會打開檔案所在的資料夾。"
       }
     },
     "faq": {

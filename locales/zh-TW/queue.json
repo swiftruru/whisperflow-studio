@@ -20,7 +20,7 @@
   "nextCard": {
     "label": "下一個待轉錄",
     "remainingBadge": "剩餘 {{count}} 個",
-    "revealInFinder": "在 Finder 中顯示"
+    "revealInFinder": "在資料夾中顯示"
   },
   "panel": {
     "label": "佇列",
