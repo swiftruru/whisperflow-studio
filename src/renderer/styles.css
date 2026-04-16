@@ -565,6 +565,16 @@ html:not([data-platform="darwin"]) .titlebar-logo {
   border-color: color-mix(in srgb, var(--yellow) 30%, transparent);
 }
 
+/* Drag-over state for preflight rows that accept directory drops
+   (currently just the "Media Directory not configured" row).  Uses
+   the same dashed yellow outline the .dir-card hover state uses so
+   users recognise it as a drop target. */
+.preflight-item.drag-over {
+  border-color: color-mix(in srgb, var(--yellow) 70%, transparent);
+  border-style: dashed;
+  background: color-mix(in srgb, var(--yellow) 8%, var(--surface1));
+}
+
 .preflight-item-icon {
   width: 18px;
   height: 18px;

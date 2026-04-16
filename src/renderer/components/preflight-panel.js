@@ -230,7 +230,73 @@ function renderChecks() {
     const actionButton = createActionButton(check, row);
     if (actionButton) row.appendChild(actionButton);
 
+    // The "Media Directory not configured" row is the only preflight
+    // check whose fix is "drop a folder here" — enable drag-drop on
+    // that specific row so users can shortcut the Browse button the
+    // same way they already can on the main dir-card below.  Other
+    // preflight rows (venv, ffmpeg, settings) don't map to a folder,
+    // so we attach the drop handlers selectively.
+    if (check.action?.type === 'browse-media-root') {
+      attachDirectoryDropHandlers(row);
+    }
+
     listEl.appendChild(row);
+  });
+}
+
+/**
+ * Wire drag-drop-folder handlers onto a preflight row.  Mirrors the
+ * behaviour of `initDragDrop()` in `src/renderer/index.js` :: the
+ * `.dir-card` block — drop a folder, or drop a file and use its
+ * containing directory — and routes the result through the same
+ * `onApplyDirectory` callback the click handler uses.  Adds a
+ * `drag-over` visual state on the row while dragging.
+ */
+function attachDirectoryDropHandlers(row) {
+  row.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    row.classList.add('drag-over');
+  });
+
+  row.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    row.classList.add('drag-over');
+  });
+
+  row.addEventListener('dragleave', (e) => {
+    if (!row.contains(e.relatedTarget)) {
+      row.classList.remove('drag-over');
+    }
+  });
+
+  row.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    row.classList.remove('drag-over');
+
+    if (!onApplyDirectory) return;
+
+    const items = e.dataTransfer.items;
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+
+    // Electron 32+: webUtils.getPathForFile() replaces file.path
+    const droppedPath = window.electronAPI.getPathForFile(files[0]);
+    if (!droppedPath) return;
+
+    // webkitGetAsEntry tells us whether the dropped item is a
+    // folder or a file.  If it's a file, fall back to its parent
+    // directory so dropping any media file still "selects" that
+    // folder — matches the dir-card behaviour.
+    const entry = items[0]?.webkitGetAsEntry?.();
+    if (entry && entry.isDirectory) {
+      await onApplyDirectory(droppedPath);
+    } else {
+      const sep = droppedPath.includes('/') ? '/' : '\\';
+      const parentDir = droppedPath.substring(0, droppedPath.lastIndexOf(sep));
+      await onApplyDirectory(parentDir || droppedPath);
+    }
   });
 }
 
