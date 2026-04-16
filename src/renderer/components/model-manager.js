@@ -8,6 +8,7 @@ import { showToast } from './toast.js';
 import { invalidateDynamicModelNames } from './settings-panel.js';
 import { confirmDialog } from '../lib/confirm-dialog.js';
 import { initializeVenvWithProgress, VENV_INITIALIZED_EVENT } from '../lib/venv-bootstrap.js';
+import { subscribeDownloads } from './download-state.js';
 import { t } from '../lib/i18n.js';
 
 const modelsSubscribers = new Set();
@@ -155,7 +156,7 @@ function renderRow(entry) {
     actions.appendChild(deleteBtn);
   } else {
     const downloadBtn = document.createElement('button');
-    downloadBtn.className = 'btn-primary model-row-btn';
+    downloadBtn.className = 'btn-primary model-row-btn model-row-download';
     downloadBtn.textContent = t('models:actions.download');
     downloadBtn.addEventListener('click', () => handleDownload(entry.name));
     actions.appendChild(downloadBtn);
@@ -343,6 +344,27 @@ function initModelManager() {
       || !cachedState.models.length
     ) {
       refreshModelManager();
+    }
+  });
+
+  // Disable all download buttons while a download is running so the
+  // user can't spam-click and trigger "already running" errors.
+  subscribeDownloads((dlState) => {
+    const isDownloading = dlState.stats.running > 0;
+    const currentName = dlState.current?.name || '';
+    const btns = document.querySelectorAll('.model-row-download');
+    for (const btn of btns) {
+      const row = btn.closest('.model-row');
+      const name = row?.dataset?.name || '';
+      if (isDownloading) {
+        btn.disabled = true;
+        btn.textContent = name === currentName
+          ? t('models:actions.downloading')
+          : t('models:actions.download');
+      } else {
+        btn.disabled = false;
+        btn.textContent = t('models:actions.download');
+      }
     }
   });
 }
