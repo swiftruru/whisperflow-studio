@@ -411,7 +411,10 @@ function registerHandlers(
             mainWindow.webContents.send('run:model-missing', { model: modelName });
           }
           sendLog(`[WhisperFlow] Model "${modelName}" is not downloaded. Please download it from the Models tab first.\n`);
-          sendDone(1);
+          // Code -4 = "model missing, already handled by dialog" — the
+          // renderer's onRunDone handler must recognise this and NOT
+          // show a duplicate "transcription failed" notification.
+          sendDone(-4);
           return;
         }
       }
