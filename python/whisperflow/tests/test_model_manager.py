@@ -255,18 +255,15 @@ def test_download_raises_when_no_cache_and_network_disabled(tmp_path, monkeypatc
 
     manager = ModelManager(tmp_path / "managed")
 
-    # Stub out huggingface_hub.snapshot_download (called directly by
-    # ModelManager._download_from_hub) to mimic the real bug: creates
-    # a partial flat layout (missing model.bin) and returns "success".
-    def fake_snapshot_download(repo_id, *, local_dir, allow_patterns=None, tqdm_class=None, **kwargs):
-        target = Path(local_dir)
-        make_partial_flat_model_dir(target)
-        return str(target)
+    # Patch _download_from_hub at the instance level so we never enter
+    # the real method (which lazy-imports huggingface_hub + tqdm, neither
+    # of which are installed in CI's lightweight test environment).  The
+    # stub creates a partial flat layout (missing model.bin) and returns,
+    # which should trigger the Stage 3 verification failure.
+    def fake_download_from_hub(entry, target_dir, emit, total_bytes):
+        make_partial_flat_model_dir(target_dir)
 
-    monkeypatch.setattr("whisperflow.models.manager.snapshot_download", fake_snapshot_download, raising=False)
-    # Also need to make the import succeed inside the lazy import block.
-    import huggingface_hub
-    monkeypatch.setattr(huggingface_hub, "snapshot_download", fake_snapshot_download)
+    monkeypatch.setattr(manager, "_download_from_hub", fake_download_from_hub)
 
     with pytest.raises(RuntimeError, match="did not complete"):
         manager.download("tiny")
