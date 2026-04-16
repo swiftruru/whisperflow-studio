@@ -55,5 +55,18 @@
     "detail": "Force-closing will abort the current transcription job. Close anyway?",
     "buttonWait": "Keep waiting",
     "buttonForce": "Force close"
+  },
+  "closeWhileBusy": {
+    "title": "WhisperFlow Studio",
+    "detail": "Force-closing will abort the current task. Download or transcription progress may be lost. Close anyway?",
+    "buttonWait": "Keep waiting",
+    "buttonForce": "Force close",
+    "reasons": {
+      "transcription": "Transcription in progress",
+      "model-download": "Model download in progress ({{subject}})",
+      "venv-init": "Python virtual environment is being created",
+      "pm-install": "{{subject}} is being installed",
+      "generic": "A task is in progress"
+    }
   }
 }

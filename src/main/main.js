@@ -122,9 +122,60 @@ function saveWindowState(win) {
 
 // ── Window ────────────────────────────────────────────────────────────────────
 let mainWindow;
-let isRunning = false;
 let isAppQuitting = false;
 let isForceClosingWindow = false;
+
+// ── Busy-reason tracking ─────────────────────────────────────────────────────
+// Any long-running operation that the user would NOT want to be silently
+// interrupted by a window close registers itself here.  The close-guard
+// dialog consults this set and, if non-empty, asks the user to confirm
+// before tearing down the window.  Reasons are opaque strings — callers
+// pick whatever makes sense ('transcription', 'model-download:large-v2',
+// 'venv-init', 'pm-install:ffmpeg', ...) — and the close dialog picks the
+// first one to show a localized message for.
+//
+// The priority order below decides which reason shows up in the confirm
+// dialog when multiple tasks are running at once (e.g. a model download
+// triggered during a transcription).  Transcription first because it's
+// the most expensive to lose; model downloads second; everything else
+// generic.
+const BUSY_PRIORITY = ['transcription', 'model-download', 'venv-init', 'pm-install'];
+const busyReasons = new Set();
+
+function addBusyReason(reason) {
+  if (typeof reason === 'string' && reason) busyReasons.add(reason);
+}
+
+function removeBusyReason(reason) {
+  busyReasons.delete(reason);
+}
+
+function isBusy() {
+  return busyReasons.size > 0;
+}
+
+/**
+ * Pick the highest-priority busy reason currently registered and return
+ * an object with its bare kind + optional subject (parsed from
+ * `kind:subject` notation) so the dialog can render a specific message.
+ * Example: `model-download:large-v2` → { kind: 'model-download', subject: 'large-v2' }.
+ */
+function getPrimaryBusyReason() {
+  if (busyReasons.size === 0) return null;
+  const reasons = Array.from(busyReasons);
+  for (const kind of BUSY_PRIORITY) {
+    const hit = reasons.find((r) => r === kind || r.startsWith(`${kind}:`));
+    if (hit) {
+      const colonIdx = hit.indexOf(':');
+      return {
+        kind,
+        subject: colonIdx >= 0 ? hit.slice(colonIdx + 1) : '',
+      };
+    }
+  }
+  // Unknown reason not in our priority list — still treat as busy.
+  return { kind: reasons[0], subject: '' };
+}
 
 function getPlatformWindowOptions() {
   // On macOS we use `hiddenInset` so the native titlebar background is gone
@@ -212,24 +263,40 @@ function createWindow() {
 
   mainWindow.on('close', (e) => {
     if (isAppQuitting || isForceClosingWindow) return;
-    if (!isRunning) return;
+    if (!isBusy()) return;
     e.preventDefault();
+
+    // Pick a specific message based on the highest-priority busy
+    // reason currently registered — transcription > model download >
+    // venv init > pm install.  Falls back to a generic "task running"
+    // message for any reason we don't have a tailored string for.
+    const primary = getPrimaryBusyReason();
+    const reasonKind = primary?.kind || 'transcription';
+    const reasonMessageKey = `dialogs:closeWhileBusy.reasons.${reasonKind}`;
+    const message = t(reasonMessageKey, {
+      subject: primary?.subject || '',
+      defaultValue: t('dialogs:closeWhileBusy.reasons.generic'),
+    });
+
     dialog.showMessageBox(mainWindow, {
       type: 'warning',
       buttons: [
-        t('dialogs:closeWhileRunning.buttonWait'),
-        t('dialogs:closeWhileRunning.buttonForce'),
+        t('dialogs:closeWhileBusy.buttonWait'),
+        t('dialogs:closeWhileBusy.buttonForce'),
       ],
       defaultId: 0,
       cancelId: 0,
-      title: t('dialogs:closeWhileRunning.title'),
-      message: t('dialogs:closeWhileRunning.message'),
-      detail: t('dialogs:closeWhileRunning.detail'),
+      title: t('dialogs:closeWhileBusy.title'),
+      message,
+      detail: t('dialogs:closeWhileBusy.detail'),
     }).then(({ response }) => {
       if (response !== 1) return;
       if (!mainWindow || mainWindow.isDestroyed()) return;
 
-      isRunning = false;
+      // Clear all busy reasons — the user has acknowledged they're
+      // force-closing and any in-flight work is about to be killed
+      // by process exit anyway.
+      busyReasons.clear();
       isForceClosingWindow = true;
       mainWindow.close();
     });
@@ -241,7 +308,15 @@ function createWindow() {
   });
 }
 
-function setIsRunning(val) { isRunning = val; }
+// Backwards-compatible shim for the renderer's `app:set-running`
+// IPC: translates the boolean into the new busy-reason set so the
+// close dialog covers transcription too.  New code paths (model
+// download, venv init, pm install) call addBusyReason / removeBusyReason
+// directly from ipc-handlers.js instead.
+function setIsRunning(val) {
+  if (val) addBusyReason('transcription');
+  else removeBusyReason('transcription');
+}
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 app.whenReady().then(async () => {
@@ -271,7 +346,14 @@ app.whenReady().then(async () => {
     app.setAboutPanelOptions({ icon: macIcon });
   }
   createWindow();
-  registerHandlers(mainWindow, ELECTRON_APP_ROOT, readLocalSettings, writeLocalSettings, setIsRunning);
+  registerHandlers(
+    mainWindow,
+    ELECTRON_APP_ROOT,
+    readLocalSettings,
+    writeLocalSettings,
+    setIsRunning,
+    { addBusyReason, removeBusyReason },
+  );
 
   // ── Updater wiring ─────────────────────────────────────────────────────
   // The updater lives in its own module and only needs three hooks:
@@ -311,7 +393,9 @@ app.whenReady().then(async () => {
 
 app.on('before-quit', () => {
   isAppQuitting = true;
-  isRunning = false;
+  // Clear every busy reason so the close handler doesn't re-prompt
+  // the user when they've already confirmed quit via the menu.
+  busyReasons.clear();
 });
 
 app.on('window-all-closed', () => {
@@ -321,6 +405,13 @@ app.on('window-all-closed', () => {
 app.on('activate', () => {
   if (!mainWindow) {
     createWindow();
-    registerHandlers(mainWindow, ELECTRON_APP_ROOT, readLocalSettings, writeLocalSettings, setIsRunning);
+    registerHandlers(
+    mainWindow,
+    ELECTRON_APP_ROOT,
+    readLocalSettings,
+    writeLocalSettings,
+    setIsRunning,
+    { addBusyReason, removeBusyReason },
+  );
   }
 });

@@ -21,7 +21,25 @@ const { ERROR_CODES, createAppError, normalizeUnknownError, toAppError } = requi
 let activeQueueManager = null;
 let beforeQuitPersistenceHookRegistered = false;
 
-function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveLocalSettings, setIsRunning) {
+function registerHandlers(
+  mainWindow,
+  ELECTRON_APP_ROOT,
+  getLocalSettings,
+  saveLocalSettings,
+  setIsRunning,
+  busyTracker = {},
+) {
+  // `busyTracker` is the pair of helpers main.js exports so that any
+  // long-running IPC handler here can register itself as "busy" and
+  // participate in the close-window confirm dialog.  We fall back to
+  // no-op shims when the caller didn't pass them so unit tests and
+  // older call sites keep working.
+  const addBusyReason = typeof busyTracker.addBusyReason === 'function'
+    ? busyTracker.addBusyReason
+    : () => {};
+  const removeBusyReason = typeof busyTracker.removeBusyReason === 'function'
+    ? busyTracker.removeBusyReason
+    : () => {};
   const PYTHON_DIR = path.join(ELECTRON_APP_ROOT, 'python');
   const CONFIG_METADATA_PATH = path.join(PYTHON_DIR, 'config', 'config.metadata.json');
   const USER_DATA_DIR = app.getPath('userData');
@@ -493,6 +511,8 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
       throw err;
     }
     sendLog(`[WhisperFlow] Installing ${packageName} via ${managerId}…\n`);
+    const busyKey = `pm-install:${packageName}`;
+    addBusyReason(busyKey);
     try {
       await installPackage({
         managerId,
@@ -518,6 +538,8 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
     } catch (error) {
       sendLog(`[WhisperFlow] ${packageName} install failed: ${error.message}\n`);
       throw error;
+    } finally {
+      removeBusyReason(busyKey);
     }
   });
 
@@ -564,6 +586,7 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
     // the Models tab and Settings tab both see the auto-populated path.
     ensureModelsDirInConfig();
 
+    addBusyReason('venv-init');
     try {
       await initializeBundledVenv({
         systemPython,
@@ -584,6 +607,8 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
         source: 'venv',
       }));
       throw error;
+    } finally {
+      removeBusyReason('venv-init');
     }
   });
 
@@ -624,8 +649,14 @@ function registerHandlers(mainWindow, ELECTRON_APP_ROOT, getLocalSettings, saveL
 
   ipcMain.handle('models:download', async (_event, name) => {
     ensureModelsDirInConfig();
-    const stdout = await runVenvPython(['-m', 'whisperflow.cli', '--download-model', name]);
-    return JSON.parse(stdout);
+    const busyKey = `model-download:${name}`;
+    addBusyReason(busyKey);
+    try {
+      const stdout = await runVenvPython(['-m', 'whisperflow.cli', '--download-model', name]);
+      return JSON.parse(stdout);
+    } finally {
+      removeBusyReason(busyKey);
+    }
   });
 
   ipcMain.handle('models:delete', async (_event, name) => {

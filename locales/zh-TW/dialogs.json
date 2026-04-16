@@ -55,5 +55,18 @@
     "detail": "強制關閉將會中斷目前的轉錄作業，確定要關閉嗎？",
     "buttonWait": "繼續等待",
     "buttonForce": "強制關閉"
+  },
+  "closeWhileBusy": {
+    "title": "WhisperFlow Studio",
+    "detail": "強制關閉會中斷目前的任務，已下載或轉錄中的進度可能會遺失。確定要關閉嗎？",
+    "buttonWait": "繼續等待",
+    "buttonForce": "強制關閉",
+    "reasons": {
+      "transcription": "轉錄正在進行中",
+      "model-download": "模型下載中（{{subject}}）",
+      "venv-init": "Python 虛擬環境正在建立中",
+      "pm-install": "{{subject}} 安裝中",
+      "generic": "有正在進行的任務"
+    }
   }
 }
