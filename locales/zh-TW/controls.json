@@ -38,7 +38,12 @@
   },
   "guard": {
     "scanNeedsMediaRoot": "請先設定有效的媒體資料夾後再掃描",
-    "runNeedsEnv": "請先修正環境設定後再執行"
+    "runNeedsEnv": "請先修正環境設定後再執行",
+    "modelMissingTitle": "尚未下載模型 {{model}}",
+    "modelMissingMessage": "你在設定中選擇的模型「{{model}}」還沒下載到本機。若直接執行轉錄，App 會嘗試即時從 HuggingFace 下載（大約數百 MB 到 1 GB，視模型大小而定），這段期間看起來會像卡住。建議先到「模型」分頁下載後再回來開始轉錄。",
+    "modelMissingConfirm": "前往「模型」下載",
+    "modelMissingCancel": "取消",
+    "modelMissingGuide": "請在清單中找到 {{model}} 並點擊「下載」。下載完成後回到「主要」分頁執行轉錄。"
   },
   "toast": {
     "scanFound": "找到：{{fileName}}（共 {{total}} 個）",

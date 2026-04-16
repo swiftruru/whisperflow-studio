@@ -38,7 +38,12 @@
   },
   "guard": {
     "scanNeedsMediaRoot": "Please set a valid media folder before scanning",
-    "runNeedsEnv": "Please fix the environment issues before running"
+    "runNeedsEnv": "Please fix the environment issues before running",
+    "modelMissingTitle": "Model {{model}} not downloaded",
+    "modelMissingMessage": "The model you selected in Settings — \"{{model}}\" — hasn't been downloaded to this machine yet. Running transcription now will make the app silently fetch it from HuggingFace (several hundred MB to 1 GB depending on model size) and the UI will look frozen for the duration. We recommend downloading it from the Models tab first and then coming back to start transcription.",
+    "modelMissingConfirm": "Go to Models",
+    "modelMissingCancel": "Cancel",
+    "modelMissingGuide": "Find {{model}} in the list and click Download. Return to the Main tab once it finishes."
   },
   "toast": {
     "scanFound": "Found: {{fileName}} ({{total}} total)",
