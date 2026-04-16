@@ -191,6 +191,7 @@ function isPaused() {
 }
 
 module.exports = {
+  createLineBuffer,
   isPaused,
   isRunning,
   pauseProcess,

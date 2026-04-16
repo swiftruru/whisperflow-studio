@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Optional
 
 from .config import VAD_CHOICES, TranscribeConfig
-from .events import STAGE_FAILED, STAGE_PREPARING, emitter_for
+from .events import STAGE_FAILED, STAGE_PREPARING, EventEmitter, emitter_for
 from .models.manager import ModelManager, default_models_dir
 from .models.registry import all_models, model_names
 from .prompts.base import InitialPromptMode
@@ -39,6 +39,17 @@ def build_parser() -> argparse.ArgumentParser:
     mode.add_argument("--list-models", action="store_true", help="List built-in models and installation status.")
     mode.add_argument("--download-model", metavar="NAME", help="Download the named model into the managed models directory.")
     mode.add_argument("--delete-model", metavar="NAME", help="Delete the named model from the managed models directory.")
+
+    # When set, --download-model emits structured [WhisperFlowEvent] JSON
+    # lines to stdout for every stage transition and progress tick so the
+    # Electron main process can stream them to the renderer.  Without the
+    # flag, --download-model behaves as before (single JSON line at end)
+    # which preserves backwards compatibility with any external scripting.
+    parser.add_argument(
+        "--emit-events",
+        action="store_true",
+        help="Emit structured progress events during --download-model.",
+    )
 
     # --- input / output ------------------------------------------------
     parser.add_argument("input", nargs="?", help="Path to the input audio/video file.")
@@ -92,7 +103,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     if args.list_models:
         return _cmd_list_models(args.models_dir)
     if args.download_model:
-        return _cmd_download_model(args.download_model, args.models_dir)
+        return _cmd_download_model(args.download_model, args.models_dir, emit_events=args.emit_events)
     if args.delete_model:
         return _cmd_delete_model(args.delete_model, args.models_dir)
 
@@ -141,8 +152,74 @@ def _cmd_list_models(models_dir: Optional[str]) -> int:
     return 0
 
 
-def _cmd_download_model(name: str, models_dir: Optional[str]) -> int:
+def _cmd_download_model(name: str, models_dir: Optional[str], *, emit_events: bool = False) -> int:
+    """Download a model and (optionally) stream structured progress events.
+
+    When ``emit_events`` is True, each stage transition and progress tick
+    is forwarded to stdout as a ``[WhisperFlowEvent]`` JSON line so the
+    Electron main process can pipe it through ``parseRunnerEventLine``
+    to its download-state store.  The final ``{"status": "downloaded"}``
+    JSON is always printed at the end for backwards compatibility with
+    external scripts that only want the summary.
+    """
     manager = ModelManager(Path(models_dir) if models_dir else None)
+
+    if emit_events:
+        emitter = EventEmitter(source="whisperflow", file_name=name)
+
+        def on_progress(event_type: str, payload: dict) -> None:
+            if event_type == "stage":
+                # Emit as a download-stage event; runner-event.js keeps
+                # the `type` and `stage` fields as-is, and the meta dict
+                # carries any auxiliary payload.
+                emitter.emit(
+                    "download-stage",
+                    stage=str(payload.get("stage", "")),
+                    extra=payload,
+                )
+            elif event_type == "progress":
+                downloaded = int(payload.get("downloaded_bytes", 0) or 0)
+                total = int(payload.get("total_bytes", 0) or 0)
+                percent: Optional[float] = None
+                if total > 0:
+                    percent = round(min(100.0, (downloaded / total) * 100.0), 2)
+                emitter.emit(
+                    "download-progress",
+                    progress=percent,
+                    eta_seconds=payload.get("eta_seconds"),
+                    extra={
+                        "downloaded_bytes": downloaded,
+                        "total_bytes": total,
+                        "speed_bytes_per_sec": float(payload.get("speed_bytes_per_sec", 0) or 0),
+                        "eta_seconds": float(payload.get("eta_seconds", 0) or 0),
+                    },
+                )
+
+        try:
+            path = manager.download(name, progress=on_progress)
+        except Exception as err:  # pragma: no cover - defensive top-level
+            _log.exception("model download failed")
+            emitter.emit(
+                "download-error",
+                stage=STAGE_FAILED,
+                message=str(err),
+                extra={
+                    "error_class": type(err).__name__,
+                    "name": name,
+                },
+            )
+            print(json.dumps({"status": "failed", "name": name, "error": str(err)}, ensure_ascii=False))
+            return 1
+
+        emitter.emit(
+            "download-completed",
+            message=f"{name} downloaded",
+            extra={"name": name, "path": str(path)},
+        )
+        print(json.dumps({"status": "downloaded", "name": name, "path": str(path)}, ensure_ascii=False))
+        return 0
+
+    # Legacy single-line output for external scripting.
     path = manager.download(name)
     print(json.dumps({"status": "downloaded", "name": name, "path": str(path)}, ensure_ascii=False))
     return 0

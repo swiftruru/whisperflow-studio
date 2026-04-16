@@ -1,0 +1,54 @@
+{
+  "card": {
+    "title": "Model downloads",
+    "statsRunning": "{{running}} downloading",
+    "statsIdle": "No active downloads"
+  },
+  "current": {
+    "etaPrefix": "ETA",
+    "etaCalculating": "Calculating…",
+    "speed": "{{speed}}/s",
+    "bytes": "{{downloaded}} / {{total}}",
+    "percent": "{{percent}}%"
+  },
+  "stage": {
+    "cleanup": "Cleaning up legacy data…",
+    "importing-from-cache": "Importing from local cache…",
+    "downloading": "Downloading…",
+    "verifying": "Verifying integrity…"
+  },
+  "status": {
+    "running": "Downloading",
+    "completed": "Completed",
+    "failed": "Failed",
+    "cancelled": "Cancelled",
+    "interrupted": "Interrupted"
+  },
+  "actions": {
+    "cancel": "Cancel download",
+    "retry": "Retry",
+    "clear": "Clear",
+    "clearHistory": "Clear history"
+  },
+  "history": {
+    "summary": "Recent downloads",
+    "empty": "No history"
+  },
+  "toast": {
+    "started": "Downloading {{name}}",
+    "completed": "{{name}} download complete",
+    "failed": "{{name}} download failed: {{error}}",
+    "cancelled": "Cancelled {{name}} download",
+    "alreadyRunning": "Another model is already downloading — please wait for it to finish"
+  },
+  "error": {
+    "network": "Network connection failed. Please check your connection and retry.",
+    "disk": "Not enough disk space. This model needs approximately {{needed}}, but only {{free}} is available.",
+    "permission": "Cannot write to the models directory. Please check read/write permissions on {{path}}.",
+    "remote": "HuggingFace returned an error ({{code}}). Please try again later.",
+    "verify": "Download finished but files are incomplete. Please retry.",
+    "cancelled": "Download cancelled",
+    "interrupted": "Download was interrupted by app shutdown. Click Retry to resume.",
+    "unknown": "Unknown error: {{message}}"
+  }
+}

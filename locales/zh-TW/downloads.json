@@ -1,0 +1,54 @@
+{
+  "card": {
+    "title": "模型下載",
+    "statsRunning": "下載中 {{running}} 個",
+    "statsIdle": "無進行中的下載"
+  },
+  "current": {
+    "etaPrefix": "剩餘",
+    "etaCalculating": "計算中…",
+    "speed": "{{speed}}/s",
+    "bytes": "{{downloaded}} / {{total}}",
+    "percent": "{{percent}}%"
+  },
+  "stage": {
+    "cleanup": "清理舊版資料…",
+    "importing-from-cache": "從本機快取匯入中…",
+    "downloading": "下載中…",
+    "verifying": "驗證完整性…"
+  },
+  "status": {
+    "running": "下載中",
+    "completed": "已完成",
+    "failed": "下載失敗",
+    "cancelled": "已取消",
+    "interrupted": "下載中斷"
+  },
+  "actions": {
+    "cancel": "取消下載",
+    "retry": "重試",
+    "clear": "清除",
+    "clearHistory": "清除歷史記錄"
+  },
+  "history": {
+    "summary": "近期下載",
+    "empty": "沒有歷史記錄"
+  },
+  "toast": {
+    "started": "開始下載 {{name}}",
+    "completed": "{{name}} 下載完成",
+    "failed": "{{name}} 下載失敗：{{error}}",
+    "cancelled": "已取消 {{name}} 的下載",
+    "alreadyRunning": "已有模型正在下載中，請等待完成後再試"
+  },
+  "error": {
+    "network": "網路連線失敗，請檢查網路後重試。",
+    "disk": "磁碟空間不足。此模型需要約 {{needed}}，但目前只剩 {{free}}。",
+    "permission": "無法寫入模型目錄，請檢查 {{path}} 的讀寫權限。",
+    "remote": "HuggingFace 伺服器回應錯誤（{{code}}），請稍後重試。",
+    "verify": "下載完成但檔案不完整，請重試。",
+    "cancelled": "下載已取消",
+    "interrupted": "下載被 App 關閉中斷，請點擊重試繼續下載。",
+    "unknown": "未知錯誤：{{message}}"
+  }
+}

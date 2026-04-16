@@ -23,6 +23,7 @@
       <span class="titlebar-title">WhisperFlow Studio</span>
     </div>
     <div class="titlebar-right">
+      <span class="titlebar-download-chip" id="download-indicator" hidden title="Model download in progress">—</span>
       <button class="btn-language-toggle" id="btn-language-toggle" type="button" data-i18n-attr="title=sidebar:titlebar.langToggleTip" title="Switch interface language" aria-label="Switch interface language">中 / EN</button>
       <button class="btn-help" id="btn-help" type="button" data-i18n-attr="title=help:titlebar.tooltip;aria-label=help:titlebar.tooltip" title="Open user guide" aria-label="Open user guide">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -267,6 +268,48 @@
           </div>
           <button class="btn-secondary" id="btn-models-refresh" data-i18n="models:toolbar.refresh">Refresh</button>
         </div>
+        <!-- ── Download panel (persistent card, hidden when no download) ── -->
+        <section class="card download-card" id="download-panel" hidden>
+          <div class="card-label">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M8 1a.5.5 0 0 1 .5.5v8.793l2.146-2.147a.5.5 0 1 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 .708-.708L7.5 10.293V1.5A.5.5 0 0 1 8 1zM2 13.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"/>
+            </svg>
+            <span data-i18n="downloads:card.title">Model downloads</span>
+          </div>
+
+          <!-- Current download ------------------------------------------- -->
+          <div class="download-current" id="download-current" hidden>
+            <div class="download-current-headline">
+              <span class="download-current-name" id="download-current-name"></span>
+              <span class="download-current-stage" id="download-current-stage"></span>
+            </div>
+            <div class="download-progress-bar">
+              <span class="download-progress-fill" id="download-progress-fill"></span>
+            </div>
+            <div class="download-current-stats">
+              <span id="download-current-percent">—</span>
+              <span class="download-stats-dot">&middot;</span>
+              <span id="download-current-bytes">— / —</span>
+              <span class="download-stats-dot">&middot;</span>
+              <span id="download-current-speed">—</span>
+              <span class="download-stats-dot">&middot;</span>
+              <span id="download-current-eta">—</span>
+            </div>
+            <div class="download-current-actions">
+              <button class="btn-secondary" id="btn-download-cancel" data-i18n="downloads:actions.cancel">Cancel download</button>
+            </div>
+          </div>
+
+          <!-- History list ---------------------------------------------- -->
+          <details class="download-history" id="download-history">
+            <summary data-i18n="downloads:history.summary">Recent downloads</summary>
+            <ul class="download-history-list" id="download-history-list"></ul>
+            <div class="download-history-actions">
+              <button class="btn-inline-action" id="btn-download-clear-history" data-i18n="downloads:actions.clearHistory">Clear history</button>
+            </div>
+          </details>
+        </section>
+
         <div class="models-panel-body">
           <div class="models-empty-msg" id="models-empty-msg" data-i18n="models:list.loading">正在載入模型清單…</div>
           <div class="models-list" id="models-list"></div>

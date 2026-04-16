@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, nativeImage, dialog, nativeTheme } = require('electron');
+const { app, BrowserWindow, nativeImage, dialog } = require('electron');
 
 app.name = 'WhisperFlow Studio';
 const path = require('path');
@@ -195,22 +195,18 @@ function getPlatformWindowOptions() {
     return { titleBarStyle: 'hiddenInset' };
   }
   if (process.platform === 'win32') {
-    // Pick the overlay colour for the native min/max/close buttons
-    // based on the OS dark-mode preference so a dark-mode user
-    // doesn't end up with a permanently cream title bar stapled to
-    // a cocoa-brown app body.  Electron doesn't repaint
-    // titleBarOverlay when the user toggles the in-app theme
-    // (the renderer only re-themes the HTML, not the native
-    // overlay), so this only picks the boot-time colour — a user
-    // who flips themes after startup still sees a title bar in
-    // the old colour until next launch.  Acceptable tradeoff.
-    const dark = nativeTheme.shouldUseDarkColors;
+    // Always use light-theme overlay colours to match the default
+    // light theme.  Electron doesn't repaint titleBarOverlay when
+    // the user toggles the in-app theme (the renderer only
+    // re-themes the HTML, not the native overlay), so this is
+    // always the boot-time colour — a user who flips to dark mode
+    // still sees the cream overlay until next launch.
     return {
       titleBarStyle: 'hidden',
       titleBarOverlay: {
-        color: dark ? '#28221a' : '#fbf8ef',        // matches --mantle for each theme
-        symbolColor: dark ? '#fbf5e6' : '#1e1a0e',  // matches --text for each theme
-        height: 44,                                  // matches --titlebar-h
+        color: '#fbf8ef',        // matches --mantle (light)
+        symbolColor: '#1e1a0e',  // matches --text (light)
+        height: 44,              // matches --titlebar-h
       },
     };
   }
@@ -229,19 +225,15 @@ function createWindow() {
     minHeight: WINDOW_DEFAULTS.minHeight,
     title: 'WhisperFlow Studio',
     icon: path.join(ELECTRON_APP_ROOT, 'assets', 'icon.png'),
-    // Set the Electron-level window background so the first frame
-    // drawn before our HTML loads matches the app theme instead of
-    // the OS default white/black.  We can't read the renderer's
-    // `localStorage.theme` from main, so fall back to the OS's
-    // reported dark-mode preference via `nativeTheme.shouldUseDarkColors`
-    // — matches the renderer's own first-run default in
-    // `theme-boot.js` when no saved preference exists.  Users who
-    // override to the opposite theme via the in-app toggle will get
-    // a brief cream (or cocoa) flash on the very first paint after
-    // that override, but the 99% common case — light-mode user on a
-    // light-mode OS, or dark-mode user on a dark-mode OS — boots
-    // without any visible flash.
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#28221a' : '#fbf8ef',
+    // Set the Electron-level window background to the light-theme
+    // cream so the first frame drawn before our HTML loads is never
+    // the OS default white/black.  We always default to light on
+    // first launch (theme-boot.js does the same); returning users
+    // who toggled to dark via the in-app toggle will see a brief
+    // cream flash before the renderer's synchronous theme-boot.js
+    // applies dark CSS — acceptable tradeoff for the simple code
+    // path, and it only lasts one paint frame.
+    backgroundColor: '#fbf8ef',
     ...getPlatformWindowOptions(),
     webPreferences: {
       preload: path.join(__dirname, '..', '..', 'preload', 'preload.js'),
@@ -340,6 +332,14 @@ app.whenReady().then(async () => {
   });
   registerLocaleIpcHandlers({ readLocalSettings, writeLocalSettings });
 
+  // ── Download state hydration ──────────────────────────────────────
+  const downloadState = require('./download-state');
+  downloadState.configure({
+    statePath: path.join(app.getPath('userData'), 'download-state.json'),
+    busyTracker: { addBusyReason, removeBusyReason },
+  });
+  downloadState.hydrate();
+
   if (process.platform === 'darwin') {
     const macIcon = nativeImage.createFromPath(path.join(ELECTRON_APP_ROOT, 'assets', 'icon-mac.png'));
     app.dock.setIcon(macIcon);
@@ -396,6 +396,9 @@ app.on('before-quit', () => {
   // Clear every busy reason so the close handler doesn't re-prompt
   // the user when they've already confirmed quit via the menu.
   busyReasons.clear();
+  // Synchronously flush download state to disk so a reboot picks
+  // up the latest progress / status of any in-flight download.
+  require('./download-state').shutdown();
 });
 
 app.on('window-all-closed', () => {

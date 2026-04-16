@@ -33,8 +33,14 @@ _REQUIRED_METADATA_FILES = ("config.json", "tokenizer.json", "vocabulary.txt")
 _WEIGHT_CANDIDATES = ("model.bin", "model.safetensors")
 
 # Passed to consumers that want to report download progress.
-# Signature: progress_callback(downloaded_bytes, total_bytes).
-DownloadProgress = Callable[[int, int], None]
+#
+# ``download()`` now invokes this with structured events rather than
+# raw (downloaded, total) pairs so we can stream stage transitions
+# and per-tick speed / ETA in the same channel.  Event types currently
+# emitted: "stage" / "progress" / "completed" / "error".  Payloads are
+# plain dicts the caller serialises (typically into
+# ``[WhisperFlowEvent]`` JSON lines consumed by Electron).
+DownloadProgress = Callable[[str, dict], None]
 
 
 @dataclass(frozen=True)
@@ -252,21 +258,36 @@ class ModelManager:
     ) -> Path:
         """Download a model by short name (e.g. ``"large-v2"``).
 
-        Three-stage strategy:
+        Four-stage strategy:
 
+        0. **Cleanup legacy HF-cache layout** left behind by an earlier
+           buggy version that copytree'd the HF cache tree
+           (``blobs / refs / snapshots``) into the managed dir.
         1. **Fast path: import from system HuggingFace cache.**  Many users
            already have the model under ``~/.cache/huggingface/hub/`` from a
            prior tool.  If a complete copy exists there we hard-link it into
            the managed dir (or copy on cross-volume failure).  This usually
            takes under a second for a 3 GB model.
-
         2. **Network download.**  If no usable cached copy exists, call
-           ``faster_whisper.download_model`` to fetch from HuggingFace.
+           ``huggingface_hub.snapshot_download`` directly with a custom
+           ``tqdm_class`` so we can stream progress events to the UI.
+        3. **Verify completeness.**  ``huggingface_hub`` has been observed
+           to return success for half-finished downloads (leaving
+           ``.incomplete`` blob files behind), so we always validate the
+           result and raise a clear error if anything is missing.
 
-        3. **Verify completeness.**  ``faster-whisper`` and ``huggingface_hub``
-           have been observed to return success for half-finished downloads
-           (leaving ``.incomplete`` blob files behind), so we always validate
-           the result and raise a clear error if anything is missing.
+        Progress callback
+        -----------------
+        If ``progress`` is given, it will be invoked with
+        ``progress(event_type, payload)`` throughout the download:
+
+        - ``("stage", {"stage": "cleanup" | "importing-from-cache" |
+          "downloading" | "verifying"})``
+        - ``("progress", {"downloaded_bytes": int, "total_bytes": int,
+          "speed_bytes_per_sec": float, "eta_seconds": float})``
+
+        The callback is best-effort: any exception inside it is
+        swallowed so a broken observer never crashes the download.
         """
         entry = get_model(name)
         if entry is None:
@@ -275,32 +296,50 @@ class ModelManager:
         self.ensure_dirs()
         target_dir = self.models_dir / entry.local_dir_name
         total_bytes = entry.approx_size_mb * 1024 * 1024
-        if progress is not None:
-            progress(0, total_bytes)
 
-        # Stage 0: clean up legacy HF-cache layout left behind by an earlier
-        # buggy version that copytree'd the whole `~/.cache/huggingface/`
-        # tree (with blobs/refs/snapshots/) into the managed dir.
-        # faster-whisper's WhisperModel can only load a flat directory, so
-        # we'd rather wipe it and re-import than ship a stale state.
+        def _emit(event_type: str, payload: dict) -> None:
+            if progress is None:
+                return
+            try:
+                progress(event_type, payload)
+            except Exception:
+                pass
+
+        _emit("progress", {
+            "downloaded_bytes": 0,
+            "total_bytes": total_bytes,
+            "speed_bytes_per_sec": 0.0,
+            "eta_seconds": 0.0,
+        })
+
+        # Stage 0 ---------------------------------------------------
+        _emit("stage", {"stage": "cleanup"})
         if target_dir.exists() and (target_dir / "snapshots").is_dir():
             _log.info("removing legacy HF-cache layout from %s", target_dir)
             shutil.rmtree(target_dir)
 
-        # Stage 1: try to import from the system HF cache.
+        # Stage 1: fast-path import from system HF cache ------------
         if not _is_complete_model_dir(target_dir):
+            _emit("stage", {"stage": "importing-from-cache"})
             imported = self._import_from_hf_cache(entry, target_dir)
             if imported:
                 _log.info("imported %s from system HuggingFace cache", entry.name)
+                # Hit: report the full byte total right away so the UI
+                # can flip into "verifying" without a phantom 0 B stall.
+                _emit("progress", {
+                    "downloaded_bytes": total_bytes,
+                    "total_bytes": total_bytes,
+                    "speed_bytes_per_sec": 0.0,
+                    "eta_seconds": 0.0,
+                })
 
-        # Stage 2: if still incomplete, hit the network.
+        # Stage 2: network download --------------------------------
         if not _is_complete_model_dir(target_dir):
-            from faster_whisper import download_model  # heavy import — lazy
+            _emit("stage", {"stage": "downloading"})
+            self._download_from_hub(entry, target_dir, _emit, total_bytes)
 
-            _log.info("downloading model %s into %s", entry.name, self.models_dir)
-            download_model(entry.repo_id, output_dir=str(target_dir))
-
-        # Stage 3: hard requirement — must be complete by now.
+        # Stage 3: verification ------------------------------------
+        _emit("stage", {"stage": "verifying"})
         if not _is_complete_model_dir(target_dir):
             missing = _missing_model_files(target_dir)
             raise RuntimeError(
@@ -308,10 +347,80 @@ class ModelManager:
                 f"Missing or partial: {missing}. Please retry."
             )
 
-        if progress is not None:
-            progress(total_bytes, total_bytes)
+        _emit("progress", {
+            "downloaded_bytes": total_bytes,
+            "total_bytes": total_bytes,
+            "speed_bytes_per_sec": 0.0,
+            "eta_seconds": 0.0,
+        })
 
         return target_dir
+
+    def _download_from_hub(
+        self,
+        entry: ModelEntry,
+        target_dir: Path,
+        emit: Callable[[str, dict], None],
+        total_bytes: int,
+    ) -> None:
+        """Stage 2 — pull the model from HuggingFace via ``snapshot_download``.
+
+        We bypass ``faster_whisper.download_model`` because that wrapper
+        hardcodes ``tqdm_class=disabled_tqdm``, which throws away every
+        progress signal from huggingface_hub's internal downloader.
+        Calling ``snapshot_download`` ourselves with a custom tqdm gets
+        us per-blob byte progress which we aggregate into a single
+        job-level counter via ``SharedProgressState``.
+
+        ``allow_patterns`` replicates what faster-whisper's own call
+        ships — if faster-whisper ever broadens this list in a future
+        release, this function has to be updated to match or we'll
+        end up missing a required file and failing Stage 3.
+        """
+        from huggingface_hub import snapshot_download  # heavy import — lazy
+
+        from .progress_tqdm import (
+            SharedProgressState,
+            WhisperFlowProgressTqdm,
+            install_delta_handler,
+        )
+
+        shared = SharedProgressState(job_total_bytes=total_bytes)
+
+        def on_aggregate(downloaded: int, total: int, speed: float, eta: float) -> None:
+            emit("progress", {
+                "downloaded_bytes": downloaded,
+                "total_bytes": total,
+                "speed_bytes_per_sec": speed,
+                "eta_seconds": eta,
+            })
+
+        shared.set_external_callback(on_aggregate)
+
+        # Files faster-whisper expects in a Whisper CTranslate2 model dir.
+        # Hardcoded here so if faster-whisper broadens its allow_patterns
+        # we'll fail Stage 3's verification loudly rather than silently
+        # ship an incomplete download.
+        allow_patterns = [
+            "config.json",
+            "preprocessor_config.json",
+            "model.bin",
+            "tokenizer.json",
+            "vocabulary.*",
+        ]
+
+        _log.info("downloading model %s into %s", entry.name, self.models_dir)
+        install_delta_handler(shared.on_delta)
+        try:
+            snapshot_download(
+                repo_id=entry.repo_id,
+                local_dir=str(target_dir),
+                allow_patterns=allow_patterns,
+                tqdm_class=WhisperFlowProgressTqdm,
+            )
+        finally:
+            install_delta_handler(None)
+            shared.flush()
 
     def _import_from_hf_cache(self, entry: ModelEntry, target_dir: Path) -> bool:
         """Try to materialise the model from the user's global HF cache.

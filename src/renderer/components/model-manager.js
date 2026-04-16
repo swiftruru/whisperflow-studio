@@ -259,25 +259,19 @@ function renderVenvCta(container) {
 }
 
 async function handleDownload(name) {
-  const row = document.querySelector(`.model-row[data-name="${name}"]`);
-  const btn = row?.querySelector('.model-row-btn');
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = t('models:actions.downloading');
-  }
-  showToast(t('models:toast.downloadStarted', { name }), 'info', 4000);
+  // Fire-and-forget via the new streaming downloads pipeline.
+  // Progress feedback is handled entirely by download-panel.js
+  // which subscribes to the download-state store.  We just kick
+  // off the download here and let the state machine take over.
   try {
-    await window.electronAPI.downloadModel(name);
-    showToast(t('models:toast.downloadSuccess', { name }), 'success', 3500);
-    invalidateDynamicModelNames();
-    await fetchModels();
-    render();
+    await window.electronAPI.downloads.start(name);
+    showToast(t('downloads:toast.started', { name }), 'info', 3000);
   } catch (error) {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = t('models:actions.download');
+    if (error?.code === 'DOWNLOAD_ALREADY_RUNNING') {
+      showToast(t('downloads:toast.alreadyRunning'), 'info', 4000);
+      return;
     }
-    showToast(t('models:toast.downloadFailed', { error: error?.message || error }), 'error', 6000);
+    showToast(t('downloads:toast.failed', { name, error: error?.message || error }), 'error', 6000);
   }
 }
 

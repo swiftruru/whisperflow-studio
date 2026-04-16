@@ -647,6 +647,10 @@ function registerHandlers(
     return JSON.parse(stdout);
   });
 
+  // Legacy shim — kept so old renderer code (and any external
+  // scripting that calls `models:download`) keeps working.  The new
+  // download pipeline goes through `downloads:start` which streams
+  // events instead of blocking on a single JSON result.
   ipcMain.handle('models:download', async (_event, name) => {
     ensureModelsDirInConfig();
     const busyKey = `model-download:${name}`;
@@ -657,6 +661,100 @@ function registerHandlers(
     } finally {
       removeBusyReason(busyKey);
     }
+  });
+
+  // ── Downloads (new streaming pipeline) ────────────────────────────
+  //
+  // These replace the blocking `models:download` IPC above with a
+  // proper state-machine-based flow that streams events to the renderer
+  // and persists state to `download-state.json`.
+
+  const downloadState = require('./download-state');
+  const downloadRunner = require('./model-download-runner');
+  const { get_model: getModelEntry } = (() => {
+    // We can't import the Python registry from JS, so we look up the
+    // model entry via the same `models:list` IPC we already have.  The
+    // start handler calls it once at the beginning to grab repo_id +
+    // totalBytes.  This closure caches the last list response.
+    let _cachedModels = null;
+    return {
+      get_model: async (name) => {
+        if (!_cachedModels) {
+          try {
+            ensureModelsDirInConfig();
+            const stdout = await runVenvPython(['-m', 'whisperflow.cli', '--list-models']);
+            _cachedModels = JSON.parse(stdout);
+          } catch (_) {
+            return null;
+          }
+        }
+        const entry = (_cachedModels?.models || []).find((m) => m.name === name);
+        return entry || null;
+      },
+    };
+  })();
+
+  async function startModelDownload(name) {
+    if (downloadRunner.isDownloading()) {
+      const err = new Error('Another download is already running');
+      err.code = 'DOWNLOAD_ALREADY_RUNNING';
+      throw err;
+    }
+
+    ensureModelsDirInConfig();
+
+    const { pythonDir, venvRoot } = getPaths();
+    const venvPython = resolveBundledPython(venvRoot);
+    if (!venvPython) {
+      throw new Error('Bundled Python venv is not initialised.');
+    }
+
+    const entry = await getModelEntry(name);
+    const repoId = entry?.repo_id || `Systran/faster-whisper-${name}`;
+    const totalBytes = (entry?.approx_size_mb || 0) * 1024 * 1024;
+
+    let modelsDir = '';
+    try {
+      const config = readConfig(path.join(pythonDir, 'config', 'config.json'));
+      modelsDir = config?.SETTING?.models_dir || '';
+    } catch (_) { /* fall through to Python default */ }
+
+    const id = downloadState.addDownload({ name, repoId, totalBytes });
+
+    try {
+      downloadRunner.startDownload({ id, name, venvPython, pythonDir, modelsDir });
+    } catch (err) {
+      downloadState.updateDownload(id, {
+        status: 'failed',
+        errorCode: 'SPAWN_FAILED',
+        errorMessage: err.message,
+        finishedAt: new Date().toISOString(),
+      });
+    }
+
+    return { id, name };
+  }
+
+  ipcMain.handle('downloads:start', (_event, name) => startModelDownload(name));
+
+  ipcMain.handle('downloads:cancel', (_event, id) => {
+    return { cancelled: downloadRunner.cancelDownload(id) };
+  });
+
+  ipcMain.handle('downloads:retry', async (_event, id) => {
+    const old = downloadState.getDownload(id);
+    if (!old) throw new Error(`Unknown download: ${id}`);
+    downloadState.removeDownload(id);
+    return startModelDownload(old.name);
+  });
+
+  ipcMain.handle('downloads:clear-history', () => {
+    downloadState.clearHistory();
+    return { ok: true };
+  });
+
+  ipcMain.handle('downloads:get-state', () => {
+    return downloadState.getAll();
   });
 
   ipcMain.handle('models:delete', async (_event, name) => {

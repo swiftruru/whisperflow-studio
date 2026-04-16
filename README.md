@@ -92,7 +92,7 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 
 - **Self-contained transcription core** — [`python/whisperflow/`](python/whisperflow/) is a rewritten, dependency-isolated Python package that drives faster-whisper, Silero VAD, segment merging, and subtitle writers. No external project required.
 - **Batch media scan** — recursively builds a queue of media files without subtitle companions
-- **Model Manager tab** — list / download / delete faster-whisper models into an app-managed directory; all weights live under Electron's `userData/models/`, not in your global HuggingFace cache
+- **Model Manager tab** — list / download / delete faster-whisper models into an app-managed directory; all weights live under Electron's `userData/models/`, not in your global HuggingFace cache. Downloads stream real-time progress (percentage, bytes, speed, ETA) into a persistent card on the Models tab and a pulsing titlebar chip so you always know what's happening — no more staring at a frozen "Downloading…" label for 15 minutes. Cancel mid-download and retry later; `huggingface_hub`'s built-in resume picks up where it left off
 - **First-run venv bootstrap** — the app creates its own Python virtualenv (`python/.venv`) on first launch and installs `requirements.txt` for you
 - **Structured runner events** — the bridge emits machine-readable stage events (`preparing`, `loading-model`, `transcribing`, `writing-subtitle`, `completed`, `failed`) that drive the progress UI
 - **Multi-GPU parallel transcription** — preserved from the upstream architecture, fans work across CUDA devices on Linux/Windows
@@ -124,13 +124,13 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 
 - **Light / dark theme toggle** — pastel cream yellow for day, warm **Cocoa Cream** for night; both palettes are tonally related so switching feels like "the same app with the lights turned down" instead of two separate apps
 - **Soft-cocoa dark mode** — mid-dark warm-neutral surfaces (not near-black, not saturated brown), cream-white text, brand yellow accent kept unchanged from light theme; designed to feel cosy and readable rather than intimidating
-- **System theme detection** — defaults to OS preference on first launch
+- **Light by default** — first launch always opens in the cream-yellow light palette regardless of OS dark-mode setting, so new users see the primary design intent immediately. Switch to dark mode via the in-app toggle any time; the choice is persisted to `localStorage` and honoured on all subsequent launches
 
 ### About page
 
 - **Dedicated About tab** — hero block with app icon + live version badge (reads from `package.json` via IPC), author card with monogram avatar placeholder, tech stack card grouped by feature area, a dedicated **Software updates** card with a one-click **Check for updates** button, and credits & license card with inline links to `NOTICES.md` and GitHub Issues
 - **One-click external links** — GitHub repo, personal site, notices, and issue reporter all go through the sandboxed `shell:open-external` IPC (http(s) only)
-- **Fully bilingual** — the `about` namespace lives alongside 15 others, live-switches with the titlebar language toggle
+- **Fully bilingual** — the `about` namespace lives alongside 16 others, live-switches with the titlebar language toggle
 
 ### In-app updates
 
@@ -142,7 +142,7 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 
 ### Internationalization (zh-TW / en)
 
-- **Production-grade i18n architecture** — built on [i18next](https://www.i18next.com/) with 16 feature namespaces (`common`, `sidebar`, `preflight`, `settings`, `queue`, `progress`, `models`, `console`, `controls`, `dialogs`, `errors`, `events`, `toasts`, `about`, `help`, `updater`). ~547 keys per locale.
+- **Production-grade i18n architecture** — built on [i18next](https://www.i18next.com/) with 17 feature namespaces (`common`, `sidebar`, `preflight`, `settings`, `queue`, `progress`, `models`, `console`, `controls`, `dialogs`, `errors`, `events`, `toasts`, `about`, `help`, `updater`, `downloads`). ~602 keys per locale.
 - **Titlebar language toggle** — one-click flip between Traditional Chinese and English; all static HTML, dynamic components, Python runner events, and Electron native dialogs switch live without restart
 - **Auto-detect on first launch** — reads `app.getLocale()` and picks `zh-TW` for any Chinese system, `en` for English, with `zh-TW` as the fallback
 - **Key-based main→renderer contract** — `createAppError` / `createPreflightCheck` / Python `[WhisperFlowEvent]` all carry `messageKey` + `messageParams` instead of raw strings, so the renderer can localize at display time and switching language updates already-visible error banners / preflight checks

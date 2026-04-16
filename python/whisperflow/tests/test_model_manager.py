@@ -255,18 +255,18 @@ def test_download_raises_when_no_cache_and_network_disabled(tmp_path, monkeypatc
 
     manager = ModelManager(tmp_path / "managed")
 
-    # Stub out faster_whisper.download_model to mimic the real bug:
-    # creates a partial flat layout (missing model.bin) and returns
-    # "successfully".
-    fake_module = type(sys)("faster_whisper")
-
-    def fake_download(repo_id, output_dir):
-        target = Path(output_dir)
+    # Stub out huggingface_hub.snapshot_download (called directly by
+    # ModelManager._download_from_hub) to mimic the real bug: creates
+    # a partial flat layout (missing model.bin) and returns "success".
+    def fake_snapshot_download(repo_id, *, local_dir, allow_patterns=None, tqdm_class=None, **kwargs):
+        target = Path(local_dir)
         make_partial_flat_model_dir(target)
         return str(target)
 
-    fake_module.download_model = fake_download
-    monkeypatch.setitem(sys.modules, "faster_whisper", fake_module)
+    monkeypatch.setattr("whisperflow.models.manager.snapshot_download", fake_snapshot_download, raising=False)
+    # Also need to make the import succeed inside the lazy import block.
+    import huggingface_hub
+    monkeypatch.setattr(huggingface_hub, "snapshot_download", fake_snapshot_download)
 
     with pytest.raises(RuntimeError, match="did not complete"):
         manager.download("tiny")

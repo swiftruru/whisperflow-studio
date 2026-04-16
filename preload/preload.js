@@ -106,6 +106,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   downloadModel:    (name)        => ipcRenderer.invoke('models:download', name),
   deleteModel:      (name)        => ipcRenderer.invoke('models:delete', name),
 
+  // ── Model Downloads (streaming pipeline) ────────────────────────────────
+  downloads: {
+    start:          (name)        => ipcRenderer.invoke('downloads:start', name),
+    cancel:         (id)          => ipcRenderer.invoke('downloads:cancel', id),
+    retry:          (id)          => ipcRenderer.invoke('downloads:retry', id),
+    clearHistory:   ()            => ipcRenderer.invoke('downloads:clear-history'),
+    getState:       ()            => ipcRenderer.invoke('downloads:get-state'),
+    onStateUpdated: (cb)          => ipcRenderer.on('downloads:state-updated', (_e, s) => cb(s)),
+  },
+
   // ── Process Control ───────────────────────────────────────────────────────
   setRunning:    (val)          => ipcRenderer.send('app:set-running', val),
   notify:        (opts)         => ipcRenderer.send('app:notify', opts),

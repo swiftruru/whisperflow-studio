@@ -17,6 +17,9 @@ import { applyTranslations } from './lib/i18n-dom.js';
 import { initQueueState } from './components/queue-state.js';
 import { initQueuePanel } from './components/queue-panel.js';
 import { initModelManager } from './components/model-manager.js';
+import { initDownloadState } from './components/download-state.js';
+import { initDownloadPanel } from './components/download-panel.js';
+import { initDownloadIndicator } from './components/download-indicator.js';
 import './components/controls-bar.js';
 
 // ── Theme toggle ──────────────────────────────────────────────────────────────
@@ -27,8 +30,8 @@ function initTheme() {
   const sunIcon = document.getElementById('theme-icon-sun');
 
   const saved = localStorage.getItem('theme');
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const isDark = saved ? saved === 'dark' : prefersDark;
+  // First launch (no saved preference): default to light, not OS preference.
+  const isDark = saved ? saved === 'dark' : false;
 
   function applyTheme(dark) {
     if (dark) {
@@ -285,6 +288,9 @@ async function init() {
   await initQueueState();
   initQueuePanel();
   initModelManager();
+  await initDownloadState();
+  initDownloadPanel();
+  initDownloadIndicator();
   await initAboutPanel();
   initHelpPanel();
   const startupTasks = [

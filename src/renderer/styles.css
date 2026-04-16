@@ -258,6 +258,36 @@ html:not([data-platform="darwin"]) .titlebar-logo {
   -webkit-app-region: no-drag;
 }
 
+.titlebar-download-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 11px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  background: color-mix(in srgb, var(--yellow) 18%, var(--surface1));
+  border: 1px solid color-mix(in srgb, var(--yellow) 45%, var(--border));
+  color: var(--amber);
+  cursor: pointer;
+  transition: all 0.15s;
+  -webkit-app-region: no-drag;
+  animation: download-chip-pulse 2s ease-in-out infinite;
+}
+
+.titlebar-download-chip:hover {
+  background: color-mix(in srgb, var(--yellow) 28%, var(--surface1));
+  border-color: color-mix(in srgb, var(--yellow) 65%, var(--border));
+}
+
+@keyframes download-chip-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
 .btn-theme-toggle {
   display: flex;
   align-items: center;
@@ -2290,6 +2320,148 @@ kbd {
 }
 
 .btn-secondary:disabled { opacity: 0.55; cursor: default; }
+
+/* ── Download Panel (inside Models tab) ─────────────────────────────────────── */
+
+.download-card {
+  margin-bottom: 10px;
+}
+
+.download-current-headline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.download-current-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.download-current-stage {
+  font-size: 10px;
+  color: var(--subtext0);
+  font-style: italic;
+}
+
+.download-progress-bar {
+  height: 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface1) 75%, var(--surface0));
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.download-progress-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--yellow), var(--green));
+  transition: width 0.18s ease;
+}
+
+.download-current-stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--subtext0);
+}
+
+.download-stats-dot {
+  color: var(--overlay0);
+}
+
+.download-current-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.download-current-actions .btn-secondary {
+  padding: 0 14px;
+  height: 30px;
+  font-size: 11px;
+  min-width: 80px;
+}
+
+.download-history {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  margin-top: 6px;
+}
+
+.download-history > summary {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--subtext1);
+  cursor: pointer;
+  user-select: none;
+}
+
+.download-history-list {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.download-history-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  padding: 4px 0;
+}
+
+.download-history-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.download-history-status {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.download-history-item[data-status="completed"] .download-history-status {
+  background: color-mix(in srgb, var(--green) 15%, transparent);
+  color: var(--green);
+}
+
+.download-history-item[data-status="failed"] .download-history-status,
+.download-history-item[data-status="interrupted"] .download-history-status {
+  background: color-mix(in srgb, var(--red) 15%, transparent);
+  color: var(--red);
+}
+
+.download-history-item[data-status="cancelled"] .download-history-status {
+  background: color-mix(in srgb, var(--overlay0) 15%, transparent);
+  color: var(--overlay0);
+}
+
+.download-history-error {
+  color: var(--subtext0);
+  font-size: 10px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.download-history-actions {
+  margin-top: 6px;
+}
 
 /* ── Model Manager tab ──────────────────────────────────────────────────────── */
 .models-toolbar {

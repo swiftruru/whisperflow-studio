@@ -34,7 +34,11 @@
       prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     } catch (_) { /* matchMedia unsupported */ }
 
-    var isDark = saved ? saved === 'dark' : prefersDark;
+    // First launch (no saved preference): always default to light,
+    // regardless of the OS dark-mode setting.  The user can flip to
+    // dark via the in-app toggle, which writes 'dark' to localStorage
+    // and subsequent launches will honour that choice.
+    var isDark = saved ? saved === 'dark' : false;
     if (!isDark) {
       document.documentElement.setAttribute('data-theme', 'light');
     }

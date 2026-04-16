@@ -40,6 +40,7 @@ const NAMESPACES = [
   'about',
   'help',
   'updater',
+  'downloads',
 ];
 
 /**
