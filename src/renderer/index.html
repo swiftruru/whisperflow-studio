@@ -5,6 +5,10 @@
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';" />
   <title>WhisperFlow Studio</title>
+  <!-- Synchronous theme bootstrap — MUST run before styles.css so
+       the window never flashes the wrong theme on cold boot.  See
+       theme-boot.js for the full rationale. -->
+  <script src="theme-boot.js"></script>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>

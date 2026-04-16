@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, nativeImage, dialog } = require('electron');
+const { app, BrowserWindow, nativeImage, dialog, nativeTheme } = require('electron');
 
 app.name = 'WhisperFlow Studio';
 const path = require('path');
@@ -144,12 +144,22 @@ function getPlatformWindowOptions() {
     return { titleBarStyle: 'hiddenInset' };
   }
   if (process.platform === 'win32') {
+    // Pick the overlay colour for the native min/max/close buttons
+    // based on the OS dark-mode preference so a dark-mode user
+    // doesn't end up with a permanently cream title bar stapled to
+    // a cocoa-brown app body.  Electron doesn't repaint
+    // titleBarOverlay when the user toggles the in-app theme
+    // (the renderer only re-themes the HTML, not the native
+    // overlay), so this only picks the boot-time colour — a user
+    // who flips themes after startup still sees a title bar in
+    // the old colour until next launch.  Acceptable tradeoff.
+    const dark = nativeTheme.shouldUseDarkColors;
     return {
       titleBarStyle: 'hidden',
       titleBarOverlay: {
-        color: '#fbf8ef',        // matches --mantle in styles.css
-        symbolColor: '#1e1a0e',  // matches --text
-        height: 44,              // matches --titlebar-h
+        color: dark ? '#28221a' : '#fbf8ef',        // matches --mantle for each theme
+        symbolColor: dark ? '#fbf5e6' : '#1e1a0e',  // matches --text for each theme
+        height: 44,                                  // matches --titlebar-h
       },
     };
   }
@@ -168,6 +178,19 @@ function createWindow() {
     minHeight: WINDOW_DEFAULTS.minHeight,
     title: 'WhisperFlow Studio',
     icon: path.join(ELECTRON_APP_ROOT, 'assets', 'icon.png'),
+    // Set the Electron-level window background so the first frame
+    // drawn before our HTML loads matches the app theme instead of
+    // the OS default white/black.  We can't read the renderer's
+    // `localStorage.theme` from main, so fall back to the OS's
+    // reported dark-mode preference via `nativeTheme.shouldUseDarkColors`
+    // — matches the renderer's own first-run default in
+    // `theme-boot.js` when no saved preference exists.  Users who
+    // override to the opposite theme via the in-app toggle will get
+    // a brief cream (or cocoa) flash on the very first paint after
+    // that override, but the 99% common case — light-mode user on a
+    // light-mode OS, or dark-mode user on a dark-mode OS — boots
+    // without any visible flash.
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#28221a' : '#fbf8ef',
     ...getPlatformWindowOptions(),
     webPreferences: {
       preload: path.join(__dirname, '..', '..', 'preload', 'preload.js'),
