@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, nativeImage, dialog } = require('electron');
+const { app, BrowserWindow, nativeImage, dialog, ipcMain } = require('electron');
 
 app.name = 'WhisperFlow Studio';
 const path = require('path');
@@ -241,6 +241,24 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
+
+  // ── Windows titleBarOverlay dim toggle (modal backdrop) ──────────
+  // When a modal overlay opens in the renderer, the native min/max/close
+  // buttons painted by titleBarOverlay remain bright while everything
+  // else darkens — visually jarring.  The renderer sends an IPC to
+  // toggle the overlay to a dark-tinted colour so the native buttons
+  // dim together with the rest of the window.
+  if (process.platform === 'win32') {
+    ipcMain.on('titlebar:set-dim', (_event, dim) => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      try {
+        mainWindow.setTitleBarOverlay(dim
+          ? { color: '#1a1610', symbolColor: '#a09080' }
+          : { color: '#fbf8ef', symbolColor: '#1e1a0e' }
+        );
+      } catch (_) { /* setTitleBarOverlay not supported on this OS version */ }
+    });
+  }
 
   // Debounce save to avoid excessive writes during resize drag
   let _saveTimer = null;
