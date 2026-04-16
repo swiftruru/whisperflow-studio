@@ -27,7 +27,8 @@ const historyDetails = document.getElementById('download-history');
 const historyList = document.getElementById('download-history-list');
 const clearHistoryBtn = document.getElementById('btn-download-clear-history');
 
-let _prevStatus = null;
+let _prevCurrentId = null;
+let _prevCurrentStatus = null;
 
 function formatBytes(bytes) {
   if (!bytes || bytes <= 0) return '0 B';
@@ -76,19 +77,6 @@ function renderCurrent(dl) {
     : t('downloads:current.etaCalculating');
 
   cancelBtn.hidden = false;
-
-  // Fire-and-forget toasts + model-list refresh on status transitions.
-  if (_prevStatus !== dl.status) {
-    if (dl.status === 'completed' && _prevStatus === 'running') {
-      showToast(t('downloads:toast.completed', { name: dl.name }), 'success', 3500);
-      refreshModelManager().catch(() => {});
-    } else if (dl.status === 'failed' && _prevStatus === 'running') {
-      showToast(t('downloads:toast.failed', { name: dl.name, error: dl.errorMessage || '' }), 'error', 5000);
-    } else if (dl.status === 'cancelled' && _prevStatus === 'running') {
-      showToast(t('downloads:toast.cancelled', { name: dl.name }), 'info', 3000);
-    }
-    _prevStatus = dl.status;
-  }
 }
 
 function renderHistory(history) {
@@ -138,8 +126,53 @@ function renderHistory(history) {
   }
 }
 
+function _detectTransitions(state) {
+  // Find the download that was previously "current" (running) — it may
+  // now be in history (completed/failed/cancelled) or still running.
+  const allDownloads = state.downloads || [];
+  const tracked = _prevCurrentId
+    ? allDownloads.find((d) => d.id === _prevCurrentId)
+    : null;
+  const newCurrent = state.current;
+
+  // Track the new current if it just appeared.
+  if (newCurrent && newCurrent.id !== _prevCurrentId) {
+    _prevCurrentId = newCurrent.id;
+    _prevCurrentStatus = newCurrent.status;
+    return;
+  }
+
+  // If the tracked download changed status, fire toasts + refresh.
+  if (tracked && tracked.status !== _prevCurrentStatus) {
+    const prevSt = _prevCurrentStatus;
+    _prevCurrentStatus = tracked.status;
+
+    if (tracked.status === 'completed' && prevSt === 'running') {
+      showToast(t('downloads:toast.completed', { name: tracked.name }), 'success', 3500);
+      refreshModelManager().catch(() => {});
+    } else if (tracked.status === 'failed' && prevSt === 'running') {
+      showToast(t('downloads:toast.failed', { name: tracked.name, error: tracked.errorMessage || '' }), 'error', 5000);
+    } else if (tracked.status === 'cancelled' && prevSt === 'running') {
+      showToast(t('downloads:toast.cancelled', { name: tracked.name }), 'info', 3000);
+    }
+  }
+
+  // Update tracking for current.
+  if (newCurrent) {
+    _prevCurrentId = newCurrent.id;
+    _prevCurrentStatus = newCurrent.status;
+  }
+}
+
 function render(state) {
   if (!panel) return;
+
+  // Detect status transitions BEFORE any early return — when a
+  // download completes, `current` becomes null (completed items move
+  // to `history`), so renderCurrent() would skip the transition check
+  // entirely if we put it there.  We track by looking at the latest
+  // download entry that was previously the "current" one.
+  _detectTransitions(state);
 
   const hasAnything = state.stats.total > 0;
   panel.hidden = !hasAnything;
