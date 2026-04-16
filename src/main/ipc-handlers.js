@@ -411,10 +411,14 @@ function registerHandlers(
             mainWindow.webContents.send('run:model-missing', { model: modelName });
           }
           sendLog(`[WhisperFlow] Model "${modelName}" is not downloaded. Please download it from the Models tab first.\n`);
-          // Code -4 = "model missing, already handled by dialog" — the
-          // renderer's onRunDone handler must recognise this and NOT
-          // show a duplicate "transcription failed" notification.
-          sendDone(-4);
+          // Do NOT send run:done here — the renderer's run:model-missing
+          // handler calls setRunning(false) + syncActionState() itself,
+          // and auto-loop naturally stops because onRunDone never fires.
+          // Sending run:done(-4) caused a race: if a prior scan's
+          // run:done(0) was still queued when the user clicked Run, the
+          // stale lastAction='scan' could flip to 'cli' before the
+          // scan's done-event arrived, making onRunDone think a CLI
+          // transcription succeeded → false "轉錄完成" notification.
           return;
         }
       }

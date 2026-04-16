@@ -273,14 +273,6 @@ window.electronAPI.onModelMissing?.(async ({ model }) => {
 
 window.electronAPI.onRunDone(async (code) => {
   setRunning(false);
-
-  // -4 = model missing, already handled by the run:model-missing
-  // dialog.  Don't show any additional toast / notification / error.
-  if (code === -4) {
-    syncActionState();
-    return;
-  }
-
   if (code !== 0 && code !== -2 && code !== -3) {
     setStatus('Error');
   }
