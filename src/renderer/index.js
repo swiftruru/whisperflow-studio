@@ -54,42 +54,6 @@ function initTheme() {
   });
 }
 
-// ── Windows titlebar overlay dimmer ──────────────────────────────────────────
-// On Windows, modal overlays darken the web content but leave the native
-// min/max/close buttons bright — visually jarring.  We watch for any
-// .modal-overlay or dynamically-created modal becoming visible and tell
-// the main process to tint the native titlebar overlay to match.
-function initModalOverlayDimmer() {
-  if (!window.electronAPI?.setTitleBarOverlayDim) return;
-
-  function isAnyModalVisible() {
-    // Static overlays use `hidden` attribute; dynamic ones (confirmDialog)
-    // are appended/removed from the DOM.
-    const statics = document.querySelectorAll('.modal-overlay:not([hidden])');
-    return statics.length > 0;
-  }
-
-  let wasDim = false;
-  function sync() {
-    const dim = isAnyModalVisible();
-    if (dim !== wasDim) {
-      wasDim = dim;
-      window.electronAPI.setTitleBarOverlayDim(dim);
-    }
-  }
-
-  // Observe the entire body for child-list + attribute changes so we
-  // catch both static overlays toggling `hidden` and dynamic ones being
-  // appended / removed by confirmDialog / error-dialog / etc.
-  const observer = new MutationObserver(sync);
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-    attributeFilter: ['hidden', 'aria-hidden'],
-  });
-}
-
 // ── Tab switching ─────────────────────────────────────────────────────────────
 function initTabs() {
   const tabBtns = document.querySelectorAll('.tab-btn');
@@ -310,7 +274,6 @@ async function init() {
   initLanguageToggle();
 
   initTheme();
-  initModalOverlayDimmer();
   initTabs();
   initBrowseDir();
   initDragDrop();
