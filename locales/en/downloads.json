@@ -39,7 +39,8 @@
     "completed": "{{name}} download complete",
     "failed": "{{name}} download failed: {{error}}",
     "cancelled": "Cancelled {{name}} download",
-    "alreadyRunning": "Another model is already downloading — please wait for it to finish"
+    "alreadyRunning": "Another model is already downloading — please wait for it to finish",
+    "modelNotDownloaded": "Model \"{{model}}\" is not downloaded. Please download it from the Models tab first."
   },
   "error": {
     "network": "Network connection failed. Please check your connection and retry.",

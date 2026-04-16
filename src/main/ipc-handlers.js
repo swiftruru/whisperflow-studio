@@ -17,6 +17,7 @@ const { initializeBundledVenv, isVenvInitialized } = require('./venv-installer')
 const { detectAvailableManagers, installPackage, cancelActiveInstall } = require('./package-manager');
 const { refreshSystemPathFromRegistry } = require('./env-path');
 const { ERROR_CODES, createAppError, normalizeUnknownError, toAppError } = require('./error-catalog');
+const { t } = require('./i18n');
 
 let activeQueueManager = null;
 let beforeQuitPersistenceHookRegistered = false;
@@ -410,7 +411,7 @@ function registerHandlers(
           if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('run:model-missing', { model: modelName });
           }
-          sendLog(`[WhisperFlow] Model "${modelName}" is not downloaded. Please download it from the Models tab first.\n`);
+          sendLog(`[WhisperFlow] ${t('downloads:toast.modelNotDownloaded', { model: modelName })}\n`);
           // Do NOT send run:done here — the renderer's run:model-missing
           // handler calls setRunning(false) + syncActionState() itself,
           // and auto-loop naturally stops because onRunDone never fires.

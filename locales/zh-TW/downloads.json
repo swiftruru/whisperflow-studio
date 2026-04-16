@@ -39,7 +39,8 @@
     "completed": "{{name}} 下載完成",
     "failed": "{{name}} 下載失敗：{{error}}",
     "cancelled": "已取消 {{name}} 的下載",
-    "alreadyRunning": "已有模型正在下載中，請等待完成後再試"
+    "alreadyRunning": "已有模型正在下載中，請等待完成後再試",
+    "modelNotDownloaded": "模型「{{model}}」尚未下載，請先到「模型」分頁下載後再開始轉錄。"
   },
   "error": {
     "network": "網路連線失敗，請檢查網路後重試。",
