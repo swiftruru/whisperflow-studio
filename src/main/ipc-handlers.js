@@ -358,6 +358,78 @@ function registerHandlers(
       return;
     }
 
+    // Model-exists gate — MUST run before startNextJob() so every
+    // code path is covered (button click, auto-loop, queue retry,
+    // skip-and-continue).  If the configured model isn't fully
+    // downloaded, block the run and tell the renderer to show the
+    // "go to Models tab" dialog.  This is the main-process
+    // counterpart of the renderer-side guard; it's authoritative
+    // because it reads config.json + the actual models directory
+    // directly, not the DOM form or an IPC result that might fail.
+    try {
+      const config = readConfig(path.join(pythonDir, 'config', 'config.json'));
+      const modelName = config?.SETTING?.model?.trim();
+      if (modelName) {
+        const { ModelManager } = (() => {
+          // Lightweight check: walk the managed models directory
+          // for the required files — doesn't import Python, just
+          // reads the filesystem.
+          const modelsDir = config?.SETTING?.models_dir?.trim();
+          const _REQUIRED_METADATA = ['config.json', 'tokenizer.json', 'vocabulary.txt'];
+          const _WEIGHT_CANDIDATES = ['model.bin', 'model.safetensors'];
+          const fs = require('fs');
+
+          function isModelDownloaded(name) {
+            // Map short name to the on-disk directory name that
+            // huggingface_hub / our ModelManager uses.
+            const dirName = `models--Systran--faster-whisper-${name}`;
+            const base = modelsDir || '';
+            if (!base) return false;
+            const dir = path.join(base, dirName);
+            if (!fs.existsSync(dir)) return false;
+            for (const f of _REQUIRED_METADATA) {
+              const p = path.join(dir, f);
+              if (!fs.existsSync(p)) return false;
+              try { if (fs.statSync(p).size === 0) return false; } catch (_) { return false; }
+            }
+            const hasWeight = _WEIGHT_CANDIDATES.some((w) => {
+              const p = path.join(dir, w);
+              try { return fs.existsSync(p) && fs.statSync(p).size > 0; } catch (_) { return false; }
+            });
+            return hasWeight;
+          }
+
+          return { ModelManager: { isDownloaded: isModelDownloaded } };
+        })();
+
+        if (!ModelManager.isDownloaded(modelName)) {
+          // Broadcast a dedicated event so the renderer can show
+          // the "model not downloaded" dialog — same one the
+          // renderer-side guard would have shown, but triggered
+          // from the main process so auto-loop paths can't skip it.
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('run:model-missing', { model: modelName });
+          }
+          sendLog(`[WhisperFlow] Model "${modelName}" is not downloaded. Please download it from the Models tab first.\n`);
+          sendDone(1);
+          return;
+        }
+      }
+    } catch (err) {
+      // If we can't even check, log the reason but DO NOT fall
+      // through silently — block the run and surface the error.
+      sendRunError(createAppError({
+        code: 'MODEL_CHECK_FAILED',
+        titleKey: 'errors:MODEL_CHECK_FAILED.title',
+        messageKey: 'errors:MODEL_CHECK_FAILED.message',
+        message: err.message,
+        suggestedAction: 'dismiss-error',
+        source: 'run',
+      }));
+      sendDone(1);
+      return;
+    }
+
     const job = queueManager.startNextJob();
     if (!job) {
       sendLog('[WhisperFlow] No queued media files are ready for transcription.\n');

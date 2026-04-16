@@ -70,5 +70,9 @@
     "retryScanBlocked": "目前無法重新掃描，請先確認媒體資料夾設定。",
     "openFolderMissing": "找不到可開啟的資料夾或檔案路徑。",
     "actionHandlerFailed": "執行錯誤處理動作時發生未預期錯誤。"
+  },
+  "MODEL_CHECK_FAILED": {
+    "title": "無法檢查模型狀態",
+    "message": "無法確認目前選擇的模型是否已下載。請先確認 Python 虛擬環境已建立，或手動到「模型」頁面檢查。"
   }
 }

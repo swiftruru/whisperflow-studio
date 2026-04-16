@@ -70,5 +70,9 @@
     "retryScanBlocked": "Cannot re-scan now — check the media folder setting.",
     "openFolderMissing": "No folder or file path available to open.",
     "actionHandlerFailed": "An unexpected error occurred while handling this action."
+  },
+  "MODEL_CHECK_FAILED": {
+    "title": "Cannot check model status",
+    "message": "Could not verify whether the selected model is downloaded. Please make sure the Python virtual environment is set up, or check the Models tab manually."
   }
 }

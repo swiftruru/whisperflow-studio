@@ -286,6 +286,26 @@ subscribeQueueState((state) => {
   maybeScrollProgressCardIntoView(state);
 });
 
+// Main-process model-missing gate — fires when run:cli detects the
+// configured model isn't downloaded.  This catches ALL code paths
+// (button click, auto-loop, retry) because the check lives in the
+// main-process run:cli handler, not here in the renderer.
+window.electronAPI.onModelMissing?.(async ({ model }) => {
+  setRunning(false);
+  const goToModels = await confirmDialog({
+    title: t('controls:guard.modelMissingTitle', { model }),
+    message: t('controls:guard.modelMissingMessage', { model }),
+    confirmText: t('controls:guard.modelMissingConfirm'),
+    cancelText: t('controls:guard.modelMissingCancel'),
+  });
+  if (goToModels) {
+    const modelsTabBtn = document.querySelector('[data-tab="models"]');
+    modelsTabBtn?.click();
+    showToast(t('controls:guard.modelMissingGuide', { model }), 'info', 5000);
+  }
+  syncActionState();
+});
+
 window.electronAPI.onRunDone(async (code) => {
   setRunning(false);
   if (code !== 0 && code !== -2 && code !== -3) {
