@@ -232,6 +232,7 @@ function registerHandlers(
   ipcMain.handle('queue:retry-job', (_event, jobId) => queueManager.retryJob(jobId));
   ipcMain.handle('queue:remove-job', (_event, jobId) => queueManager.removeJob(jobId));
   ipcMain.handle('queue:move-job', (_event, jobId, direction) => queueManager.moveJob(jobId, direction));
+  ipcMain.handle('queue:add-files', (_event, filePaths) => queueManager.addFiles(filePaths));
 
   // ── Transcription History ─────────────────────────────────────────────────
   const HISTORY_PATH = path.join(app.getPath('userData'), 'history.json');

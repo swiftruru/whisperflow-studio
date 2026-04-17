@@ -1,6 +1,9 @@
 {
   "shortcuts": {
     "title": "Keyboard Shortcuts",
+    "runTranscription": "Run transcription",
+    "scanFiles": "Scan for missing subtitles",
+    "stopBatch": "Stop batch",
     "saveSettings": "Save settings (Settings tab)",
     "clearConsole": "Clear Console",
     "searchConsole": "Search Console",

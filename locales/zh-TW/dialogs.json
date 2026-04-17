@@ -1,6 +1,9 @@
 {
   "shortcuts": {
     "title": "鍵盤快捷鍵",
+    "runTranscription": "開始轉錄",
+    "scanFiles": "掃描缺字幕檔案",
+    "stopBatch": "停止批次",
     "saveSettings": "儲存設定（Settings tab）",
     "clearConsole": "清除 Console",
     "searchConsole": "搜尋 Console",

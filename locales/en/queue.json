@@ -22,12 +22,19 @@
     "remainingBadge": "{{count}} remaining",
     "revealInFinder": "Show in folder"
   },
+  "actions": {
+    "showInFolder": "Show in folder"
+  },
   "panel": {
     "label": "Queue",
     "searchPlaceholder": "Search filename or path…",
     "emptyPending": "No pending transcription jobs in the queue",
     "retryFailed": "Retry Failed",
     "clearFinished": "Clear Finished"
+  },
+  "toast": {
+    "filesAdded": "Added {{count}} file(s) to queue",
+    "filesNoneAdded": "No new files to add (already queued or have subtitles)"
   },
   "filters": {
     "all": "All",

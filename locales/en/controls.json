@@ -58,9 +58,13 @@
     "stoppedCurrent": "Current batch stopped",
     "transcriptionFailed": "Transcription failed"
   },
+  "batchSummary": {
+    "console": "✔ Batch complete: {{done}} done, {{failed}} failed, {{skipped}} skipped ({{total}} total) — {{elapsed}}"
+  },
   "notify": {
     "title": "WhisperFlow Studio",
     "allFilesDone": "All files transcribed!",
+    "batchComplete": "Batch done: {{done}} completed, {{failed}} failed — {{elapsed}}",
     "transcribeSuccess": "Transcription complete — subtitles generated.",
     "transcribeFailed": "Transcription failed — check the Console for details."
   }

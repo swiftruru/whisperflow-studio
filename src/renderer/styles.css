@@ -1452,6 +1452,19 @@ html:not([data-theme="light"]) .btn-primary:hover:not(:disabled) {
   color: var(--subtext0);
 }
 
+.history-folder-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+.history-folder-btn:hover { opacity: 1; }
+
 /* ── Settings Tab ────────────────────────────────────────────────────────────── */
 #tab-settings { overflow: hidden; }
 
@@ -3407,6 +3420,13 @@ kbd {
 
 .onboarding-root[aria-hidden="false"] .onboarding-backdrop {
   background: rgba(0, 0, 0, 0.55);
+}
+
+/* When a spotlight target is active, hide the backdrop so only the
+   spotlight's box-shadow provides the darkening — otherwise the
+   highlighted element also appears dimmed. */
+.onboarding-root[aria-hidden="false"] .onboarding-backdrop.has-spotlight {
+  background: transparent;
 }
 
 /* The spotlight trick: a fixed-positioned element sits at the target's

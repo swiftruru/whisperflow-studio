@@ -487,6 +487,81 @@ function createQueueManager({
     return buildSnapshot();
   }
 
+  function addFiles(filePaths) {
+    if (!Array.isArray(filePaths) || filePaths.length === 0) {
+      return { added: 0, snapshot: buildSnapshot() };
+    }
+
+    const existingPaths = new Set(state.jobs.map((job) => job.filePath));
+    const added = [];
+
+    for (const filePath of filePaths) {
+      if (existingPaths.has(filePath)) continue;
+
+      const ext = path.extname(filePath).toLowerCase();
+      if (!supportedMediaExtensions.has(ext)) continue;
+
+      let stat;
+      try {
+        stat = fs.statSync(filePath);
+      } catch (_) {
+        continue;
+      }
+      if (!stat.isFile()) continue;
+
+      const dirPath = path.dirname(filePath);
+      const fileName = path.basename(filePath);
+
+      // Check for existing subtitles
+      let siblingFiles;
+      try {
+        siblingFiles = fs.readdirSync(dirPath);
+      } catch (_) {
+        siblingFiles = [];
+      }
+      if (hasSubtitleForMedia(fileName, siblingFiles, subtitleExtensions)) continue;
+
+      const job = {
+        id: `job_${nextJobId++}`,
+        fileName,
+        dirPath,
+        filePath,
+        status: 'pending',
+        stage: 'idle',
+        progress: 0,
+        error: null,
+        stageMessage: '',
+        stageMessageKey: '',
+        stageMessageParams: null,
+        startedAt: null,
+        finishedAt: null,
+        elapsedSeconds: null,
+        etaSeconds: null,
+        progressSource: null,
+      };
+
+      added.push(job);
+      existingPaths.add(filePath);
+    }
+
+    if (added.length === 0) {
+      return { added: 0, snapshot: buildSnapshot() };
+    }
+
+    state.jobs.push(...added);
+
+    if (!state.currentJobId) {
+      setNextCurrentJob();
+    }
+    if (state.stage === 'idle' || state.stage === 'completed') {
+      state.stage = 'ready';
+    }
+
+    syncActiveConfig();
+    emitState();
+    return { added: added.length, snapshot: buildSnapshot() };
+  }
+
   function startNextJob() {
     if (state.jobs.some((item) => item.status === 'paused')) {
       return null;
@@ -934,6 +1009,7 @@ function createQueueManager({
   restorePersistedState();
 
   return {
+    addFiles,
     clearFinishedJobs,
     finishCurrentJob,
     flushState,

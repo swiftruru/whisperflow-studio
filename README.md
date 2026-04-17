@@ -109,6 +109,10 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 - **Single-item queue controls** — retry, remove, move items up/down directly from the queue list
 - **Queue persistence** — queue state is restored after app restart so pending/skipped/failed work is not lost
 - **Pause / Resume / Skip Current / Stop Batch** — control the current queued transcription without losing the rest of the queue
+- **Batch completion summary** — when a batch finishes, a green summary line is written to the Console with done / failed / skipped counts and total elapsed time; the Progress card headline updates with the same statistics
+- **Enhanced system notifications** — OS notifications on batch completion include done/failed counts and total elapsed time
+- **Output file quick access** — completed queue items and history rows show a "Show in folder" button to reveal the output in the system file manager
+- **Drag-and-drop files** — drop individual media files onto the directory card to add them directly to the queue (skips duplicates and files with existing subtitles)
 - **Transcription history** — last 10 transcribed files (✓ / ✗) persisted across sessions
 - **Recent directories** — last 5 used directories shown below the directory card for one-click re-selection
 - **Toast notifications** — success / info / error feedback for every action
@@ -142,7 +146,7 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 
 ### Internationalization (zh-TW / en)
 
-- **Production-grade i18n architecture** — built on [i18next](https://www.i18next.com/) with 17 feature namespaces (`common`, `sidebar`, `preflight`, `settings`, `queue`, `progress`, `models`, `console`, `controls`, `dialogs`, `errors`, `events`, `toasts`, `about`, `help`, `updater`, `downloads`). ~602 keys per locale.
+- **Production-grade i18n architecture** — built on [i18next](https://www.i18next.com/) with 17 feature namespaces (`common`, `sidebar`, `preflight`, `settings`, `queue`, `progress`, `models`, `console`, `controls`, `dialogs`, `errors`, `events`, `toasts`, `about`, `help`, `updater`, `downloads`). ~608 keys per locale.
 - **Titlebar language toggle** — one-click flip between Traditional Chinese and English; all static HTML, dynamic components, Python runner events, and Electron native dialogs switch live without restart
 - **Auto-detect on first launch** — reads `app.getLocale()` and picks `zh-TW` for any Chinese system, `en` for English, with `zh-TW` as the fallback
 - **Key-based main→renderer contract** — `createAppError` / `createPreflightCheck` / Python `[WhisperFlowEvent]` all carry `messageKey` + `messageParams` instead of raw strings, so the renderer can localize at display time and switching language updates already-visible error banners / preflight checks
@@ -153,6 +157,9 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 ### Keyboard shortcuts
 | Shortcut | Action |
 |----------|--------|
+| `Cmd+R` | Run transcription |
+| `Cmd+Shift+S` | Scan for missing subtitles |
+| `Cmd+.` | Stop batch |
 | `Cmd+S` | Save settings (Settings tab active) |
 | `Cmd+K` | Clear console |
 | `Cmd+F` | Open console search |
@@ -374,7 +381,8 @@ Tracked metadata for non-user-editable app constants shared across Electron and 
 ### Selecting a media directory
 
 - **Browse** — click the Browse button to open a folder picker
-- **Drag and drop** — drag a folder (or any file inside it) onto the directory card
+- **Drag and drop a folder** — drag a folder onto the directory card to set it as the media root
+- **Drag and drop files** — drag individual media files onto the directory card to add them directly to the transcription queue (supported formats are validated, duplicates and files with existing subtitles are skipped)
 
 ### Model management
 

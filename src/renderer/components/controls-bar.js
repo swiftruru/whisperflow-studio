@@ -1,7 +1,7 @@
 'use strict';
 
 import { saveSettings, collectFormValues, renderSettings } from './settings-panel.js';
-import { setStatus } from './console-log.js';
+import { appendLog, setStatus } from './console-log.js';
 import { showToast } from './toast.js';
 import { addHistoryEntry } from './history.js';
 import { getPreflightState, refreshPreflight, subscribePreflight } from './preflight-panel.js';
@@ -271,6 +271,23 @@ window.electronAPI.onModelMissing?.(async ({ model }) => {
   syncActionState();
 });
 
+function formatElapsed(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return '--:--';
+  const s = Math.round(seconds);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+}
+
+function logBatchSummary() {
+  const qs = getQueueState();
+  const { done, failed, skipped, total } = qs.stats;
+  const elapsed = formatElapsed(qs.batchElapsedSeconds);
+  appendLog(t('controls:batchSummary.console', { done, failed, skipped, total, elapsed }));
+}
+
 window.electronAPI.onRunDone(async (code) => {
   setRunning(false);
   if (code !== 0 && code !== -2 && code !== -3) {
@@ -297,10 +314,16 @@ window.electronAPI.onRunDone(async (code) => {
       }
     } else {
       if (chkLoop.checked) {
+        logBatchSummary();
         showToast(t('controls:toast.loopCompleteAllDone'), 'success');
+        const qs = getQueueState();
         window.electronAPI.notify({
           title: t('controls:notify.title'),
-          body: t('controls:notify.allFilesDone'),
+          body: t('controls:notify.batchComplete', {
+            done: qs.stats.done,
+            failed: qs.stats.failed,
+            elapsed: formatElapsed(qs.batchElapsedSeconds),
+          }),
         });
       } else {
         showToast(t('controls:toast.scanNoMissing'), 'info');
@@ -339,7 +362,10 @@ window.electronAPI.onRunDone(async (code) => {
         setRunning(true);
         window.electronAPI.runCli();
       } else if (chkLoop.checked) {
+        logBatchSummary();
         showToast(t('controls:toast.loopQueueDone'), 'success');
+      } else if (queueState.stats.pending === 0) {
+        logBatchSummary();
       }
     } else if (code === -3) {
       showToast(t('controls:toast.skippedCurrent'), 'info');

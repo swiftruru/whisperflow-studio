@@ -22,12 +22,19 @@
     "remainingBadge": "剩餘 {{count}} 個",
     "revealInFinder": "在資料夾中顯示"
   },
+  "actions": {
+    "showInFolder": "在資料夾中顯示"
+  },
   "panel": {
     "label": "佇列",
     "searchPlaceholder": "搜尋檔名或路徑…",
     "emptyPending": "目前沒有待處理的轉錄佇列",
     "retryFailed": "重試失敗項目",
     "clearFinished": "清除已完成"
+  },
+  "toast": {
+    "filesAdded": "已加入 {{count}} 個檔案到佇列",
+    "filesNoneAdded": "沒有可加入的新檔案（已在佇列中或已有字幕）"
   },
   "filters": {
     "all": "全部",

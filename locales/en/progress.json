@@ -3,7 +3,8 @@
     "label": "Batch Progress",
     "stageIdle": "Idle",
     "noMissing": "No missing subtitles found",
-    "scanSummary": "Scanned {{files}} files in {{dirs}} folders"
+    "scanSummary": "Scanned {{files}} files in {{dirs}} folders",
+    "allProcessed": "All done — {{done}} completed, {{failed}} failed, {{skipped}} skipped · {{elapsed}}"
   },
   "stage": {
     "idle": "Idle",

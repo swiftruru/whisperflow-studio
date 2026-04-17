@@ -295,7 +295,13 @@ function renderProgress(state) {
       : getJobStageLabel(state.currentJob);
     progressHeadline.textContent = `${currentLabel} · File ${fileCounter} · ${state.currentJob.fileName}`;
   } else if (processedCount === state.stats.total) {
-    progressHeadline.textContent = 'All queued files processed';
+    const batchTime = state.batchElapsedSeconds != null ? formatDuration(state.batchElapsedSeconds) : null;
+    progressHeadline.textContent = t('progress:batchCard.allProcessed', {
+      done: state.stats.done,
+      failed: state.stats.failed,
+      skipped: state.stats.skipped,
+      elapsed: batchTime || '--:--',
+    });
   } else {
     progressHeadline.textContent = 'Queue ready';
   }
@@ -455,6 +461,18 @@ function renderQueueList(state, viewState) {
         handleRemoveJob(job.id);
       });
       actions.appendChild(removeButton);
+    }
+
+    if (job.status === 'done') {
+      const openFolderButton = document.createElement('button');
+      openFolderButton.className = 'queue-item-action-btn';
+      openFolderButton.type = 'button';
+      openFolderButton.textContent = t('queue:actions.showInFolder');
+      openFolderButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        window.electronAPI.showInFolder(job.filePath);
+      });
+      actions.appendChild(openFolderButton);
     }
 
     if (canMoveJob(job)) {

@@ -77,6 +77,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   retryQueueJob:    (jobId)     => ipcRenderer.invoke('queue:retry-job', jobId),
   removeQueueJob:   (jobId)     => ipcRenderer.invoke('queue:remove-job', jobId),
   moveQueueJob:     (jobId, direction) => ipcRenderer.invoke('queue:move-job', jobId, direction),
+  addQueueFiles:    (filePaths)       => ipcRenderer.invoke('queue:add-files', filePaths),
 
   // ── File System Dialogs ───────────────────────────────────────────────────
   browseFolder:    ()           => ipcRenderer.invoke('fs:browse-folder'),

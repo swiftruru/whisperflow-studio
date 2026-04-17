@@ -90,6 +90,20 @@ function renderHistory(entries) {
     info.appendChild(time);
     row.appendChild(icon);
     row.appendChild(info);
+
+    if (entry.filePath) {
+      const folderBtn = document.createElement('button');
+      folderBtn.className = 'history-folder-btn';
+      folderBtn.type = 'button';
+      folderBtn.title = t('queue:actions.showInFolder');
+      folderBtn.textContent = '📂';
+      folderBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.electronAPI.showInFolder(entry.filePath);
+      });
+      row.appendChild(folderBtn);
+    }
+
     list.appendChild(row);
   });
 }

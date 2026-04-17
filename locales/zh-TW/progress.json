@@ -3,7 +3,8 @@
     "label": "批次進度",
     "stageIdle": "待機",
     "noMissing": "找不到缺字幕的檔案",
-    "scanSummary": "已掃描 {{files}} 個檔案、{{dirs}} 個資料夾"
+    "scanSummary": "已掃描 {{files}} 個檔案、{{dirs}} 個資料夾",
+    "allProcessed": "全部完成 — {{done}} 完成、{{failed}} 失敗、{{skipped}} 略過 · {{elapsed}}"
   },
   "stage": {
     "idle": "待機",

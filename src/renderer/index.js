@@ -1,5 +1,6 @@
 import { renderSettings } from './components/settings-panel.js';
 import { openSearch } from './components/console-log.js';
+import { triggerRun, triggerScan } from './components/controls-bar.js';
 import { initProfileSwitcher } from './components/profile-switcher.js';
 import { initHistory } from './components/history.js';
 import { initPreflightPanel, refreshPreflight } from './components/preflight-panel.js';
@@ -20,6 +21,8 @@ import { initModelManager } from './components/model-manager.js';
 import { initDownloadState } from './components/download-state.js';
 import { initDownloadPanel } from './components/download-panel.js';
 import { initDownloadIndicator } from './components/download-indicator.js';
+import { showToast } from './components/toast.js';
+import { t } from './lib/i18n.js';
 import './components/controls-bar.js';
 
 // ── Theme toggle ──────────────────────────────────────────────────────────────
@@ -199,20 +202,29 @@ function initDragDrop() {
     const files = e.dataTransfer.files;
     if (!files || files.length === 0) return;
 
-    // Electron 32+: webUtils.getPathForFile() replaces the deprecated file.path
-    const droppedPath = window.electronAPI.getPathForFile(files[0]);
-    if (!droppedPath) return;
-
-    // Check if the dropped item is a directory via webkitGetAsEntry
-    const entry = items[0]?.webkitGetAsEntry?.();
-    if (entry && entry.isDirectory) {
+    // Check if the first dropped item is a directory via webkitGetAsEntry
+    const firstEntry = items[0]?.webkitGetAsEntry?.();
+    if (firstEntry && firstEntry.isDirectory) {
       // Dropped a folder directly → use it as-is
-      await applyDirectory(droppedPath);
+      const droppedPath = window.electronAPI.getPathForFile(files[0]);
+      if (droppedPath) await applyDirectory(droppedPath);
+      return;
+    }
+
+    // Dropped individual files → add them directly to the queue
+    const filePaths = [];
+    for (let i = 0; i < files.length; i++) {
+      const p = window.electronAPI.getPathForFile(files[i]);
+      if (p) filePaths.push(p);
+    }
+
+    if (filePaths.length === 0) return;
+
+    const result = await window.electronAPI.addQueueFiles(filePaths);
+    if (result.added > 0) {
+      showToast(t('queue:toast.filesAdded', { count: result.added }), 'success');
     } else {
-      // Dropped a file → use its containing directory
-      const sep = droppedPath.includes('/') ? '/' : '\\';
-      const parentDir = droppedPath.substring(0, droppedPath.lastIndexOf(sep));
-      await applyDirectory(parentDir || droppedPath);
+      showToast(t('queue:toast.filesNoneAdded'), 'info');
     }
   });
 }
@@ -237,7 +249,7 @@ function initKeyboardShortcuts() {
     const tag = e.target.tagName;
     const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 
-    if (mod && e.key === 's') {
+    if (mod && !e.shiftKey && e.key === 's') {
       e.preventDefault();
       const settingsPane = document.getElementById('tab-settings');
       if (settingsPane.classList.contains('active')) {
@@ -251,6 +263,22 @@ function initKeyboardShortcuts() {
     if (mod && e.key === 'f') {
       e.preventDefault();
       openSearch();
+    }
+    // Run transcription
+    if (mod && e.key === 'r') {
+      e.preventDefault();
+      triggerRun();
+    }
+    // Scan for missing subtitles
+    if (mod && e.shiftKey && e.key === 'S') {
+      e.preventDefault();
+      triggerScan();
+    }
+    // Stop batch
+    if (mod && e.key === '.') {
+      e.preventDefault();
+      const btnStop = document.getElementById('btn-stop');
+      if (btnStop && !btnStop.disabled) btnStop.click();
     }
     if (e.key === '?' && !isTyping && !mod) {
       shortcutsModal.hidden = false;

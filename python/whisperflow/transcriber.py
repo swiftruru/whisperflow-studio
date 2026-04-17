@@ -132,7 +132,8 @@ class Transcriber:
         )
         perf_start = time.perf_counter()
         result = self._run_vad(str(input_path), callback)
-        _log.info("whisper + VAD took %.2fs", time.perf_counter() - perf_start)
+        elapsed = time.perf_counter() - perf_start
+        _log.info("whisper + VAD took %.2fs", elapsed)
 
         self._emitter.stage(
             STAGE_WRITING_SUBTITLE,
@@ -142,6 +143,10 @@ class Transcriber:
         )
         outputs = self._write_outputs(result, input_path)
 
+        _log.info(
+            "\033[1;32m✔ Transcription completed in %.2fs\033[0m",
+            elapsed,
+        )
         self._emitter.completed()
         return outputs
 

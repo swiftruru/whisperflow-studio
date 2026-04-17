@@ -58,9 +58,13 @@
     "stoppedCurrent": "已停止目前批次",
     "transcriptionFailed": "轉錄失敗"
   },
+  "batchSummary": {
+    "console": "✔ 批次完成：{{done}} 完成、{{failed}} 失敗、{{skipped}} 略過（共 {{total}} 個）— {{elapsed}}"
+  },
   "notify": {
     "title": "WhisperFlow Studio",
     "allFilesDone": "所有檔案已轉錄完成！",
+    "batchComplete": "批次完成：{{done}} 完成、{{failed}} 失敗 — {{elapsed}}",
     "transcribeSuccess": "轉錄完成！字幕已生成。",
     "transcribeFailed": "轉錄失敗，請查看 Console 的錯誤訊息。"
   }

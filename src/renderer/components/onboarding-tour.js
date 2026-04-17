@@ -228,6 +228,11 @@ function renderStep() {
   // Resolve target (after reveal so previously-hidden targets work)
   const targetEl = step.target ? document.querySelector(step.target) : null;
 
+  // When a spotlight target is active, hide the backdrop so only the
+  // spotlight's box-shadow provides the darkening — otherwise the
+  // highlighted element also appears dimmed through the backdrop.
+  state.backdrop.classList.toggle('has-spotlight', !!targetEl);
+
   // Build the callout contents from the i18n keys for this step.
   const progressText = step.key === 'welcome'
     ? ''
