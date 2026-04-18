@@ -9,17 +9,91 @@ const { t } = require('./i18n');
 // to rewrite with the user's current UI language before sending them to
 // the Console.  Python itself doesn't know the UI locale, so we do this
 // here in the main process just before forwarding stdout to the renderer.
+//
+// Note: the per-segment "[start -> end] text" lines that Whisper prints
+// while decoding are deliberately NOT on this list — those timestamps
+// and transcript text are user content, not app messages, so we leave
+// them untouched.  Only high-signal status / lifecycle messages are
+// translated here.
 const LOG_REWRITE_PATTERNS = [
   {
     regex: /^✔ Transcription completed in ([\d.]+)s$/,
     translate: (match) => t('events:log.transcriptionCompleted', { seconds: match[1] }),
   },
+  {
+    regex: /^loading faster-whisper model (.+?) \(device=(.+?), compute_type=(.+?)\)$/,
+    translate: (match) => t('events:log.loadingWhisperModel', {
+      model: match[1],
+      device: match[2],
+      compute_type: match[3],
+    }),
+  },
+  {
+    regex: /^silero-vad imported from system torch hub cache$/,
+    translate: () => t('events:log.sileroImportedFromCache'),
+  },
+  {
+    regex: /^silero VAD model loaded$/,
+    translate: () => t('events:log.sileroModelLoaded'),
+  },
+  {
+    regex: /^silero VAD model loaded from cache$/,
+    translate: () => t('events:log.sileroModelLoadedFromCache'),
+  },
+  {
+    regex: /^silero VAD scanning (.+) \(([\d.]+)s -> ([\d.]+)s\)$/,
+    translate: (match) => t('events:log.sileroScanning', {
+      path: match[1],
+      start: match[2],
+      end: match[3],
+    }),
+  },
+  {
+    regex: /^non-speech strategy (.+) produced (\d+) segments$/,
+    translate: (match) => t('events:log.nonSpeechStrategy', {
+      strategy: match[1],
+      count: match[2],
+    }),
+  },
+  {
+    regex: /^wrote SRT: (.+)$/,
+    translate: (match) => t('events:log.wroteSrt', { path: match[1] }),
+  },
+  {
+    regex: /^whisper \+ VAD took ([\d.]+)s$/,
+    translate: (match) => t('events:log.whisperVadTook', { seconds: match[1] }),
+  },
+  {
+    regex: /^parallel transcription took ([\d.]+)s$/,
+    translate: (match) => t('events:log.parallelTranscriptionTook', { seconds: match[1] }),
+  },
+  {
+    regex: /^worker using CUDA device (.+)$/,
+    translate: (match) => t('events:log.workerCuda', { device: match[1] }),
+  },
+  {
+    regex: /^imported (.+) from system HuggingFace cache$/,
+    translate: (match) => t('events:log.importedFromHfCache', { model: match[1] }),
+  },
+  {
+    regex: /^downloading model (.+) into (.+)$/,
+    translate: (match) => t('events:log.downloadingModel', {
+      model: match[1],
+      dir: match[2],
+    }),
+  },
 ];
 
+// Lines rewritten above are app-origin status messages, not user content
+// (Whisper's per-segment "[HH:MM:SS] text" lines).  Prefix them with
+// `[Python]` so the Console filter + classifyLine can distinguish Python
+// backend logs from main-process `[WhisperFlow]` logs and from transcript
+// text in one glance, and so the user can filter them by level using
+// the same keyword rules the main-process logs already use.
 function rewriteBackendLogLine(line) {
   for (const rule of LOG_REWRITE_PATTERNS) {
     const match = rule.regex.exec(line);
-    if (match) return rule.translate(match);
+    if (match) return `[Python] ${rule.translate(match)}`;
   }
   return line;
 }

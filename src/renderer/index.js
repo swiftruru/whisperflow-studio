@@ -1,6 +1,6 @@
 import { renderSettings, initSettingsSegments } from './components/settings-panel.js';
 import { openSearch } from './components/console-log.js';
-import { triggerRun, triggerScan } from './components/controls-bar.js';
+import { triggerRun, triggerScan, hydrateLatestTranscriptFromHistory } from './components/controls-bar.js';
 import { initProfileSwitcher } from './components/profile-switcher.js';
 import { initHistory } from './components/history.js';
 import { initPreflightPanel, refreshPreflight } from './components/preflight-panel.js';
@@ -29,6 +29,7 @@ import {
   registerShortcutAction,
 } from './lib/shortcuts.js';
 import { initShortcutsPanel } from './components/shortcuts-panel.js';
+import { initTranscriptAutoOpenToggle } from './components/transcript-preview.js';
 import './components/controls-bar.js';
 
 // ── Theme toggle ──────────────────────────────────────────────────────────────
@@ -331,6 +332,7 @@ async function init() {
   initTheme();
   initA11yControls();
   initShortcutsPanel();
+  initTranscriptAutoOpenToggle();
   initTabs();
   initBrowseDir();
   initDragDrop();
@@ -358,6 +360,7 @@ async function init() {
     Promise.resolve().then(() => refreshDirDisplay()),
     Promise.resolve().then(() => initProfileSwitcher()),
     Promise.resolve().then(() => initHistory()),
+    Promise.resolve().then(() => hydrateLatestTranscriptFromHistory()),
   ];
   const results = await Promise.allSettled(startupTasks);
 

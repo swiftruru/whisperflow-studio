@@ -155,7 +155,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ── Transcript preview (Main tab → post-run) ────────────────────────────
   transcript: {
-    read: (opts = {}) => ipcRenderer.invoke('transcript:read', opts),
+    read:   (opts = {}) => ipcRenderer.invoke('transcript:read', opts),
+    exists: (opts = {}) => ipcRenderer.invoke('transcript:exists', opts),
   },
 
   // ── Storage info (Models tab disk usage) ────────────────────────────────

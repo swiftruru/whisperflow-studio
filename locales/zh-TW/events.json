@@ -38,6 +38,18 @@
     "installFailed": "{{package}} 安裝失敗：{{error}}",
     "venvCreating": "建立虛擬環境於 {{path}}",
     "venvUpgradingPip": "升級 pip 中…",
-    "venvInstallingDeps": "從 {{path}} 安裝相依套件中…"
+    "venvInstallingDeps": "從 {{path}} 安裝相依套件中…",
+    "loadingWhisperModel": "載入 faster-whisper 模型 {{model}}（裝置={{device}}，精度={{compute_type}}）",
+    "sileroImportedFromCache": "已從系統 torch hub 快取匯入 silero-vad",
+    "sileroModelLoaded": "已載入 silero VAD 模型",
+    "sileroModelLoadedFromCache": "已從快取載入 silero VAD 模型",
+    "sileroScanning": "silero VAD 掃描 {{path}}（{{start}}s → {{end}}s）",
+    "nonSpeechStrategy": "非語音策略 {{strategy}} 產生 {{count}} 段",
+    "wroteSrt": "已寫入 SRT：{{path}}",
+    "whisperVadTook": "Whisper + VAD 耗時 {{seconds}} 秒",
+    "parallelTranscriptionTook": "平行轉錄耗時 {{seconds}} 秒",
+    "workerCuda": "Worker 使用 CUDA 裝置 {{device}}",
+    "importedFromHfCache": "已從系統 HuggingFace 快取匯入 {{model}}",
+    "downloadingModel": "下載模型 {{model}} 到 {{dir}}"
   }
 }

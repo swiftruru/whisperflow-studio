@@ -15,7 +15,7 @@ const {
 const { readConfigMetadata, getSupportedMediaExtensions } = require('./config-metadata');
 const { listChangelogEntries, readChangelogEntry } = require('./changelog');
 const { collectDiagnostics, formatDiagnosticsAsText } = require('./diagnostics');
-const { readTranscriptForMedia } = require('./transcript-reader');
+const { readTranscriptForMedia, hasTranscriptForMedia } = require('./transcript-reader');
 const { runPreflight, validateSettingField } = require('./preflight-checker');
 const { createQueueManager } = require('./queue-manager');
 const { runScript, stopProcess, pauseProcess, resumeProcess } = require('./python-runner');
@@ -709,10 +709,32 @@ function registerHandlers(
     };
   });
 
+  // Cheap existence check for history rows — avoids rendering a
+  // preview button for a row whose transcript was deleted from disk.
+  ipcMain.handle('transcript:exists', (_event, payload = {}) => {
+    const { mediaPath, outputDir } = payload;
+    return hasTranscriptForMedia(mediaPath, outputDir);
+  });
+
   // ── Transcript preview (Main tab → post-run) ───────────────────
+  // Returns a structured result (never throws through the IPC bridge) so
+  // the renderer can tell "file was deleted" / "parse failed" / "real
+  // crash" apart and show a friendly localized message instead of the
+  // raw `Error invoking remote method 'transcript:read'` prefix that
+  // Electron otherwise splices into thrown errors.
   ipcMain.handle('transcript:read', (_event, payload = {}) => {
     const { mediaPath, outputDir } = payload;
-    return readTranscriptForMedia(mediaPath, outputDir);
+    try {
+      const result = readTranscriptForMedia(mediaPath, outputDir);
+      return { ok: true, segments: result.segments, source: result.source };
+    } catch (error) {
+      const code = error && error.code ? String(error.code) : 'READ_FAILED';
+      return {
+        ok: false,
+        errorCode: code,
+        message: error?.message || String(error),
+      };
+    }
   });
 
   // ── Storage info (Models tab disk usage) ───────────────────────

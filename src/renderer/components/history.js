@@ -1,6 +1,7 @@
 'use strict';
 
 import { t } from '../lib/i18n.js';
+import { openTranscriptPreview } from './transcript-preview.js';
 
 const HISTORY_MAX = 10;
 
@@ -53,7 +54,20 @@ export async function initHistory() {
   });
 }
 
-function renderHistory(entries) {
+const EYE_SVG_MARKUP = `
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </svg>
+`;
+
+const FOLDER_SVG_MARKUP = `
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/>
+  </svg>
+`;
+
+async function renderHistory(entries) {
   const section = document.getElementById('history-section');
   const list    = document.getElementById('history-list');
   if (!section || !list) return;
@@ -66,7 +80,32 @@ function renderHistory(entries) {
   section.hidden = false;
   list.innerHTML = '';
 
-  entries.forEach(entry => {
+  // Resolve output_dir once — all transcript existence checks use it.
+  let outputDir = '';
+  try {
+    const cfg = await window.electronAPI.readConfig();
+    outputDir = cfg?.SETTING?.output_dir || '';
+  } catch (_) { /* best-effort */ }
+
+  // Pre-check which rows still have a transcript on disk, in parallel,
+  // so we can decide whether to render each preview button.  If the
+  // user manually deleted the .srt / .json, we skip the eye icon
+  // instead of showing it and then popping an error modal on click.
+  const existenceChecks = await Promise.all(
+    entries.map(async (entry) => {
+      if (!entry.filePath || !entry.success) return false;
+      try {
+        return await window.electronAPI.transcript.exists({
+          mediaPath: entry.filePath,
+          outputDir,
+        });
+      } catch (_) {
+        return false;
+      }
+    }),
+  );
+
+  entries.forEach((entry, idx) => {
     const row = document.createElement('div');
     row.className = `history-row ${entry.success ? 'ok' : 'fail'}`;
 
@@ -91,12 +130,28 @@ function renderHistory(entries) {
     row.appendChild(icon);
     row.appendChild(info);
 
+    // Preview button — only when the row succeeded AND the transcript
+    // file is still on disk.  Skipping the button when the file is
+    // gone is better UX than popping a "file not found" modal.
+    if (entry.filePath && entry.success && existenceChecks[idx]) {
+      const previewBtn = document.createElement('button');
+      previewBtn.className = 'history-action-btn history-action-preview';
+      previewBtn.type = 'button';
+      previewBtn.title = t('transcript:actions.preview');
+      previewBtn.innerHTML = EYE_SVG_MARKUP;
+      previewBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openTranscriptPreview({ mediaPath: entry.filePath, outputDir });
+      });
+      row.appendChild(previewBtn);
+    }
+
     if (entry.filePath) {
       const folderBtn = document.createElement('button');
-      folderBtn.className = 'history-folder-btn';
+      folderBtn.className = 'history-action-btn history-action-folder';
       folderBtn.type = 'button';
       folderBtn.title = t('queue:actions.showInFolder');
-      folderBtn.textContent = '📂';
+      folderBtn.innerHTML = FOLDER_SVG_MARKUP;
       folderBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         window.electronAPI.showInFolder(entry.filePath);

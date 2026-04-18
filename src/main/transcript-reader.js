@@ -60,6 +60,17 @@ function readFromSrt(filePath) {
   return parseSrt(raw);
 }
 
+// WebVTT is structurally compatible with our SRT parser — both use
+// `HH:MM:SS.sss --> HH:MM:SS.sss\ntext` blocks separated by blank
+// lines.  `parseSrt`'s timestamp regex already accepts either `,` or
+// `.` as the fractional separator, and the leading `WEBVTT` header
+// block is silently dropped because it has no `-->` arrow.  So we
+// reuse the same parser here instead of writing a second one.
+function readFromVtt(filePath) {
+  const raw = fs.readFileSync(filePath, 'utf-8');
+  return parseSrt(raw);
+}
+
 /**
  * Read transcript segments from the file produced for `mediaPath`.
  *
@@ -74,23 +85,48 @@ function readTranscriptForMedia(mediaPath, outputDir) {
 
   const jsonPath = path.join(baseDir, `${baseName}.json`);
   const srtPath = path.join(baseDir, `${baseName}.srt`);
+  const vttPath = path.join(baseDir, `${baseName}.vtt`);
 
+  // Preference order: JSON (richest, per-segment logprob etc.) → SRT →
+  // VTT.  This lets the preview work as long as ANY one of the three
+  // timed-subtitle outputs is enabled in Settings.  If the user turns
+  // off all three, we fall through to the not-found error — at that
+  // point there really is nothing to preview.
   if (fs.existsSync(jsonPath)) {
     try {
       return { segments: readFromJson(jsonPath), source: jsonPath };
-    } catch (_) {
-      // Fall through to SRT
-    }
+    } catch (_) { /* fall through */ }
   }
   if (fs.existsSync(srtPath)) {
     return { segments: readFromSrt(srtPath), source: srtPath };
+  }
+  if (fs.existsSync(vttPath)) {
+    return { segments: readFromVtt(vttPath), source: vttPath };
   }
   const err = new Error(`No transcript found beside ${mediaPath}`);
   err.code = 'TRANSCRIPT_NOT_FOUND';
   throw err;
 }
 
+/**
+ * Cheap existence check — just stat the expected `.json` / `.srt` paths
+ * without actually parsing them.  Used by the renderer on boot to hide
+ * the preview eye button for history rows whose transcript has been
+ * manually deleted from disk.
+ */
+function hasTranscriptForMedia(mediaPath, outputDir) {
+  if (!mediaPath) return false;
+  const baseDir = outputDir && outputDir.trim() ? outputDir : path.dirname(mediaPath);
+  const baseName = path.basename(mediaPath, path.extname(mediaPath));
+  // Mirror readTranscriptForMedia's preference order — preview is
+  // supported as long as any one of json / srt / vtt is on disk.
+  return fs.existsSync(path.join(baseDir, `${baseName}.json`))
+    || fs.existsSync(path.join(baseDir, `${baseName}.srt`))
+    || fs.existsSync(path.join(baseDir, `${baseName}.vtt`));
+}
+
 module.exports = {
   parseSrt,
   readTranscriptForMedia,
+  hasTranscriptForMedia,
 };

@@ -2,12 +2,17 @@
   "card": {
     "title": "Transcript preview"
   },
+  "modal": {
+    "title": "Transcript preview"
+  },
   "searchPlaceholder": "Search transcript…",
   "actions": {
     "copyAll": "Copy all",
     "copySegment": "Copy segment",
     "reveal": "Reveal in folder",
-    "close": "Close preview"
+    "close": "Close preview",
+    "preview": "View preview",
+    "viewLatest": "View latest transcript"
   },
   "stats": {
     "segments": "{{count}} segments",
@@ -20,11 +25,17 @@
   "empty": {
     "loading": "Loading transcript…",
     "noFile": "No transcript file found — maybe it hasn't been written yet.",
-    "loadFailed": "Failed to read transcript: {{error}}"
+    "notFound": "Transcript file not found. It may have been deleted or moved. Re-run the transcription on the Main tab to regenerate it.",
+    "loadFailed": "Couldn't read the transcript: {{error}}",
+    "genericError": "unknown error"
   },
   "toast": {
     "copiedAll": "Transcript copied to clipboard",
     "copiedSegment": "Segment copied",
     "copyFailed": "Copy failed: {{error}}"
+  },
+  "autoOpen": {
+    "label": "Auto-open preview after transcription",
+    "description": "Enable to automatically pop up the full-screen preview when each file finishes. Leave off for large batch runs."
   }
 }

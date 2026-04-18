@@ -14,10 +14,22 @@ let _currentStatusKey = null;
 
 function classifyLine(text) {
   const lower = text.toLowerCase();
-  if (/error|traceback|exception/.test(lower)) return 'error';
-  if (/warning|warn/.test(lower))              return 'warn';
-  if (/done|success|✓|complete|subtitles? (generated|created)/.test(lower)) return 'ok';
-  if (/\[whisperflow\]/.test(lower))           return 'info';
+  if (/error|traceback|exception|失敗|錯誤/.test(lower)) return 'error';
+  if (/warning|warn|警告/.test(lower))          return 'warn';
+  // Match "done / success / complete" + the two check-mark glyphs we
+  // emit (✓ U+2713, ✔ U+2714 — the Python backend uses the heavier
+  // ✔ for its "Transcription completed" line, which used to fall
+  // through to the neutral colour because only ✓ was in this regex).
+  // Chinese keywords cover the localized completion + subtitle-
+  // generated messages so green highlighting works in both locales.
+  if (/done|success|✓|✔|complete|subtitles? (generated|created)|完成|成功|已產生|已停止|已跳過/.test(lower)) return 'ok';
+  // Both main-process (`[WhisperFlow]`) and Python backend (`[Python]`)
+  // app messages classify as info unless a stronger keyword (error /
+  // warn / complete) elsewhere in the line upgrades them above.  The
+  // ok / error / warn branches above already ran first, so this only
+  // catches neutral status lines like "載入 faster-whisper 模型..." or
+  // "silero VAD scanning ...".
+  if (/\[whisperflow\]|\[python\]/.test(lower))  return 'info';
   return '';
 }
 

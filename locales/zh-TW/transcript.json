@@ -2,12 +2,17 @@
   "card": {
     "title": "字幕預覽"
   },
+  "modal": {
+    "title": "字幕預覽"
+  },
   "searchPlaceholder": "搜尋字幕…",
   "actions": {
     "copyAll": "全部複製",
     "copySegment": "複製此段",
     "reveal": "在檔案總管顯示",
-    "close": "關閉預覽"
+    "close": "關閉預覽",
+    "preview": "查看預覽",
+    "viewLatest": "查看最新字幕"
   },
   "stats": {
     "segments": "共 {{count}} 段",
@@ -20,11 +25,17 @@
   "empty": {
     "loading": "讀取字幕中…",
     "noFile": "找不到對應字幕檔，可能尚未產生。",
-    "loadFailed": "讀取失敗：{{error}}"
+    "notFound": "找不到字幕檔，可能已被手動刪除或移動。如需重新產生，請回到主要頁再跑一次轉錄。",
+    "loadFailed": "讀取字幕失敗：{{error}}",
+    "genericError": "未知錯誤"
   },
   "toast": {
     "copiedAll": "整份字幕已複製",
     "copiedSegment": "已複製此段文字",
     "copyFailed": "複製失敗：{{error}}"
+  },
+  "autoOpen": {
+    "label": "轉錄完成後自動開啟預覽",
+    "description": "勾選後每筆字幕跑完都會自動彈出全螢幕預覽視窗；批次大量轉錄時建議維持關閉。"
   }
 }

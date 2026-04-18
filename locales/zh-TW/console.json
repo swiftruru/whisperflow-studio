@@ -7,7 +7,8 @@
     "all": "全部",
     "error": "錯誤",
     "warn": "警告",
-    "ok": "正常"
+    "ok": "正常",
+    "info": "訊息"
   },
   "tools": {
     "autoScroll": "自動捲動",

@@ -8,7 +8,7 @@ import { getPreflightState, refreshPreflight, subscribePreflight } from './prefl
 import { getQueueState, subscribeQueueState } from './queue-state.js';
 import { t } from '../lib/i18n.js';
 import { confirmDialog } from '../lib/confirm-dialog.js';
-import { openTranscriptPreview, closeTranscriptPreview } from './transcript-preview.js';
+import { openTranscriptPreview } from './transcript-preview.js';
 
 /**
  * Localize a preflight check's message for the controls hint strip.
@@ -27,11 +27,89 @@ const btnCli = document.getElementById('btn-run-cli');
 const btnPauseResume = document.getElementById('btn-pause-resume');
 const btnSkipCurrent = document.getElementById('btn-skip-current');
 const btnStop = document.getElementById('btn-stop');
+const btnPreviewLatest = document.getElementById('btn-preview-latest');
+const btnPreviewLatestFilename = document.getElementById('btn-preview-latest-filename');
 const chkLoop = document.getElementById('chk-auto-loop');
 const actionHint = document.getElementById('action-hint');
 
 let lastAction = null;
 let isRunning = false;
+// Remember the most recent successful transcription so the "View
+// latest transcript" CTA can re-open its modal with one click.  Cleared
+// only on explicit clear-history; otherwise sticks across language
+// switches and batch continuations.
+let latestTranscript = null; // { mediaPath, outputDir, fileName } | null
+
+function updatePreviewLatestButton() {
+  if (!btnPreviewLatest) return;
+  if (!latestTranscript) {
+    btnPreviewLatest.hidden = true;
+    return;
+  }
+  btnPreviewLatest.hidden = false;
+  if (btnPreviewLatestFilename) {
+    btnPreviewLatestFilename.textContent = latestTranscript.fileName || '';
+    btnPreviewLatestFilename.title = latestTranscript.fileName || '';
+  }
+}
+
+btnPreviewLatest?.addEventListener('click', () => {
+  if (!latestTranscript) return;
+  openTranscriptPreview({
+    mediaPath: latestTranscript.mediaPath,
+    outputDir: latestTranscript.outputDir,
+  });
+});
+
+/**
+ * Seed `latestTranscript` from persisted history so the "View latest
+ * transcript" CTA is visible on app launch whenever the user has ANY
+ * prior successful transcription — not just one from the current
+ * session.  Without this the button sits hidden until the user runs
+ * a brand-new transcription, making it feel like the feature doesn't
+ * exist.
+ *
+ * Exported so index.js can call it after initHistory() settles.
+ */
+async function hydrateLatestTranscriptFromHistory() {
+  if (latestTranscript) return; // current session already set it
+  try {
+    const entries = await window.electronAPI.readHistory();
+    if (!Array.isArray(entries)) return;
+    let outputDir = '';
+    try {
+      const cfg = await window.electronAPI.readConfig();
+      outputDir = cfg?.SETTING?.output_dir || '';
+    } catch (_) { /* best-effort */ }
+
+    // Walk history newest-first and pick the first successful entry
+    // whose transcript file still exists on disk.  Without the
+    // existence check we'd happily highlight a CTA that opens into a
+    // "file not found" error — worse UX than just hiding the button.
+    for (const entry of entries) {
+      if (!entry || !entry.success || !entry.filePath) continue;
+      let exists = false;
+      try {
+        exists = await window.electronAPI.transcript.exists({
+          mediaPath: entry.filePath,
+          outputDir,
+        });
+      } catch (_) { exists = false; }
+      if (exists) {
+        latestTranscript = {
+          mediaPath: entry.filePath,
+          outputDir,
+          fileName: entry.fileName,
+        };
+        updatePreviewLatestButton();
+        return;
+      }
+    }
+    // Nothing matched — button stays hidden.
+  } catch (_) {
+    /* ignore — button just stays hidden */
+  }
+}
 
 function getCheck(key) {
   const preflight = getPreflightState();
@@ -387,7 +465,6 @@ window.electronAPI.onRunDone(async (code) => {
       // without a real transcription having run (e.g. stale event
       // from a prior scan, or the queue was already empty).
       if (finishedJob?.fileName) {
-        showToast(t('controls:toast.transcriptionComplete'), 'success');
         window.electronAPI.notify({
           title: t('controls:notify.title'),
           body: t('controls:notify.transcribeSuccess'),
@@ -397,25 +474,56 @@ window.electronAPI.onRunDone(async (code) => {
           filePath: finishedJob.filePath,
           success: true,
         });
-        // Open the transcript preview card so the user can eyeball
-        // the output without jumping to Finder.  output_dir may be
-        // set in config; empty → beside the media file (matches
-        // transcriber default).
+
+        // Resolve the output_dir once — both the toast action and the
+        // optional auto-open need it, and we don't want the toast to
+        // close before the async read finishes.
+        let outputDir = '';
         try {
           const cfg = await window.electronAPI.readConfig();
-          const outputDir = cfg?.SETTING?.output_dir || '';
-          openTranscriptPreview({
-            mediaPath: finishedJob.filePath,
-            outputDir,
-          });
-        } catch (_) { /* non-blocking */ }
+          outputDir = cfg?.SETTING?.output_dir || '';
+        } catch (_) { /* best-effort; falls back to empty */ }
+
+        const previewArgs = { mediaPath: finishedJob.filePath, outputDir };
+
+        // Track this as the "latest transcript" so the persistent CTA
+        // button in the sidebar can re-open it without hunting through
+        // the history list.  Stays set across language switches and
+        // subsequent queue progress.
+        latestTranscript = {
+          mediaPath: finishedJob.filePath,
+          outputDir,
+          fileName: finishedJob.fileName,
+        };
+        updatePreviewLatestButton();
+
+        // Toast with a "View preview" action so the user can pop the
+        // full-screen modal with one click.  The modal is NOT opened
+        // automatically unless the user opted in via the Settings
+        // checkbox (localStorage `transcript.autoOpenOnComplete`).
+        showToast(t('controls:toast.transcriptionComplete'), 'success', 5000, {
+          action: {
+            label: t('transcript:actions.preview'),
+            onClick: () => openTranscriptPreview(previewArgs),
+          },
+        });
+
+        let autoOpen = false;
+        try { autoOpen = localStorage.getItem('transcript.autoOpenOnComplete') === 'true'; } catch (_) {}
+        if (autoOpen) {
+          openTranscriptPreview(previewArgs);
+        }
       }
 
       if (chkLoop.checked && queueState.stats.pending > 0) {
         showToast(t('controls:toast.loopNextFile'), 'info', 2000);
         lastAction = 'cli';
         setRunning(true);
-        closeTranscriptPreview();
+        // Note: we deliberately do NOT close the transcript preview
+        // modal here — if the user opened it for the previous file
+        // they can keep reading while the batch continues with the
+        // next one.  The modal only closes via Esc / backdrop / the
+        // Close buttons, or when a new preview replaces its content.
         window.electronAPI.runCli();
       } else if (chkLoop.checked) {
         logBatchSummary();
@@ -459,6 +567,7 @@ syncActionState();
 // tooltips, and hint strip all pick up the new locale immediately.
 window.addEventListener('app:language-changed', () => {
   syncActionState();
+  updatePreviewLatestButton();
 });
 
 // Tray / global-shortcut bridge.  Main process emits `tray:action` for
@@ -475,4 +584,4 @@ if (window.electronAPI?.onTrayAction) {
   });
 }
 
-export { setRunning, triggerRun, triggerScan };
+export { setRunning, triggerRun, triggerScan, hydrateLatestTranscriptFromHistory };

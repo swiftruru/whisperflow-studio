@@ -445,7 +445,15 @@ function renderQueueList(state, viewState) {
     status.className = `queue-item-status ${job.status}`;
     status.textContent = jobStatusLabel(job.status);
 
-    if (job.error) {
+    // Only show the raw `job.error` when it carries INFORMATION that
+    // the (already-localized) stageMessage doesn't.  For user-initiated
+    // stops / skips, queue-manager sets both fields to the same English
+    // string ("Stopped by user" / "Skipped by user"), so rendering both
+    // would show the same sentence twice — once in the user's locale
+    // (via stageMessageKey), once in raw English (via .error).  Compare
+    // against the ORIGINAL english `stageMessage` string, not the
+    // localized one, since that's the field queue-manager populates.
+    if (job.error && job.error !== job.stageMessage) {
       const error = document.createElement('div');
       error.className = 'queue-item-error';
       error.textContent = job.error;

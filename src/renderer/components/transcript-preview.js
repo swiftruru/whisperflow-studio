@@ -1,13 +1,20 @@
 'use strict';
 
 /**
- * Transcript preview card — shown on the Main tab right after a
- * transcription job finishes successfully.  Reads the segment JSON
- * (or falls back to SRT) via the `transcript:read` IPC and renders a
- * scrollable, searchable list of time-coded segments.
+ * Transcript preview — full-screen modal that lets users browse the
+ * segment-by-segment output of a completed transcription with search,
+ * copy-per-segment, and reveal-in-folder.
  *
- * Closed automatically when the next job in the batch starts, so the
- * card always reflects the most recently completed file.
+ * Opened from three places:
+ *   1. The toast that appears after a job finishes (action button).
+ *   2. The eye button on a row in the Recent Transcripts history.
+ *   3. Auto-open when `localStorage['transcript.autoOpenOnComplete']`
+ *      is 'true' and a job completes.
+ *
+ * Design intentionally stays open across queue events — the user can
+ * read the finished file's transcript while the batch continues with
+ * the next one.  Closed manually via Esc, backdrop click, or the ✕
+ * / Close buttons.
  */
 
 import { t, onLanguageChanged } from '../lib/i18n.js';
@@ -16,17 +23,18 @@ import { showToast } from './toast.js';
 let initialized = false;
 let currentSegments = [];
 let currentSource = null;
-let currentMediaPath = null;
 
-const cardEl = () => document.getElementById('transcript-preview-card');
-const filenameEl = () => document.getElementById('transcript-preview-filename');
-const metaEl = () => document.getElementById('transcript-preview-meta');
-const statusEl = () => document.getElementById('transcript-preview-status');
-const segmentsEl = () => document.getElementById('transcript-preview-segments');
-const searchEl = () => document.getElementById('transcript-preview-search');
-const copyAllBtn = () => document.getElementById('btn-transcript-copy-all');
-const revealBtn = () => document.getElementById('btn-transcript-reveal');
-const closeBtn = () => document.getElementById('btn-transcript-close');
+const modalEl = () => document.getElementById('transcript-modal');
+const panelEl = () => modalEl()?.querySelector('.transcript-modal-panel');
+const filenameEl = () => document.getElementById('transcript-modal-filename');
+const metaEl = () => document.getElementById('transcript-modal-meta');
+const statusEl = () => document.getElementById('transcript-modal-status');
+const segmentsEl = () => document.getElementById('transcript-modal-segments');
+const searchEl = () => document.getElementById('transcript-modal-search');
+const copyAllBtn = () => document.getElementById('btn-transcript-modal-copy-all');
+const revealBtn = () => document.getElementById('btn-transcript-modal-reveal');
+const closeBtn = () => document.getElementById('btn-transcript-modal-close');
+const doneBtn = () => document.getElementById('btn-transcript-modal-done');
 
 function formatTime(seconds) {
   if (!Number.isFinite(seconds) || seconds < 0) return '00:00:00.000';
@@ -167,32 +175,58 @@ function revealInFolder() {
 }
 
 function closePreview() {
-  const card = cardEl();
-  if (card) card.hidden = true;
+  const m = modalEl();
+  if (m) m.hidden = true;
   currentSegments = [];
   currentSource = null;
-  currentMediaPath = null;
   clearSegments();
   setStatus('');
+  // Clear the search input so the next open doesn't inherit a stale filter.
+  const search = searchEl();
+  if (search) search.value = '';
 }
 
 async function openTranscriptPreview({ mediaPath, outputDir }) {
-  const card = cardEl();
-  if (!card) return;
   initTranscriptPreview();
+  const m = modalEl();
+  if (!m) return;
 
-  currentMediaPath = mediaPath || null;
   currentSegments = [];
   currentSource = null;
 
-  card.hidden = false;
+  m.hidden = false;
   filenameEl().textContent = basename(mediaPath);
   metaEl().textContent = '';
   clearSegments();
   setStatus(t('transcript:empty.loading'));
 
+  // Focus the search input once the modal is visible so ⌘F-like flow
+  // works naturally (though users also find it via mouse).  Defer a
+  // frame so the browser has time to apply the `hidden` removal.
+  requestAnimationFrame(() => {
+    const search = searchEl();
+    if (search) search.focus();
+  });
+
   try {
     const result = await window.electronAPI.transcript.read({ mediaPath, outputDir });
+
+    // Main returns a structured `{ ok, segments | errorCode, message }`
+    // so we can show a friendly localized message instead of the raw
+    // "Error invoking remote method …" string on the common "file was
+    // deleted behind my back" case.
+    if (result && result.ok === false) {
+      if (result.errorCode === 'TRANSCRIPT_NOT_FOUND') {
+        setStatus(t('transcript:empty.notFound'));
+      } else {
+        setStatus(t('transcript:empty.loadFailed', {
+          error: result.message || t('transcript:empty.genericError'),
+        }));
+      }
+      metaEl().textContent = '';
+      return;
+    }
+
     currentSegments = Array.isArray(result?.segments) ? result.segments : [];
     currentSource = result?.source || null;
     if (currentSegments.length === 0) {
@@ -204,13 +238,18 @@ async function openTranscriptPreview({ mediaPath, outputDir }) {
     renderSegments(searchEl()?.value || '');
     setStatus('');
   } catch (err) {
-    setStatus(t('transcript:empty.loadFailed', { error: err?.message || String(err) }));
+    // Only reached if IPC itself crashes (preload missing, main
+    // process gone).  Not the "file deleted" case — that's handled
+    // above as a structured result.
+    setStatus(t('transcript:empty.loadFailed', {
+      error: err?.message || t('transcript:empty.genericError'),
+    }));
   }
 }
 
 function initTranscriptPreview() {
   if (initialized) return;
-  if (!cardEl()) return;
+  if (!modalEl()) return;
   initialized = true;
 
   searchEl()?.addEventListener('input', (e) => {
@@ -220,12 +259,61 @@ function initTranscriptPreview() {
   copyAllBtn()?.addEventListener('click', copyAllSegments);
   revealBtn()?.addEventListener('click', revealInFolder);
   closeBtn()?.addEventListener('click', closePreview);
+  doneBtn()?.addEventListener('click', closePreview);
+
+  // Backdrop click closes (clicking the panel itself does not
+  // bubble past the panel boundary since the overlay is the listener).
+  modalEl().addEventListener('click', (event) => {
+    if (event.target === modalEl()) closePreview();
+  });
+
+  // Esc closes — only when the modal is visible, so we don't fight
+  // other Esc handlers elsewhere in the app.
+  document.addEventListener('keydown', (event) => {
+    const m = modalEl();
+    if (!m || m.hidden) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closePreview();
+    } else if (event.key === '/' && document.activeElement !== searchEl()) {
+      // Quick-focus search with "/" similar to a lot of dev tools.
+      event.preventDefault();
+      searchEl()?.focus();
+    }
+  });
 
   onLanguageChanged(() => {
-    if (!cardEl() || cardEl().hidden) return;
+    const m = modalEl();
+    if (!m || m.hidden) return;
     renderMeta();
     renderSegments(searchEl()?.value || '');
   });
 }
 
-export { initTranscriptPreview, openTranscriptPreview, closePreview as closeTranscriptPreview };
+// ── Auto-open preference (Settings → Transcript preview card) ────────
+// Stored in localStorage as 'transcript.autoOpenOnComplete' = 'true' | 'false'.
+// Read synchronously from controls-bar when a job finishes.
+const AUTO_OPEN_KEY = 'transcript.autoOpenOnComplete';
+
+function getAutoOpenPref() {
+  try { return localStorage.getItem(AUTO_OPEN_KEY) === 'true'; } catch (_) { return false; }
+}
+
+function setAutoOpenPref(value) {
+  try { localStorage.setItem(AUTO_OPEN_KEY, value ? 'true' : 'false'); } catch (_) {}
+}
+
+function initTranscriptAutoOpenToggle() {
+  const toggle = document.getElementById('pref-transcript-auto-open');
+  if (!toggle) return;
+  toggle.checked = getAutoOpenPref();
+  toggle.addEventListener('change', () => setAutoOpenPref(toggle.checked));
+}
+
+export {
+  initTranscriptPreview,
+  openTranscriptPreview,
+  closePreview as closeTranscriptPreview,
+  initTranscriptAutoOpenToggle,
+  getAutoOpenPref,
+};

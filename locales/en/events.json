@@ -38,6 +38,18 @@
     "installFailed": "{{package}} install failed: {{error}}",
     "venvCreating": "Creating virtualenv at {{path}}",
     "venvUpgradingPip": "Upgrading pip…",
-    "venvInstallingDeps": "Installing dependencies from {{path}}…"
+    "venvInstallingDeps": "Installing dependencies from {{path}}…",
+    "loadingWhisperModel": "Loading faster-whisper model {{model}} (device={{device}}, compute_type={{compute_type}})",
+    "sileroImportedFromCache": "silero-vad imported from system torch hub cache",
+    "sileroModelLoaded": "silero VAD model loaded",
+    "sileroModelLoadedFromCache": "silero VAD model loaded from cache",
+    "sileroScanning": "silero VAD scanning {{path}} ({{start}}s → {{end}}s)",
+    "nonSpeechStrategy": "Non-speech strategy {{strategy}} produced {{count}} segments",
+    "wroteSrt": "Wrote SRT: {{path}}",
+    "whisperVadTook": "Whisper + VAD took {{seconds}}s",
+    "parallelTranscriptionTook": "Parallel transcription took {{seconds}}s",
+    "workerCuda": "Worker using CUDA device {{device}}",
+    "importedFromHfCache": "Imported {{model}} from system HuggingFace cache",
+    "downloadingModel": "Downloading model {{model}} into {{dir}}"
   }
 }

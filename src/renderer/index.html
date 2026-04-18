@@ -151,6 +151,19 @@
             </button>
           </div>
 
+          <!-- Prominent "view latest transcript" CTA — only shown after
+               at least one successful transcription in this session.
+               Controlled by controls-bar.js based on the latest
+               successful run's file path. -->
+          <button class="btn-preview-latest" id="btn-preview-latest" type="button" hidden>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            <span class="btn-preview-latest-label" data-i18n="transcript:actions.viewLatest">View latest transcript</span>
+            <span class="btn-preview-latest-filename" id="btn-preview-latest-filename"></span>
+          </button>
+
         </div>
 
         <!-- Recent directories -->
@@ -247,29 +260,6 @@
           <div class="queue-view-summary" id="queue-view-summary"></div>
           <div class="queue-list" id="queue-list"></div>
         </div>
-
-        <!-- Transcript preview (shown automatically after a job completes) -->
-        <section class="transcript-preview-card" id="transcript-preview-card" hidden>
-          <div class="transcript-preview-header">
-            <div class="transcript-preview-title">
-              <span class="transcript-preview-label" data-i18n="transcript:card.title">Transcript preview</span>
-              <span class="transcript-preview-filename" id="transcript-preview-filename"></span>
-            </div>
-            <div class="transcript-preview-actions">
-              <input type="search" class="transcript-preview-search" id="transcript-preview-search"
-                     data-i18n-attr="placeholder=transcript:searchPlaceholder" placeholder="Search…" />
-              <button class="btn-secondary" type="button" id="btn-transcript-copy-all"
-                      data-i18n="transcript:actions.copyAll">Copy all</button>
-              <button class="btn-secondary" type="button" id="btn-transcript-reveal"
-                      data-i18n="transcript:actions.reveal">Reveal in folder</button>
-              <button class="btn-icon" type="button" id="btn-transcript-close"
-                      data-i18n-attr="title=transcript:actions.close" aria-label="Close">✕</button>
-            </div>
-          </div>
-          <div class="transcript-preview-meta" id="transcript-preview-meta"></div>
-          <div class="transcript-preview-status" id="transcript-preview-status" hidden></div>
-          <div class="transcript-preview-segments" id="transcript-preview-segments"></div>
-        </section>
 
         <!-- Transcription history (hidden until first entry) -->
         <div class="history-section" id="history-section" hidden>
@@ -411,6 +401,26 @@
               <button class="btn-secondary btn-sm" type="button" id="btn-shortcuts-reset-all" data-i18n="settings:shortcuts.resetAll">Reset all</button>
             </div>
             <div class="settings-group-body settings-shortcuts-list" id="settings-shortcuts-list"></div>
+          </section>
+
+          <!-- Transcript preview preferences -->
+          <section class="settings-group-card" id="settings-transcript-card">
+            <div class="settings-group-header-static">
+              <div class="settings-group-header-text">
+                <div class="settings-group-title" data-i18n="transcript:modal.title">Transcript preview</div>
+                <div class="settings-group-description" data-i18n="transcript:autoOpen.description">Enable to automatically pop up the full-screen preview when each file finishes.</div>
+              </div>
+            </div>
+            <div class="settings-group-body">
+              <div class="field-row field-row-bool">
+                <div class="field-label-block">
+                  <label class="field-label" for="pref-transcript-auto-open" data-i18n="transcript:autoOpen.label">Auto-open preview after transcription</label>
+                </div>
+                <div class="field-control">
+                  <input type="checkbox" id="pref-transcript-auto-open" />
+                </div>
+              </div>
+            </div>
           </section>
 
           <!-- Accessibility card -->
@@ -678,6 +688,7 @@
           <button class="filter-btn" data-filter="error" data-i18n="console:filters.error">Error</button>
           <button class="filter-btn" data-filter="warn" data-i18n="console:filters.warn">Warn</button>
           <button class="filter-btn" data-filter="ok" data-i18n="console:filters.ok">OK</button>
+          <button class="filter-btn" data-filter="info" data-i18n="console:filters.info">Info</button>
         </div>
         <div class="console-tools">
           <button class="tool-btn" id="btn-scroll-lock" data-i18n-attr="title=console:tools.autoScroll">&#x21D3;</button>
@@ -1089,6 +1100,43 @@
         </div>
 
         <div class="changelog-status" id="changelog-status" hidden></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Transcript preview — full-screen modal opened from toast action,
+       history row eye button, or (opt-in) auto on job completion. -->
+  <div class="modal-overlay" id="transcript-modal" hidden>
+    <div class="modal transcript-modal-panel" role="dialog" aria-modal="true">
+      <div class="transcript-modal-header">
+        <div class="transcript-modal-heading">
+          <h2 class="transcript-modal-title" data-i18n="transcript:modal.title">Transcript preview</h2>
+          <div class="transcript-modal-filename" id="transcript-modal-filename"></div>
+          <div class="transcript-modal-meta" id="transcript-modal-meta"></div>
+        </div>
+        <button class="transcript-modal-close" type="button" id="btn-transcript-modal-close"
+                data-i18n-attr="title=transcript:actions.close" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M18 6 6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="transcript-modal-search-row">
+        <input type="search" class="transcript-modal-search" id="transcript-modal-search"
+               data-i18n-attr="placeholder=transcript:searchPlaceholder" placeholder="Search…" />
+      </div>
+
+      <div class="transcript-modal-status" id="transcript-modal-status" hidden></div>
+      <div class="transcript-modal-body" id="transcript-modal-segments"></div>
+
+      <div class="transcript-modal-footer">
+        <button class="btn-secondary" type="button" id="btn-transcript-modal-copy-all"
+                data-i18n="transcript:actions.copyAll">Copy all</button>
+        <button class="btn-secondary" type="button" id="btn-transcript-modal-reveal"
+                data-i18n="transcript:actions.reveal">Reveal in folder</button>
+        <button class="btn-primary" type="button" id="btn-transcript-modal-done"
+                data-i18n="transcript:actions.close">Close preview</button>
       </div>
     </div>
   </div>
