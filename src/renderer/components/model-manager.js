@@ -188,7 +188,7 @@ function renderRow(entry) {
 
   if (entry.installed) {
     const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'btn-secondary model-row-btn';
+    deleteBtn.className = 'btn-secondary model-row-btn model-row-btn-delete';
     deleteBtn.textContent = t('models:actions.delete');
     deleteBtn.addEventListener('click', () => handleDelete(entry.name));
     actions.appendChild(deleteBtn);

@@ -3067,6 +3067,22 @@ kbd {
   border-radius: 99px;
 }
 
+/* Delete button — still a secondary/outline pill (never a filled
+   danger slab) so it doesn't visually scream, but tinted with the
+   theme's warm peach accent so the user can tell at a glance it's a
+   different action than "Download". */
+.model-row-btn-delete {
+  background: color-mix(in srgb, var(--peach) 8%, var(--surface0));
+  border-color: color-mix(in srgb, var(--peach) 40%, transparent);
+  color: var(--peach);
+}
+
+.model-row-btn-delete:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--peach) 16%, var(--surface0));
+  border-color: color-mix(in srgb, var(--peach) 60%, transparent);
+  color: color-mix(in srgb, var(--peach) 80%, var(--text));
+}
+
 .model-row-btn:disabled {
   opacity: 0.55;
   cursor: progress;
