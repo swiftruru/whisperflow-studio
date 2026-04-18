@@ -59,12 +59,34 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('menu:open-about', handler);
   },
 
+  // ── Tray actions ─────────────────────────────────────────────────────────
+  // Main process broadcasts `tray:action` with a string ('run' | 'scan' |
+  // 'stop') when the user picks an item from the tray menu or triggers a
+  // global shortcut.  Renderer proxies that to the controls-bar.
+  onTrayAction: (cb) => {
+    const handler = (_e, action) => cb(action);
+    ipcRenderer.on('tray:action', handler);
+    return () => ipcRenderer.removeListener('tray:action', handler);
+  },
+
+  // ── File-association opens ───────────────────────────────────────────────
+  // Main broadcasts `file-association:open` with an array of absolute
+  // paths after an OS-level "Open with WhisperFlow Studio" event.
+  onFileAssociationOpen: (cb) => {
+    const handler = (_e, paths) => cb(paths);
+    ipcRenderer.on('file-association:open', handler);
+    return () => ipcRenderer.removeListener('file-association:open', handler);
+  },
+
   // ── Config ───────────────────────────────────────────────────────────────
   readConfig:    ()              => ipcRenderer.invoke('config:read'),
   readConfigMetadata: ()         => ipcRenderer.invoke('config:metadata:read'),
   writeConfig:   (data)         => ipcRenderer.invoke('config:write', data),
   listProfiles:  ()             => ipcRenderer.invoke('config:profiles:list'),
   loadProfile:   (configPath)   => ipcRenderer.invoke('config:profiles:load', configPath),
+  createProfile: (name)         => ipcRenderer.invoke('config:profiles:create', name),
+  renameProfile: (oldName, newName) => ipcRenderer.invoke('config:profiles:rename', { oldName, newName }),
+  deleteProfile: (name)         => ipcRenderer.invoke('config:profiles:delete', name),
 
   // ── App Settings ─────────────────────────────────────────────────────────
   readAppSettings:  ()          => ipcRenderer.invoke('appsettings:read'),
@@ -85,6 +107,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   browseAnyFile:   ()           => ipcRenderer.invoke('fs:browse-any-file'),
   saveLog:         (text)       => ipcRenderer.invoke('fs:save-log', text),
   showInFolder:    (filePath)   => ipcRenderer.invoke('shell:show-in-folder', filePath),
+  openPath:        (dirPath)    => ipcRenderer.invoke('shell:open-path', dirPath),
   // Electron 32+: replaces file.path which is deprecated in contextIsolation mode
   getPathForFile:  (file)       => webUtils.getPathForFile(file),
 
@@ -106,6 +129,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listModels:       ()            => ipcRenderer.invoke('models:list'),
   downloadModel:    (name)        => ipcRenderer.invoke('models:download', name),
   deleteModel:      (name)        => ipcRenderer.invoke('models:delete', name),
+  scanHfCache:      ()            => ipcRenderer.invoke('models:scan-hf-cache'),
 
   // ── Model Downloads (streaming pipeline) ────────────────────────────────
   downloads: {
@@ -115,6 +139,28 @@ contextBridge.exposeInMainWorld('electronAPI', {
     clearHistory:   ()            => ipcRenderer.invoke('downloads:clear-history'),
     getState:       ()            => ipcRenderer.invoke('downloads:get-state'),
     onStateUpdated: (cb)          => ipcRenderer.on('downloads:state-updated', (_e, s) => cb(s)),
+  },
+
+  // ── Changelog viewer (About → Version history) ──────────────────────────
+  changelog: {
+    list: ()        => ipcRenderer.invoke('changelog:list'),
+    read: (version) => ipcRenderer.invoke('changelog:read', version),
+  },
+
+  // ── Diagnostics (About → Report an issue) ───────────────────────────────
+  diagnostics: {
+    collect: (opts = {}) => ipcRenderer.invoke('diagnostics:collect', opts),
+    save:    (payload)   => ipcRenderer.invoke('diagnostics:save', payload),
+  },
+
+  // ── Transcript preview (Main tab → post-run) ────────────────────────────
+  transcript: {
+    read: (opts = {}) => ipcRenderer.invoke('transcript:read', opts),
+  },
+
+  // ── Storage info (Models tab disk usage) ────────────────────────────────
+  storage: {
+    info: (opts = {}) => ipcRenderer.invoke('storage:info', opts),
   },
 
   // ── Process Control ───────────────────────────────────────────────────────

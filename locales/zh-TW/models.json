@@ -1,8 +1,24 @@
 {
   "toolbar": {
     "label": "模型管理",
+    "subtitle": "下載與管理 Whisper 模型權重；已下載的模型會在「設定 → 模型」下拉選單中顯示。",
     "refresh": "重新整理",
     "dirUnset": "（尚未設定）"
+  },
+  "storage": {
+    "label": "儲存空間",
+    "used": "已使用 {{size}}（{{count}} 個檔案）",
+    "free": "剩餘 {{size}}",
+    "openFolder": "在檔案總管開啟資料夾"
+  },
+  "hfCache": {
+    "scanButton": "掃描 HuggingFace 快取",
+    "scanning": "掃描中…",
+    "noneFound": "系統 HuggingFace 快取中沒有可匯入的模型。",
+    "importTitle": "從 HuggingFace 快取匯入模型",
+    "importMessage": "在系統快取中找到 {{count}} 個可匯入的模型：{{names}}。匯入會以硬連結或複製方式將權重放入 App 管理的模型目錄，通常只需數秒。",
+    "importConfirm": "開始匯入",
+    "scanFailed": "掃描失敗：{{error}}"
   },
   "list": {
     "loading": "正在載入模型清單…",

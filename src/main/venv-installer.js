@@ -23,6 +23,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { getVenvPythonPath } = require('./path-resolver');
+const { t } = require('./i18n');
 
 function isVenvInitialized(venvRoot) {
   const pythonPath = getVenvPythonPath(venvRoot);
@@ -64,7 +65,7 @@ async function createVenv({ systemPython, venvRoot, onLog }) {
   fs.mkdirSync(path.dirname(venvRoot), { recursive: true });
 
   if (typeof onLog === 'function') {
-    onLog(`[WhisperFlow] Creating virtualenv at ${venvRoot}\n`);
+    onLog(`[WhisperFlow] ${t('events:log.venvCreating', { path: venvRoot })}\n`);
   }
   await runSpawn(systemPython, ['-m', 'venv', venvRoot], { cwd: path.dirname(venvRoot), onLog });
 }
@@ -86,12 +87,12 @@ async function installRequirements({ venvRoot, requirementsPath, onLog }) {
   const venvPython = getVenvPythonPath(venvRoot);
 
   if (typeof onLog === 'function') {
-    onLog('[WhisperFlow] Upgrading pip…\n');
+    onLog(`[WhisperFlow] ${t('events:log.venvUpgradingPip')}\n`);
   }
   await runSpawn(venvPython, ['-m', 'pip', 'install', '--upgrade', 'pip'], { cwd: venvRoot, onLog });
 
   if (typeof onLog === 'function') {
-    onLog(`[WhisperFlow] Installing dependencies from ${requirementsPath}…\n`);
+    onLog(`[WhisperFlow] ${t('events:log.venvInstallingDeps', { path: requirementsPath })}\n`);
   }
   await runSpawn(venvPython, ['-m', 'pip', 'install', '-r', requirementsPath], { cwd: venvRoot, onLog });
 }

@@ -41,6 +41,8 @@ const NAMESPACES = [
   'help',
   'updater',
   'downloads',
+  'changelog',
+  'transcript',
 ];
 
 /**

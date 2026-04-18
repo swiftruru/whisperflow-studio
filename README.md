@@ -97,7 +97,10 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 - **Structured runner events** — the bridge emits machine-readable stage events (`preparing`, `loading-model`, `transcribing`, `writing-subtitle`, `completed`, `failed`) that drive the progress UI
 - **Multi-GPU parallel transcription** — preserved from the upstream architecture, fans work across CUDA devices on Linux/Windows
 - **Preflight checks** — validates the bundled Python environment, `whisperflow` package, `ffmpeg` / `ffprobe`, and media root before running; ffmpeg can be installed in one click via the detected system package manager
-- **Settings panel** — edit model, language, VAD, initial prompt, device, and compute type in-app, with per-parameter inline descriptions in your UI language
+- **Settings panel** — edit model, language, VAD, initial prompt, device, and compute type in-app, with per-parameter inline descriptions in your UI language. Grouped into semantic cards (General / Model / Transcription / Output / VAD / Advanced) with a Transcription ↔ App segmented control at the top
+- **Output format + translation controls** — the full set of Whisper output formats (`.srt` / `.vtt` / `.txt` / `.json`), output directory, subtitle max-line-width, overwrite policy (overwrite / skip / rename-suffix), and Whisper's built-in `task=translate` (to-English) are all exposed as checkboxes / dropdowns in the Settings tab
+- **Advanced Whisper decoder parameters** — `beam_size`, `best_of`, `temperature`, `condition_on_previous_text`, `no_speech_threshold`, `logprob_threshold`, and `compression_ratio_threshold` surface behind a collapsed-by-default Advanced group for power tuning
+- **HuggingFace cache import** — the Models tab scans `~/.cache/huggingface/hub/` for faster-whisper models already on disk and one-click imports them into the app-managed models folder via hard-link (no re-download)
 
 ### UX
 
@@ -108,13 +111,16 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 - **Queue panel** — lists pending / running / paused / done / skipped / failed items, with search and status chips
 - **Single-item queue controls** — retry, remove, move items up/down directly from the queue list
 - **Queue persistence** — queue state is restored after app restart so pending/skipped/failed work is not lost
-- **Pause / Resume / Skip Current / Stop Batch** — control the current queued transcription without losing the rest of the queue
+- **Pause / Resume / Skip Current / Stop Batch** — control the current queued transcription without losing the rest of the queue; Skip and Stop both confirm before throwing away progress
+- **Transcript Preview card** — after each job finishes, a segment-by-segment preview with timecodes, search, copy-all / copy-per-segment, and Reveal-in-Folder appears on the Main tab; auto-closes when the next queued file starts
 - **Batch completion summary** — when a batch finishes, a green summary line is written to the Console with done / failed / skipped counts and total elapsed time; the Progress card headline updates with the same statistics
 - **Enhanced system notifications** — OS notifications on batch completion include done/failed counts and total elapsed time
 - **Output file quick access** — completed queue items and history rows show a "Show in folder" button to reveal the output in the system file manager
 - **Drag-and-drop files** — drop individual media files onto the directory card to add them directly to the queue (skips duplicates and files with existing subtitles)
+- **File-association "Open With WhisperFlow"** — OS file associations for mp4 / mov / mkv / mp3 / wav / m4a / flac add the dropped file to the queue automatically, with a single-instance lock so a second double-click doesn't launch a duplicate window
 - **Transcription history** — last 10 transcribed files (✓ / ✗) persisted across sessions
 - **Recent directories** — last 5 used directories shown below the directory card for one-click re-selection
+- **Profile management** — create / rename / delete named transcription profiles directly from the Main tab to swap full config snapshots in one click (e.g. "JP-interview" vs "EN-meeting")
 - **Toast notifications** — success / info / error feedback for every action
 - **Structured error UI** — runtime failures are normalized into actionable banners/dialogs instead of raw stderr
 
@@ -123,16 +129,18 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 - **Log level filters** — All / Error / Warn / OK
 - **Console search** — Cmd+F to find text in the log; shows match count
 - **Copy / Save Log / Clear / Auto-scroll lock**
+- **Diagnostics export** — one-click Copy / Save-as-file on the About tab dumps app version, Electron/Node/Chrome versions, OS/CPU/memory, venv status, GPU probe (CUDA/MPS), models folder usage, redacted config, and the last 500 Console lines — ideal for bug reports. Home-directory paths are rewritten to `~` automatically
 
 ### Appearance
 
 - **Light / dark theme toggle** — pastel cream yellow for day, warm **Cocoa Cream** for night; both palettes are tonally related so switching feels like "the same app with the lights turned down" instead of two separate apps
 - **Soft-cocoa dark mode** — mid-dark warm-neutral surfaces (not near-black, not saturated brown), cream-white text, brand yellow accent kept unchanged from light theme; designed to feel cosy and readable rather than intimidating
 - **Light by default** — first launch always opens in the cream-yellow light palette regardless of OS dark-mode setting, so new users see the primary design intent immediately. Switch to dark mode via the in-app toggle any time; the choice is persisted to `localStorage` and honoured on all subsequent launches
+- **Accessibility controls** — font size (Small / Normal / Large / Extra large) and High-contrast mode in Settings → App; applied instantly, persisted in `localStorage`, and read at boot time so there's no flash of default styling
 
 ### About page
 
-- **Dedicated About tab** — hero block with app icon + live version badge (reads from `package.json` via IPC), author card with monogram avatar placeholder, tech stack card grouped by feature area, a dedicated **Software updates** card with a one-click **Check for updates** button, and credits & license card with inline links to `NOTICES.md` and GitHub Issues
+- **Dedicated About tab** — hero block with app icon + live version badge (reads from `package.json` via IPC), author card with monogram avatar placeholder, tech stack card grouped by feature area, a dedicated **Software updates** card with a one-click **Check for updates** button, a **Version history** card that opens an in-app changelog viewer rendered from the bundled `changelog/v*.md` files, and credits & license card with inline links to `NOTICES.md` and GitHub Issues
 - **One-click external links** — GitHub repo, personal site, notices, and issue reporter all go through the sandboxed `shell:open-external` IPC (http(s) only)
 - **Fully bilingual** — the `about` namespace lives alongside 16 others, live-switches with the titlebar language toggle
 
@@ -155,16 +163,26 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 - **i18n lint in CI** — `npm run i18n:lint` compares every JSON namespace across locales and fails the build on any missing/structurally mismatched key, so we can't ship an incomplete translation
 
 ### Keyboard shortcuts
+
+All six app-action shortcuts are **rebindable** per device from Settings → App → Keyboard shortcuts (click a binding, press the new combination, Esc to cancel). Two additional bindings are fixed:
+
+| Shortcut | Action | Rebindable |
+|----------|--------|:---:|
+| `Cmd+R` | Run transcription | ✓ |
+| `Cmd+Shift+S` | Scan for missing subtitles | ✓ |
+| `Cmd+.` | Stop batch | ✓ |
+| `Cmd+S` | Save settings (Settings tab active) | ✓ |
+| `Cmd+K` | Clear console | ✓ |
+| `Cmd+F` | Open console search | ✓ |
+| `Escape` | Close console search | — |
+| `?` | Show keyboard shortcuts panel | — |
+
+Two system-wide global shortcuts (work even when WhisperFlow isn't focused):
+
 | Shortcut | Action |
 |----------|--------|
-| `Cmd+R` | Run transcription |
-| `Cmd+Shift+S` | Scan for missing subtitles |
-| `Cmd+.` | Stop batch |
-| `Cmd+S` | Save settings (Settings tab active) |
-| `Cmd+K` | Clear console |
-| `Cmd+F` | Open console search |
-| `Escape` | Close console search |
-| `?` | Show keyboard shortcuts panel |
+| `Cmd+Alt+T` | Show / focus the WhisperFlow window |
+| `Cmd+Alt+R` | Start a transcription run |
 
 ---
 

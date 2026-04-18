@@ -1,0 +1,23 @@
+{
+  "card": {
+    "label": "版本紀錄",
+    "description": "瀏覽每個版本的更新內容。",
+    "action": "查看版本紀錄"
+  },
+  "dialog": {
+    "title": "版本紀錄",
+    "subtitle": "所有歷史版本的更新說明，從最新版往下排列。",
+    "close": "關閉",
+    "back": "返回列表",
+    "openOnGitHub": "在 GitHub 查看"
+  },
+  "list": {
+    "loading": "正在載入…",
+    "empty": "找不到版本紀錄檔。",
+    "failed": "讀取版本清單失敗：{{error}}"
+  },
+  "view": {
+    "loading": "正在讀取 {{version}}…",
+    "failed": "讀取 {{version}} 失敗：{{error}}"
+  }
+}

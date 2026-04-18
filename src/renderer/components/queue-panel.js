@@ -128,28 +128,28 @@ function buildProgressTiming(state) {
   if (currentJob?.elapsedSeconds != null) {
     const elapsed = formatDuration(currentJob.elapsedSeconds);
     if (elapsed) {
-      parts.push(`Current elapsed ${elapsed}`);
+      parts.push(t('progress:timing.currentElapsed', { time: elapsed }));
     }
   }
 
   if (currentJob?.etaSeconds != null) {
     const eta = formatDuration(currentJob.etaSeconds);
     if (eta && currentJob.etaSeconds > 0) {
-      parts.push(`Current ETA ${eta}`);
+      parts.push(t('progress:timing.currentEta', { time: eta }));
     }
   }
 
   if (state.batchElapsedSeconds != null) {
     const batchElapsed = formatDuration(state.batchElapsedSeconds);
     if (batchElapsed) {
-      parts.push(`Batch elapsed ${batchElapsed}`);
+      parts.push(t('progress:timing.batchElapsed', { time: batchElapsed }));
     }
   }
 
   if (state.batchEtaSeconds != null) {
     const batchEta = formatDuration(state.batchEtaSeconds);
     if (batchEta && state.batchEtaSeconds > 0) {
-      parts.push(`Batch ETA ${batchEta}`);
+      parts.push(t('progress:timing.batchEta', { time: batchEta }));
     }
   }
 
@@ -167,14 +167,14 @@ function buildJobProgressText(job) {
   if (job.elapsedSeconds != null) {
     const elapsed = formatDuration(job.elapsedSeconds);
     if (elapsed) {
-      parts.push(`Elapsed ${elapsed}`);
+      parts.push(t('progress:timing.elapsed', { time: elapsed }));
     }
   }
 
   if (job.etaSeconds != null && job.etaSeconds > 0) {
     const eta = formatDuration(job.etaSeconds);
     if (eta) {
-      parts.push(`ETA ${eta}`);
+      parts.push(t('progress:timing.eta', { time: eta }));
     }
   }
 
@@ -287,13 +287,17 @@ function renderProgress(state) {
   }
 
   const fileIndex = Math.min(processedCount + 1, state.stats.total);
-  const fileCounter = `${fileIndex}/${state.stats.total}`;
 
   if (state.currentJob) {
     const currentLabel = state.currentJob.status === 'pending'
-      ? 'Next up'
+      ? t('progress:batchCard.nextUp')
       : getJobStageLabel(state.currentJob);
-    progressHeadline.textContent = `${currentLabel} · File ${fileCounter} · ${state.currentJob.fileName}`;
+    progressHeadline.textContent = t('progress:batchCard.currentFileLine', {
+      stage: currentLabel,
+      index: fileIndex,
+      total: state.stats.total,
+      fileName: state.currentJob.fileName,
+    });
   } else if (processedCount === state.stats.total) {
     const batchTime = state.batchElapsedSeconds != null ? formatDuration(state.batchElapsedSeconds) : null;
     progressHeadline.textContent = t('progress:batchCard.allProcessed', {
@@ -303,14 +307,26 @@ function renderProgress(state) {
       elapsed: batchTime || '--:--',
     });
   } else {
-    progressHeadline.textContent = 'Queue ready';
+    progressHeadline.textContent = t('progress:batchCard.queueReady');
   }
 
-  progressStats.textContent =
-    `Pending ${state.stats.pending} · Running ${state.stats.running} · Paused ${state.stats.paused} · Done ${state.stats.done} · Skipped ${state.stats.skipped} · Failed ${state.stats.failed}`;
+  progressStats.textContent = [
+    t('progress:stats.pending', { count: state.stats.pending }),
+    t('progress:stats.running', { count: state.stats.running }),
+    t('progress:stats.paused', { count: state.stats.paused }),
+    t('progress:stats.done', { count: state.stats.done }),
+    t('progress:stats.skipped', { count: state.stats.skipped }),
+    t('progress:stats.failed', { count: state.stats.failed }),
+  ].join(' · ');
 
-  const scanSummary = `Scanned ${state.scanSummary.scannedFiles} files in ${state.scanSummary.scannedDirectories} folders`;
-  const completion = `${processedCount}/${state.stats.total} processed`;
+  const scanSummary = t('progress:batchCard.scannedFiles', {
+    files: state.scanSummary.scannedFiles,
+    dirs: state.scanSummary.scannedDirectories,
+  });
+  const completion = t('progress:batchCard.processedCount', {
+    processed: processedCount,
+    total: state.stats.total,
+  });
   progressCurrent.textContent = `${completion} · ${scanSummary}`;
 
   const timingText = buildProgressTiming(state);
@@ -362,17 +378,19 @@ function renderQueueList(state, viewState) {
 
   const visibleJobs = getVisibleJobs(state, viewState);
   queueCard.hidden = false;
-  queueTotalBadge.textContent = `${state.stats.total} files`;
+  queueTotalBadge.textContent = t('queue:panel.totalFiles', { count: state.stats.total });
   const summaryParts = [
     visibleJobs.length === state.jobs.length
-      ? `${visibleJobs.length} visible`
-      : `${visibleJobs.length} of ${state.jobs.length} visible`,
+      ? t('queue:panel.visibleCount', { count: visibleJobs.length })
+      : t('queue:panel.visibleOfTotal', { visible: visibleJobs.length, total: state.jobs.length }),
   ];
   if (viewState.statusFilter !== 'all') {
-    summaryParts.push(`filter: ${viewState.statusFilter}`);
+    summaryParts.push(t('queue:panel.filterTag', {
+      filter: t(`queue:filters.${viewState.statusFilter}`, { defaultValue: viewState.statusFilter }),
+    }));
   }
   if (viewState.searchQuery.trim()) {
-    summaryParts.push(`search: "${viewState.searchQuery.trim()}"`);
+    summaryParts.push(t('queue:panel.searchTag', { query: viewState.searchQuery.trim() }));
   }
   queueViewSummary.textContent = summaryParts.join(' · ');
   queueList.innerHTML = '';
@@ -380,7 +398,7 @@ function renderQueueList(state, viewState) {
   if (visibleJobs.length === 0) {
     const emptyState = document.createElement('div');
     emptyState.className = 'queue-list-empty';
-    emptyState.textContent = 'No matching queue items';
+    emptyState.textContent = t('queue:panel.noMatching');
     queueList.appendChild(emptyState);
     return;
   }
@@ -441,7 +459,7 @@ function renderQueueList(state, viewState) {
       const retryButton = document.createElement('button');
       retryButton.className = 'queue-item-action-btn';
       retryButton.type = 'button';
-      retryButton.textContent = 'Retry';
+      retryButton.textContent = t('queue:actions.retry');
       retryButton.disabled = isJobActionPending(job.id, 'retry');
       retryButton.addEventListener('click', (event) => {
         event.stopPropagation();
@@ -454,7 +472,7 @@ function renderQueueList(state, viewState) {
       const removeButton = document.createElement('button');
       removeButton.className = 'queue-item-action-btn queue-item-action-danger';
       removeButton.type = 'button';
-      removeButton.textContent = 'Remove';
+      removeButton.textContent = t('queue:actions.remove');
       removeButton.disabled = isJobActionPending(job.id, 'remove');
       removeButton.addEventListener('click', (event) => {
         event.stopPropagation();
@@ -480,6 +498,7 @@ function renderQueueList(state, viewState) {
       moveUpButton.className = 'queue-item-action-btn queue-item-action-move';
       moveUpButton.type = 'button';
       moveUpButton.textContent = '↑';
+      moveUpButton.title = t('queue:itemActions.moveUp');
       moveUpButton.disabled = isJobActionPending(job.id, 'move') || !canMoveJobDirection(state.jobs, absoluteIndex, 'up');
       moveUpButton.addEventListener('click', (event) => {
         event.stopPropagation();
@@ -491,6 +510,7 @@ function renderQueueList(state, viewState) {
       moveDownButton.className = 'queue-item-action-btn queue-item-action-move';
       moveDownButton.type = 'button';
       moveDownButton.textContent = '↓';
+      moveDownButton.title = t('queue:itemActions.moveDown');
       moveDownButton.disabled = isJobActionPending(job.id, 'move') || !canMoveJobDirection(state.jobs, absoluteIndex, 'down');
       moveDownButton.addEventListener('click', (event) => {
         event.stopPropagation();

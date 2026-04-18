@@ -10,27 +10,37 @@
     "resume": "繼續",
     "skipCurrent": "跳過目前",
     "stopBatch": "停止批次",
-    "autoLoop": "自動循環模式"
+    "autoLoop": "自動循環模式",
+    "showInFolder": "在資料夾中顯示",
+    "retry": "重試",
+    "remove": "移除"
+  },
+  "itemActions": {
+    "moveUp": "上移",
+    "moveDown": "下移"
   },
   "stepGuide": {
     "step1": "選擇媒體資料夾",
-    "step2": "點擊 Scan 掃描缺字幕檔案",
-    "step3": "點擊 Run 開始轉錄"
+    "step2": "點擊「掃描缺字幕的檔案」",
+    "step3": "點擊「開始轉錄」"
   },
   "nextCard": {
     "label": "下一個待轉錄",
     "remainingBadge": "剩餘 {{count}} 個",
     "revealInFinder": "在資料夾中顯示"
   },
-  "actions": {
-    "showInFolder": "在資料夾中顯示"
-  },
   "panel": {
     "label": "佇列",
     "searchPlaceholder": "搜尋檔名或路徑…",
     "emptyPending": "目前沒有待處理的轉錄佇列",
     "retryFailed": "重試失敗項目",
-    "clearFinished": "清除已完成"
+    "clearFinished": "清除已完成",
+    "totalFiles": "{{count}} 個檔案",
+    "visibleCount": "顯示 {{count}} 個",
+    "visibleOfTotal": "顯示 {{visible}} / {{total}} 個",
+    "filterTag": "篩選：{{filter}}",
+    "searchTag": "搜尋：「{{query}}」",
+    "noMatching": "沒有符合條件的佇列項目"
   },
   "toast": {
     "filesAdded": "已加入 {{count}} 個檔案到佇列",

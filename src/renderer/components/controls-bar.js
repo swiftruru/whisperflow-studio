@@ -8,6 +8,7 @@ import { getPreflightState, refreshPreflight, subscribePreflight } from './prefl
 import { getQueueState, subscribeQueueState } from './queue-state.js';
 import { t } from '../lib/i18n.js';
 import { confirmDialog } from '../lib/confirm-dialog.js';
+import { openTranscriptPreview, closeTranscriptPreview } from './transcript-preview.js';
 
 /**
  * Localize a preflight check's message for the controls hint strip.
@@ -93,21 +94,19 @@ function syncActionState() {
       : t('controls:tooltip.stopNoActive');
 
   if (!isRunning) {
-    setStatus(preflight.pending
-      ? t('controls:status.checking')
-      : (preflight.ok ? t('controls:status.idle') : t('controls:status.setup')));
+    setStatus(preflight.pending ? 'checking' : (preflight.ok ? 'idle' : 'setup'));
     document.title = t('controls:docTitle.default');
   } else if (queueState.stage === 'skipping') {
-    setStatus(t('controls:status.skipping'));
+    setStatus('skipping');
     document.title = t('controls:docTitle.skipping');
   } else if (queueState.stage === 'stopping') {
-    setStatus(t('controls:status.stopping'));
+    setStatus('stopping');
     document.title = t('controls:docTitle.stopping');
   } else if (queuePaused) {
-    setStatus(t('controls:status.paused'));
+    setStatus('paused');
     document.title = t('controls:docTitle.paused');
   } else {
-    setStatus(t('controls:status.running'));
+    setStatus('running');
     document.title = t('controls:docTitle.running');
   }
 }
@@ -117,7 +116,7 @@ function setRunning(running) {
   window.electronAPI.setRunning(running);
 
   if (running) {
-    setStatus(t('controls:status.running'));
+    setStatus('running');
     document.title = t('controls:docTitle.running');
   }
 
@@ -229,12 +228,56 @@ btnPauseResume.addEventListener('click', () => {
   window.electronAPI.pauseProcess();
 });
 
-btnSkipCurrent.addEventListener('click', () => {
+/**
+ * Skip the current file with a confirmation dialog — although the
+ * batch will continue, the current file's progress is thrown away
+ * immediately, so an accidental click mid-transcription is costly.
+ */
+async function confirmAndSkipCurrent() {
+  const qs = getQueueState();
+  const fileName = qs?.currentJob?.fileName || '';
+  const message = fileName
+    ? t('dialogs:skipCurrent.messageWithFile', { fileName })
+    : t('dialogs:skipCurrent.messageGeneric');
+  const confirmed = await confirmDialog({
+    title: t('dialogs:skipCurrent.title'),
+    message,
+    confirmText: t('dialogs:skipCurrent.confirmLabel'),
+    cancelText: t('dialogs:skipCurrent.cancelLabel'),
+    destructive: true,
+  });
+  if (!confirmed) return;
   window.electronAPI.skipCurrent();
+}
+
+btnSkipCurrent.addEventListener('click', () => {
+  confirmAndSkipCurrent();
 });
 
-btnStop.addEventListener('click', () => {
+/**
+ * Stop the active batch with a confirmation dialog — the stop IPC
+ * terminates the Python process immediately, so we don't want a
+ * stray click mid-transcription to throw away 10 minutes of work.
+ */
+async function confirmAndStopBatch() {
+  const qs = getQueueState();
+  const fileName = qs?.currentJob?.fileName || '';
+  const message = fileName
+    ? t('dialogs:stopBatch.messageWithFile', { fileName })
+    : t('dialogs:stopBatch.messageGeneric');
+  const confirmed = await confirmDialog({
+    title: t('dialogs:stopBatch.title'),
+    message,
+    confirmText: t('dialogs:stopBatch.confirmLabel'),
+    cancelText: t('dialogs:stopBatch.cancelLabel'),
+    destructive: true,
+  });
+  if (!confirmed) return;
   window.electronAPI.stopProcess();
+}
+
+btnStop.addEventListener('click', () => {
+  confirmAndStopBatch();
 });
 
 document.getElementById('btn-reveal-in-finder').addEventListener('click', () => {
@@ -291,7 +334,7 @@ function logBatchSummary() {
 window.electronAPI.onRunDone(async (code) => {
   setRunning(false);
   if (code !== 0 && code !== -2 && code !== -3) {
-    setStatus('Error');
+    setStatus('error');
   }
 
   if (lastAction === 'scan') {
@@ -354,12 +397,25 @@ window.electronAPI.onRunDone(async (code) => {
           filePath: finishedJob.filePath,
           success: true,
         });
+        // Open the transcript preview card so the user can eyeball
+        // the output without jumping to Finder.  output_dir may be
+        // set in config; empty → beside the media file (matches
+        // transcriber default).
+        try {
+          const cfg = await window.electronAPI.readConfig();
+          const outputDir = cfg?.SETTING?.output_dir || '';
+          openTranscriptPreview({
+            mediaPath: finishedJob.filePath,
+            outputDir,
+          });
+        } catch (_) { /* non-blocking */ }
       }
 
       if (chkLoop.checked && queueState.stats.pending > 0) {
         showToast(t('controls:toast.loopNextFile'), 'info', 2000);
         lastAction = 'cli';
         setRunning(true);
+        closeTranscriptPreview();
         window.electronAPI.runCli();
       } else if (chkLoop.checked) {
         logBatchSummary();
@@ -404,5 +460,19 @@ syncActionState();
 window.addEventListener('app:language-changed', () => {
   syncActionState();
 });
+
+// Tray / global-shortcut bridge.  Main process emits `tray:action` for
+// each menu item and global-shortcut binding.
+if (window.electronAPI?.onTrayAction) {
+  window.electronAPI.onTrayAction((action) => {
+    if (action === 'run') {
+      triggerRun();
+    } else if (action === 'scan') {
+      triggerScan();
+    } else if (action === 'stop') {
+      confirmAndStopBatch();
+    }
+  });
+}
 
 export { setRunning, triggerRun, triggerScan };

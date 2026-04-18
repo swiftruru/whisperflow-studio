@@ -248,6 +248,29 @@
           <div class="queue-list" id="queue-list"></div>
         </div>
 
+        <!-- Transcript preview (shown automatically after a job completes) -->
+        <section class="transcript-preview-card" id="transcript-preview-card" hidden>
+          <div class="transcript-preview-header">
+            <div class="transcript-preview-title">
+              <span class="transcript-preview-label" data-i18n="transcript:card.title">Transcript preview</span>
+              <span class="transcript-preview-filename" id="transcript-preview-filename"></span>
+            </div>
+            <div class="transcript-preview-actions">
+              <input type="search" class="transcript-preview-search" id="transcript-preview-search"
+                     data-i18n-attr="placeholder=transcript:searchPlaceholder" placeholder="Search…" />
+              <button class="btn-secondary" type="button" id="btn-transcript-copy-all"
+                      data-i18n="transcript:actions.copyAll">Copy all</button>
+              <button class="btn-secondary" type="button" id="btn-transcript-reveal"
+                      data-i18n="transcript:actions.reveal">Reveal in folder</button>
+              <button class="btn-icon" type="button" id="btn-transcript-close"
+                      data-i18n-attr="title=transcript:actions.close" aria-label="Close">✕</button>
+            </div>
+          </div>
+          <div class="transcript-preview-meta" id="transcript-preview-meta"></div>
+          <div class="transcript-preview-status" id="transcript-preview-status" hidden></div>
+          <div class="transcript-preview-segments" id="transcript-preview-segments"></div>
+        </section>
+
         <!-- Transcription history (hidden until first entry) -->
         <div class="history-section" id="history-section" hidden>
           <div class="history-header">
@@ -261,13 +284,46 @@
 
       <!-- ── Tab: Models ────────────────────────────────────────────────── -->
       <div class="tab-pane" id="tab-models">
-        <div class="models-toolbar">
-          <div class="models-toolbar-left">
-            <span class="models-toolbar-label" data-i18n="models:toolbar.label">Model Manager</span>
-            <span class="models-dir-label" id="models-dir-label">—</span>
+        <div class="models-sticky-header">
+          <div class="models-header-row">
+            <div class="models-header-title-block">
+              <h1 class="models-header-title" data-i18n="models:toolbar.label">Models</h1>
+              <span class="models-header-subtitle" data-i18n="models:toolbar.subtitle">Download and manage Whisper model weights.</span>
+            </div>
+            <div class="models-header-controls">
+              <button class="btn-header-action" id="btn-scan-hf-cache"
+                      data-i18n="models:hfCache.scanButton">Scan HuggingFace cache</button>
+              <button class="btn-header-action" id="btn-models-refresh"
+                      data-i18n="models:toolbar.refresh">Refresh</button>
+            </div>
           </div>
-          <button class="btn-secondary" id="btn-models-refresh" data-i18n="models:toolbar.refresh">Refresh</button>
         </div>
+
+        <!-- Storage summary card -->
+        <section class="models-storage-card" id="models-storage" hidden>
+          <div class="models-storage-main">
+            <div class="models-storage-heading">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path d="M2 3h12v3H2V3zm0 4h12v3H2V7zm0 4h12v3H2v-3zM4 4.5a.5.5 0 100-1 .5.5 0 000 1zm0 4a.5.5 0 100-1 .5.5 0 000 1zm0 4a.5.5 0 100-1 .5.5 0 000 1z"/>
+              </svg>
+              <span class="models-storage-label" data-i18n="models:storage.label">Storage</span>
+            </div>
+            <div class="models-storage-values">
+              <span class="models-storage-used" id="models-storage-used">—</span>
+              <span class="models-storage-sep" aria-hidden="true">·</span>
+              <span class="models-storage-free" id="models-storage-free">—</span>
+            </div>
+            <div class="models-storage-path-row">
+              <div class="models-storage-path" id="models-dir-label">—</div>
+              <button type="button" class="models-storage-open-btn" id="btn-models-open-dir"
+                      data-i18n-attr="title=models:storage.openFolder" title="Open folder" aria-label="Open folder">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h3l2 2h4A1.5 1.5 0 0 1 14 6.5v5A1.5 1.5 0 0 1 12.5 13h-9A1.5 1.5 0 0 1 2 11.5v-7z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </section>
         <!-- ── Download panel (persistent card, hidden when no download) ── -->
         <section class="card download-card" id="download-panel" hidden>
           <div class="card-label">
@@ -318,12 +374,77 @@
 
       <!-- ── Tab: Settings ──────────────────────────────────────────────── -->
       <div class="tab-pane" id="tab-settings">
-        <div class="settings-toolbar">
-          <span class="settings-toolbar-label" data-i18n="settings:toolbar.label">Config Settings</span>
-          <button class="btn-save" id="btn-save-settings" data-i18n="settings:toolbar.save">Save</button>
+        <div class="settings-sticky-header">
+          <div class="settings-header-row">
+            <div class="settings-header-title-block">
+              <h1 class="settings-header-title" data-i18n="settings:toolbar.label">Settings</h1>
+              <span class="settings-header-subtitle" data-i18n="settings:toolbar.subtitle">Customize transcription parameters and app preferences.</span>
+            </div>
+            <div class="settings-header-controls">
+              <!-- Segmented tabs: Transcription params vs. App preferences -->
+              <div class="settings-segments" role="tablist" id="settings-segments">
+                <button class="settings-segment active" type="button" role="tab"
+                        data-segment="transcription"
+                        data-i18n="settings:segments.transcription">Transcription</button>
+                <button class="settings-segment" type="button" role="tab"
+                        data-segment="app"
+                        data-i18n="settings:segments.app">App</button>
+              </div>
+              <button class="btn-save" id="btn-save-settings" data-i18n="settings:toolbar.save">Save</button>
+            </div>
+          </div>
         </div>
+
         <div id="settings-content">
           <p class="loading-msg" data-i18n="settings:loading">Loading config…</p>
+        </div>
+
+        <!-- Per-device preferences (localStorage-backed, applied instantly) -->
+        <div class="settings-local-prefs" data-segment="app">
+          <!-- Keyboard shortcuts card -->
+          <section class="settings-group-card" id="settings-shortcuts-card">
+            <div class="settings-group-header-static">
+              <div class="settings-group-header-text">
+                <div class="settings-group-title" data-i18n="settings:shortcuts.title">Keyboard shortcuts</div>
+                <div class="settings-group-description" data-i18n="settings:shortcuts.hint">Click a binding, then press the new combination. Esc cancels.</div>
+              </div>
+              <button class="btn-secondary btn-sm" type="button" id="btn-shortcuts-reset-all" data-i18n="settings:shortcuts.resetAll">Reset all</button>
+            </div>
+            <div class="settings-group-body settings-shortcuts-list" id="settings-shortcuts-list"></div>
+          </section>
+
+          <!-- Accessibility card -->
+          <section class="settings-group-card" id="settings-a11y-card">
+            <div class="settings-group-header-static">
+              <div class="settings-group-header-text">
+                <div class="settings-group-title" data-i18n="settings:a11y.title">Accessibility</div>
+                <div class="settings-group-description" data-i18n="settings:a11y.hint">Applied immediately and remembered on this device.</div>
+              </div>
+            </div>
+            <div class="settings-group-body">
+              <div class="field-row field-row-bool">
+                <div class="field-label-block">
+                  <label class="field-label" for="a11y-font-size" data-i18n="settings:a11y.fontSize.label">Font size</label>
+                </div>
+                <div class="field-control">
+                  <select id="a11y-font-size">
+                    <option value="small" data-i18n="settings:a11y.fontSize.small">Small</option>
+                    <option value="normal" data-i18n="settings:a11y.fontSize.normal">Normal</option>
+                    <option value="large" data-i18n="settings:a11y.fontSize.large">Large</option>
+                    <option value="xlarge" data-i18n="settings:a11y.fontSize.xlarge">Extra large</option>
+                  </select>
+                </div>
+              </div>
+              <div class="field-row field-row-bool">
+                <div class="field-label-block">
+                  <label class="field-label" for="a11y-high-contrast" data-i18n="settings:a11y.highContrast.label">High contrast</label>
+                </div>
+                <div class="field-control">
+                  <input type="checkbox" id="a11y-high-contrast" />
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
 
@@ -468,7 +589,25 @@
           </div>
         </section>
 
-        <!-- ⑤ Credits & License card -->
+        <!-- ⑤ Version history card -->
+        <section class="card changelog-card">
+          <div class="card-label">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M3 2h10a1 1 0 011 1v11l-3-2-3 2-3-2-3 2V3a1 1 0 011-1zm1 2v7.27l2-1.33 3 2 3-2 2 1.33V4H4z"/>
+            </svg>
+            <span data-i18n="changelog:card.label">Version history</span>
+          </div>
+          <p class="credits-text" data-i18n="changelog:card.description">
+            Browse release notes for every shipped version.
+          </p>
+          <div class="credits-actions">
+            <button class="btn-inline-action" type="button"
+                    id="btn-about-view-changelog"
+                    data-i18n="changelog:card.action">View version history</button>
+          </div>
+        </section>
+
+        <!-- ⑥ Credits & License card -->
         <section class="card credits-card">
           <div class="card-label">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -489,6 +628,17 @@
             <button class="btn-inline-action" type="button"
                     data-about-link="https://github.com/swiftruru/whisperflow-studio/issues/new"
                     data-i18n="about:credits.reportIssue">Report an issue</button>
+          </div>
+          <p class="credits-text credits-text-muted" data-i18n="about:diagnostics.description">
+            When filing an issue, attach diagnostics so we can reproduce faster. Paths under your home directory are redacted automatically.
+          </p>
+          <div class="credits-actions">
+            <button class="btn-inline-action" type="button"
+                    id="btn-about-copy-diagnostics"
+                    data-i18n="about:diagnostics.actions.copy">Copy diagnostics</button>
+            <button class="btn-inline-action" type="button"
+                    id="btn-about-save-diagnostics"
+                    data-i18n="about:diagnostics.actions.save">Save as file…</button>
           </div>
         </section>
 
@@ -911,6 +1061,34 @@
         <button class="btn-secondary update-action-skip" id="btn-update-skip" type="button" data-i18n="updater:actions.skip">Skip this version</button>
         <button class="btn-secondary update-action-later" id="btn-update-later" type="button" data-i18n="updater:actions.later">Remind me later</button>
         <button class="btn-primary update-action-primary" id="btn-update-download" type="button" data-i18n="updater:actions.download">Update now</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Changelog viewer — opened from About → Version history -->
+  <div class="modal-overlay" id="changelog-dialog" hidden>
+    <div class="modal changelog-dialog">
+      <div class="changelog-dialog-header">
+        <h2 data-i18n="changelog:dialog.title">Version history</h2>
+        <button class="btn-icon" id="btn-changelog-close" type="button" aria-label="Close" data-i18n-attr="title=changelog:dialog.close">✕</button>
+      </div>
+      <p class="changelog-dialog-subtitle" data-i18n="changelog:dialog.subtitle">Release notes for every published version, newest first.</p>
+
+      <div class="changelog-body" id="changelog-body">
+        <!-- List view -->
+        <div class="changelog-list" id="changelog-list"></div>
+
+        <!-- Single-entry view -->
+        <div class="changelog-entry" id="changelog-entry" hidden>
+          <div class="changelog-entry-toolbar">
+            <button class="btn-secondary" id="btn-changelog-back" type="button" data-i18n="changelog:dialog.back">Back to list</button>
+            <button class="btn-secondary" id="btn-changelog-github" type="button" data-i18n="changelog:dialog.openOnGitHub">View on GitHub</button>
+          </div>
+          <h3 class="changelog-entry-version" id="changelog-entry-version"></h3>
+          <div class="changelog-entry-body md-body" id="changelog-entry-body"></div>
+        </div>
+
+        <div class="changelog-status" id="changelog-status" hidden></div>
       </div>
     </div>
   </div>

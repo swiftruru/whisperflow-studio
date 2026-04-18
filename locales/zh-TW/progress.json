@@ -4,7 +4,29 @@
     "stageIdle": "待機",
     "noMissing": "找不到缺字幕的檔案",
     "scanSummary": "已掃描 {{files}} 個檔案、{{dirs}} 個資料夾",
+    "scannedFiles": "已掃描 {{files}} 個檔案、{{dirs}} 個資料夾",
+    "processedCount": "{{processed}}/{{total}} 已處理",
+    "queueReady": "佇列就緒",
+    "nextUp": "下一個",
+    "fileCounter": "檔案 {{index}}/{{total}}",
+    "currentFileLine": "{{stage}} · 檔案 {{index}}/{{total}} · {{fileName}}",
     "allProcessed": "全部完成 — {{done}} 完成、{{failed}} 失敗、{{skipped}} 略過 · {{elapsed}}"
+  },
+  "stats": {
+    "pending": "待處理 {{count}}",
+    "running": "執行中 {{count}}",
+    "paused": "已暫停 {{count}}",
+    "done": "完成 {{count}}",
+    "skipped": "已跳過 {{count}}",
+    "failed": "失敗 {{count}}"
+  },
+  "timing": {
+    "elapsed": "已耗時 {{time}}",
+    "eta": "剩餘 {{time}}",
+    "currentElapsed": "本檔耗時 {{time}}",
+    "currentEta": "本檔剩餘 {{time}}",
+    "batchElapsed": "批次耗時 {{time}}",
+    "batchEta": "批次剩餘 {{time}}"
   },
   "stage": {
     "idle": "待機",

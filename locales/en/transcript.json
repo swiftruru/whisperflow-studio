@@ -1,0 +1,30 @@
+{
+  "card": {
+    "title": "Transcript preview"
+  },
+  "searchPlaceholder": "Search transcript…",
+  "actions": {
+    "copyAll": "Copy all",
+    "copySegment": "Copy segment",
+    "reveal": "Reveal in folder",
+    "close": "Close preview"
+  },
+  "stats": {
+    "segments": "{{count}} segments",
+    "duration": "Total {{duration}}",
+    "source": "Source: {{path}}"
+  },
+  "search": {
+    "noMatch": "No matches for \"{{query}}\""
+  },
+  "empty": {
+    "loading": "Loading transcript…",
+    "noFile": "No transcript file found — maybe it hasn't been written yet.",
+    "loadFailed": "Failed to read transcript: {{error}}"
+  },
+  "toast": {
+    "copiedAll": "Transcript copied to clipboard",
+    "copiedSegment": "Segment copied",
+    "copyFailed": "Copy failed: {{error}}"
+  }
+}

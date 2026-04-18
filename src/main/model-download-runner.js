@@ -24,7 +24,53 @@ const { createLineBuffer } = require('./python-runner');
 const { parseRunnerEventLine } = require('./runner-event');
 const downloadState = require('./download-state');
 
-let _active = null; // { id, child, name, cancelled }
+let _active = null; // { id, child, name, cancelled, stderrTail }
+
+// Known Windows NTSTATUS codes we occasionally see when Python is killed
+// mid-download (antivirus, OOM killer, etc.).  Decoding them turns the
+// 10-digit exit code into something a human can act on.
+const _NTSTATUS_NAMES = {
+  0xC0000005: 'ACCESS_VIOLATION',
+  0xC000001D: 'ILLEGAL_INSTRUCTION',
+  0xC0000017: 'NO_MEMORY',
+  0xC00000FD: 'STACK_OVERFLOW',
+  0xC000013A: 'CONTROL_C_EXIT',
+  0xC0000142: 'DLL_INIT_FAILED',
+  0xC0000409: 'STACK_BUFFER_OVERRUN',
+  0xC0000374: 'HEAP_CORRUPTION',
+  0xC0000139: 'ENTRYPOINT_NOT_FOUND',
+};
+
+function _describeExitCode(code) {
+  if (code === null || code === undefined) return 'signal';
+  if (code >= 0 && code < 256) return String(code);
+  const unsigned = code < 0 ? code + 0x100000000 : code;
+  const name = _NTSTATUS_NAMES[unsigned];
+  const hex = `0x${unsigned.toString(16).toUpperCase().padStart(8, '0')}`;
+  return name ? `${hex} (${name})` : hex;
+}
+
+// Keep a rolling tail of stderr so that when Python dies without emitting
+// a download-error event we can surface the actual traceback instead of
+// just "Python exited with code N".
+const _STDERR_TAIL_MAX = 4096;
+
+function _appendTail(prev, chunk, max) {
+  const combined = prev + chunk;
+  return combined.length > max ? combined.slice(combined.length - max) : combined;
+}
+
+function _cleanStderrTail(tail) {
+  if (!tail) return '';
+  // Drop tqdm progress-bar lines (they contain carriage returns and end
+  // with bytes/ETA noise) and empty lines.
+  const lines = tail
+    .split(/\r?\n/)
+    .map((ln) => ln.split('\r').pop().trim())
+    .filter((ln) => ln && !/^\d+%\|[█▏▎▍▌▋▊▉ ]/.test(ln));
+  // Prefer the last few meaningful lines.
+  return lines.slice(-8).join(' | ').slice(-500);
+}
 
 function startDownload({ id, name, venvPython, pythonDir, modelsDir }) {
   if (_active) {
@@ -45,7 +91,7 @@ function startDownload({ id, name, venvPython, pythonDir, modelsDir }) {
     },
   });
 
-  _active = { id, child, name, cancelled: false };
+  _active = { id, child, name, cancelled: false, stderrTail: '' };
 
   const lineBuffer = createLineBuffer((line) => {
     const evt = parseRunnerEventLine(line);
@@ -58,16 +104,19 @@ function startDownload({ id, name, venvPython, pythonDir, modelsDir }) {
   });
 
   child.stderr.on('data', (buf) => {
-    // stderr goes to main-process console for debugging; not into state.
     const text = buf.toString('utf-8');
+    if (_active) {
+      _active.stderrTail = _appendTail(_active.stderrTail, text, _STDERR_TAIL_MAX);
+    }
     if (text.trim()) {
       console.error(`[download:${name}] ${text.trimEnd()}`);
     }
   });
 
-  child.on('close', (code) => {
+  child.on('close', (code, signal) => {
     lineBuffer.flush();
     const wasCancelled = _active?.cancelled;
+    const stderrTail = _cleanStderrTail(_active?.stderrTail || '');
     _active = null;
 
     if (wasCancelled) {
@@ -90,10 +139,14 @@ function startDownload({ id, name, venvPython, pythonDir, modelsDir }) {
           finishedAt: new Date().toISOString(),
         });
       } else {
+        const exitDesc = signal ? `signal=${signal}` : `exit=${_describeExitCode(code)}`;
+        const message = stderrTail
+          ? `${stderrTail} [${exitDesc}]`
+          : `Python exited unexpectedly (${exitDesc})`;
         downloadState.updateDownload(id, {
           status: 'failed',
           errorCode: 'PROCESS_EXIT',
-          errorMessage: `Python exited with code ${code}`,
+          errorMessage: message,
           finishedAt: new Date().toISOString(),
         });
       }

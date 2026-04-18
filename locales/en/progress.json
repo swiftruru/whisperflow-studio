@@ -4,7 +4,29 @@
     "stageIdle": "Idle",
     "noMissing": "No missing subtitles found",
     "scanSummary": "Scanned {{files}} files in {{dirs}} folders",
+    "scannedFiles": "Scanned {{files}} files in {{dirs}} folders",
+    "processedCount": "{{processed}}/{{total}} processed",
+    "queueReady": "Queue ready",
+    "nextUp": "Next up",
+    "fileCounter": "File {{index}}/{{total}}",
+    "currentFileLine": "{{stage}} · File {{index}}/{{total}} · {{fileName}}",
     "allProcessed": "All done — {{done}} completed, {{failed}} failed, {{skipped}} skipped · {{elapsed}}"
+  },
+  "stats": {
+    "pending": "Pending {{count}}",
+    "running": "Running {{count}}",
+    "paused": "Paused {{count}}",
+    "done": "Done {{count}}",
+    "skipped": "Skipped {{count}}",
+    "failed": "Failed {{count}}"
+  },
+  "timing": {
+    "elapsed": "Elapsed {{time}}",
+    "eta": "ETA {{time}}",
+    "currentElapsed": "Current elapsed {{time}}",
+    "currentEta": "Current ETA {{time}}",
+    "batchElapsed": "Batch elapsed {{time}}",
+    "batchEta": "Batch ETA {{time}}"
   },
   "stage": {
     "idle": "Idle",

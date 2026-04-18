@@ -211,4 +211,87 @@ function copyProfileToActive(profileConfigPath, activeConfigPath) {
   writeConfig(activeConfigPath, readConfig(profileConfigPath));
 }
 
-module.exports = { readConfig, writeConfig, getProfileList, copyProfileToActive };
+// Profile name validation — keep it conservative because the name
+// ends up as a directory on disk and a label in the UI.
+function validateProfileName(name) {
+  if (typeof name !== 'string') return { valid: false, reason: 'invalid-type' };
+  const trimmed = name.trim();
+  if (!trimmed) return { valid: false, reason: 'empty' };
+  if (trimmed.toLowerCase() === 'default') return { valid: false, reason: 'reserved' };
+  if (/[\\/:*?"<>|\s]/.test(trimmed)) return { valid: false, reason: 'illegal-characters' };
+  if (trimmed.length > 40) return { valid: false, reason: 'too-long' };
+  return { valid: true, name: trimmed };
+}
+
+function createProfile(configDir, name) {
+  const v = validateProfileName(name);
+  if (!v.valid) {
+    const err = new Error(`invalid profile name: ${v.reason}`);
+    err.code = v.reason;
+    throw err;
+  }
+  const profileDir = path.join(configDir, v.name);
+  if (fs.existsSync(profileDir)) {
+    const err = new Error('profile already exists');
+    err.code = 'already-exists';
+    throw err;
+  }
+  fs.mkdirSync(profileDir, { recursive: true });
+  // Seed the new profile from the current active config so the user's
+  // current tuning is the starting point for the new profile.
+  const activePath = path.join(configDir, 'config.json');
+  const src = fs.existsSync(activePath) ? readConfig(activePath) : getDefaultConfig(activePath);
+  writeConfig(path.join(profileDir, 'config.json'), src);
+  return { name: v.name, configPath: path.join(profileDir, 'config.json') };
+}
+
+function renameProfile(configDir, oldName, newName) {
+  if (typeof oldName !== 'string' || oldName.toLowerCase() === 'default') {
+    const err = new Error('cannot rename default profile');
+    err.code = 'reserved';
+    throw err;
+  }
+  const v = validateProfileName(newName);
+  if (!v.valid) {
+    const err = new Error(`invalid profile name: ${v.reason}`);
+    err.code = v.reason;
+    throw err;
+  }
+  const fromDir = path.join(configDir, oldName);
+  const toDir = path.join(configDir, v.name);
+  if (!fs.existsSync(fromDir)) {
+    const err = new Error('profile not found');
+    err.code = 'not-found';
+    throw err;
+  }
+  if (fs.existsSync(toDir)) {
+    const err = new Error('profile already exists');
+    err.code = 'already-exists';
+    throw err;
+  }
+  fs.renameSync(fromDir, toDir);
+  return { name: v.name, configPath: path.join(toDir, 'config.json') };
+}
+
+function deleteProfile(configDir, name) {
+  if (typeof name !== 'string' || name.toLowerCase() === 'default') {
+    const err = new Error('cannot delete default profile');
+    err.code = 'reserved';
+    throw err;
+  }
+  const profileDir = path.join(configDir, name);
+  if (!fs.existsSync(profileDir)) return false;
+  fs.rmSync(profileDir, { recursive: true, force: true });
+  return true;
+}
+
+module.exports = {
+  readConfig,
+  writeConfig,
+  getProfileList,
+  copyProfileToActive,
+  validateProfileName,
+  createProfile,
+  renameProfile,
+  deleteProfile,
+};

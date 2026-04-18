@@ -52,6 +52,52 @@
     "confirmLabel": "Confirm",
     "cancelLabel": "Cancel"
   },
+  "stopBatch": {
+    "title": "Stop the whole batch?",
+    "messageWithFile": "\"{{fileName}}\" is still running — stopping now throws away its progress, and every remaining file in the queue stays paused. Stop anyway?",
+    "messageGeneric": "Progress on the current file will be discarded, and every remaining file in the queue stays paused. Stop anyway?",
+    "confirmLabel": "Stop",
+    "cancelLabel": "Keep transcribing"
+  },
+  "skipCurrent": {
+    "title": "Skip the current file?",
+    "messageWithFile": "Progress on \"{{fileName}}\" will be discarded and the batch will move on to the next file in the queue. Skip anyway?",
+    "messageGeneric": "Progress on the current file will be discarded and the batch will move on to the next file in the queue. Skip anyway?",
+    "confirmLabel": "Skip file",
+    "cancelLabel": "Keep transcribing"
+  },
+  "profile": {
+    "namePlaceholder": "e.g. JP, EN-interview, meeting…",
+    "nameHint": "No whitespace or / \\ : * ? \" < > | — max 40 chars.",
+    "create": {
+      "title": "Create a new profile",
+      "label": "New profile",
+      "action": "Create new profile (copies current settings)"
+    },
+    "rename": {
+      "title": "Rename \"{{name}}\"",
+      "action": "Rename"
+    },
+    "delete": {
+      "title": "Delete profile",
+      "message": "Delete profile \"{{name}}\"? Its config.json will be removed — this can't be undone.",
+      "confirm": "Delete",
+      "action": "Delete this profile"
+    },
+    "toast": {
+      "created": "Profile created: {{name}}",
+      "renamed": "Renamed \"{{from}}\" to \"{{to}}\"",
+      "deleted": "Profile deleted: {{name}}"
+    },
+    "errors": {
+      "empty": "Name can't be empty.",
+      "reserved": "\"default\" is reserved.",
+      "illegalCharacters": "Name can't contain whitespace or / \\ : * ? \" < > |.",
+      "tooLong": "Name too long (max 40 chars).",
+      "alreadyExists": "A profile with that name already exists.",
+      "notFound": "Profile not found."
+    }
+  },
   "closeWhileRunning": {
     "title": "WhisperFlow Studio",
     "message": "Transcription in progress",

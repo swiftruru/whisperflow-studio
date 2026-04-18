@@ -10,7 +10,14 @@
     "resume": "Resume",
     "skipCurrent": "Skip Current",
     "stopBatch": "Stop Batch",
-    "autoLoop": "Auto-loop mode"
+    "autoLoop": "Auto-loop mode",
+    "showInFolder": "Show in folder",
+    "retry": "Retry",
+    "remove": "Remove"
+  },
+  "itemActions": {
+    "moveUp": "Move up",
+    "moveDown": "Move down"
   },
   "stepGuide": {
     "step1": "Choose a media folder",
@@ -22,15 +29,18 @@
     "remainingBadge": "{{count}} remaining",
     "revealInFinder": "Show in folder"
   },
-  "actions": {
-    "showInFolder": "Show in folder"
-  },
   "panel": {
     "label": "Queue",
     "searchPlaceholder": "Search filename or path…",
     "emptyPending": "No pending transcription jobs in the queue",
     "retryFailed": "Retry Failed",
-    "clearFinished": "Clear Finished"
+    "clearFinished": "Clear Finished",
+    "totalFiles": "{{count}} files",
+    "visibleCount": "{{count}} visible",
+    "visibleOfTotal": "{{visible}} of {{total}} visible",
+    "filterTag": "filter: {{filter}}",
+    "searchTag": "search: \"{{query}}\"",
+    "noMatching": "No matching queue items"
   },
   "toast": {
     "filesAdded": "Added {{count}} file(s) to queue",

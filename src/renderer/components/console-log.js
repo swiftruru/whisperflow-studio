@@ -1,9 +1,16 @@
 'use strict';
 
+import { t } from '../lib/i18n.js';
+
 let autoScroll = true;
 const outputEl    = document.getElementById('console-output');
 const statusLabel = document.getElementById('status-badge');
 const statusDot   = document.getElementById('status-dot');
+
+// Current status token ('idle' / 'running' / 'paused' / 'error' / ...) — lets
+// us re-render on language change without callers needing to re-pass a
+// translated string.  `null` means the status has never been set.
+let _currentStatusKey = null;
 
 function classifyLine(text) {
   const lower = text.toLowerCase();
@@ -72,7 +79,8 @@ function renderRunningTimer() {
   const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
   const ss = String(elapsed % 60).padStart(2, '0');
   const suffix = _currentStage ? ` · ${_currentStage}` : '';
-  statusLabel.textContent = `Running ${mm}:${ss}${suffix}`;
+  const runningLabel = t('controls:status.running', { defaultValue: 'Running' });
+  statusLabel.textContent = `${runningLabel} ${mm}:${ss}${suffix}`;
 }
 
 function startTimer() {
@@ -90,24 +98,91 @@ function stopTimer() {
   }
 }
 
-function setStatus(state) {
+/**
+ * Set the top-right status badge.  Accepts a locale-agnostic state token
+ * ('idle' / 'running' / 'paused' / 'skipping' / 'stopping' / 'setup' /
+ * 'checking' / 'error').  Translation happens inside here so a language
+ * switch can re-render via `refreshStatus()` without the caller needing
+ * to re-supply a translated string.
+ *
+ * Backwards-compat: legacy callers passed the already-translated text
+ * directly (e.g. 'Running' / 'Error').  We map those to the matching
+ * token so existing call sites keep working during the refactor.
+ */
+function setStatus(stateOrKey) {
+  const key = normalizeStatusKey(stateOrKey);
+  _currentStatusKey = key;
+  renderCurrentStatus();
+}
+
+function normalizeStatusKey(value) {
+  if (!value) return 'idle';
+  const known = ['idle', 'running', 'paused', 'skipping', 'stopping', 'setup', 'checking', 'error', 'completed'];
+  if (known.includes(value)) return value;
+  if (value === 'Running') return 'running';
+  if (value === 'Error') return 'error';
+  // Unknown — store the raw string as a leaf and render it as-is.  This
+  // keeps ad-hoc status messages (that never had an i18n key) working
+  // even if they won't be translated on language switch.
+  return { raw: String(value) };
+}
+
+function renderCurrentStatus() {
+  if (_currentStatusKey === null) return;
   statusLabel.className = 'status-label';
   statusDot.className   = 'status-dot';
-  if (state === 'Running') {
-    statusLabel.classList.add('running');
-    statusDot.classList.add('running');
-    _currentStage = '';  // reset stage on every fresh run
-    startTimer();
-  } else {
+
+  if (typeof _currentStatusKey === 'object' && _currentStatusKey.raw) {
     stopTimer();
     _currentStage = '';
-    statusLabel.textContent = state;
-    if (state === 'Error') {
-      statusLabel.classList.add('error');
-      statusDot.classList.add('error');
+    statusLabel.textContent = _currentStatusKey.raw;
+    return;
+  }
+
+  if (_currentStatusKey === 'running') {
+    statusLabel.classList.add('running');
+    statusDot.classList.add('running');
+    // Only (re)start the timer when transitioning INTO the running
+    // state — if it's already running (e.g. we got here because of a
+    // language switch, not a state change), we just re-render the
+    // existing elapsed time using the new locale.  Otherwise startTimer()
+    // would reset _timerStart to Date.now() and the elapsed counter would
+    // visibly jump back to 00:00 every time the user flips languages.
+    if (_timerStart === null) {
+      _currentStage = '';
+      startTimer();
+    } else {
+      renderRunningTimer();
     }
+    return;
+  }
+
+  stopTimer();
+  _currentStage = '';
+  statusLabel.textContent = t(`controls:status.${_currentStatusKey}`, {
+    defaultValue: _currentStatusKey,
+  });
+  if (_currentStatusKey === 'error') {
+    statusLabel.classList.add('error');
+    statusDot.classList.add('error');
   }
 }
+
+/**
+ * Re-render the status badge using the last-set state key.  Called on
+ * language change so the badge text follows the new locale.
+ */
+function refreshStatus() {
+  renderCurrentStatus();
+}
+
+// Re-render on language switch.  Timer-based rendering inside
+// `renderRunningTimer()` will also use the new t() result on its next
+// tick, but refreshing here means paused / idle / setup states update
+// instantly instead of waiting for the next subscribeQueueState fire.
+window.addEventListener('app:language-changed', () => {
+  refreshStatus();
+});
 
 // Called from queue-panel.js whenever a [WhisperFlowEvent] with a
 // ``stage`` field arrives, so the top-right status badge always shows
@@ -195,7 +270,14 @@ searchInput.addEventListener('keydown', (e) => {
 });
 document.getElementById('btn-search-close').addEventListener('click', closeSearch);
 
-export { openSearch };
+function getRecentLogLines(n = 500) {
+  if (!outputEl) return [];
+  const text = outputEl.innerText || '';
+  const lines = text.split('\n');
+  return lines.slice(-n);
+}
+
+export { openSearch, getRecentLogLines };
 
 function formatRunErrorLog(payload) {
   if (!payload) return '[ERROR] 發生未預期錯誤。\n';
@@ -213,7 +295,7 @@ window.electronAPI.onLogData((text) => {
 
 window.electronAPI.onRunError((payload) => {
   appendLog(formatRunErrorLog(payload));
-  setStatus('Error');
+  setStatus('error');
 });
 
 export { appendLog, clearLog, setStage, setStatus };

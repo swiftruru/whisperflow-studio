@@ -7,6 +7,8 @@
       "initial_prompt_mode": ["prepend_all_segments", "prepend_first_segment", "json_prompt_mode"],
       "device": ["auto", "cpu", "cuda"],
       "compute_type": ["auto", "float16", "float32", "int8", "int8_float16", "int8_float32"],
+      "task": ["transcribe", "translate"],
+      "overwrite_policy": ["overwrite", "skip", "rename-suffix"],
       "uiLanguage": ["auto", "zh-TW", "en"]
     },
     "languagePrompts": {
@@ -24,9 +26,47 @@
       "Hindi": "नमस्ते।"
     },
     "pathFieldKeys": {
-      "folder": ["models_dir", "media_root_path", "media_file_path"],
+      "folder": ["models_dir", "media_root_path", "media_file_path", "output_dir"],
       "file": ["media_file_name", "pythonPath"]
-    }
+    },
+    "hiddenFieldKeys": [
+      "media_file_path",
+      "media_file_name",
+      "missing_count"
+    ],
+    "fieldGroups": [
+      {
+        "id": "general",
+        "segment": "app",
+        "keys": ["pythonPath", "media_root_path", "models_dir"]
+      },
+      {
+        "id": "model",
+        "segment": "transcription",
+        "keys": ["model", "device", "compute_type"]
+      },
+      {
+        "id": "transcription",
+        "segment": "transcription",
+        "keys": ["language", "task", "initial_prompt", "initial_prompt_mode"]
+      },
+      {
+        "id": "output",
+        "segment": "transcription",
+        "keys": ["write_srt", "write_vtt", "write_txt", "write_json", "output_dir", "max_line_width", "overwrite_policy"]
+      },
+      {
+        "id": "vad",
+        "segment": "transcription",
+        "keys": ["vad", "vad_merge_window", "vad_max_merge_size", "vad_padding", "vad_prompt_window"]
+      },
+      {
+        "id": "advanced",
+        "segment": "transcription",
+        "defaultCollapsed": true,
+        "keys": ["beam_size", "best_of", "temperature", "condition_on_previous_text", "no_speech_threshold", "logprob_threshold", "compression_ratio_threshold"]
+      }
+    ]
   },
   "appRuntime": {
     "windowDefaults": {

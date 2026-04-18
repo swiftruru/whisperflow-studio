@@ -103,14 +103,6 @@ def main() -> int:
     # giving clear live feedback ("[00:04:514 -> 00:06:514] 這邊是在日本成田機場").
     config.verbose = True
 
-    # Match the output-file set the original faster-whisper-webui produced:
-    # srt + vtt + plain-text transcript + raw segment JSON, all in the same
-    # directory as the source media.  TranscribeConfig defaults txt/json
-    # to False (to keep the Python library surface minimal for direct CLI
-    # users), so we opt in explicitly here from the Electron bridge path.
-    config.write_txt = True
-    config.write_json = True
-
     if not config.input_path:
         emitter = emitter_for(None)
         emitter.error(

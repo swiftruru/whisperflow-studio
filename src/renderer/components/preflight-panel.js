@@ -71,11 +71,14 @@ function openSettingsField(section, key) {
 
   requestAnimationFrame(() => {
     const field = document.querySelector(`[data-section="${section}"][data-key="${key}"]`);
-    const group = field?.closest('.section-group');
-    if (group?.hidden) {
-      group.hidden = false;
-      group.previousElementSibling?.classList.remove('collapsed');
-      localStorage.setItem(`section-collapsed:${section}`, 'false');
+    const card = field?.closest('.settings-group-card');
+    const body = card?.querySelector('.settings-group-body');
+    const header = card?.querySelector('.settings-group-header');
+    if (body?.hidden) {
+      body.hidden = false;
+      header?.classList.remove('collapsed');
+      const groupId = card?.dataset?.group;
+      if (groupId) localStorage.setItem(`settings-group-collapsed:${groupId}`, 'false');
     }
     field?.focus();
     field?.scrollIntoView({ block: 'center', behavior: 'smooth' });

@@ -52,6 +52,52 @@
     "confirmLabel": "確定",
     "cancelLabel": "取消"
   },
+  "stopBatch": {
+    "title": "停止整批轉錄？",
+    "messageWithFile": "目前正在處理「{{fileName}}」，停止後該檔的進度會被捨棄，佇列中其他未處理檔案也會停住。確定要停止嗎？",
+    "messageGeneric": "停止後目前檔案的進度會被捨棄，佇列中其他未處理檔案也會停住。確定要停止嗎？",
+    "confirmLabel": "停止",
+    "cancelLabel": "繼續轉錄"
+  },
+  "skipCurrent": {
+    "title": "跳過目前檔案？",
+    "messageWithFile": "「{{fileName}}」目前的轉錄進度會被捨棄，系統會接著處理佇列中的下一個檔案。確定要跳過嗎？",
+    "messageGeneric": "目前檔案的轉錄進度會被捨棄，系統會接著處理佇列中的下一個檔案。確定要跳過嗎？",
+    "confirmLabel": "跳過此檔",
+    "cancelLabel": "繼續轉錄"
+  },
+  "profile": {
+    "namePlaceholder": "例如：JP、英文訪談、會議…",
+    "nameHint": "不可包含空白或 / \\ : * ? \" < > |，長度上限 40 字。",
+    "create": {
+      "title": "建立新 Profile",
+      "label": "新增 Profile",
+      "action": "建立新 Profile（複製目前設定）"
+    },
+    "rename": {
+      "title": "重新命名「{{name}}」",
+      "action": "重新命名"
+    },
+    "delete": {
+      "title": "刪除 Profile",
+      "message": "確定要刪除「{{name}}」嗎？此 Profile 的 config.json 會被移除，無法復原。",
+      "confirm": "刪除",
+      "action": "刪除此 Profile"
+    },
+    "toast": {
+      "created": "已建立 Profile：{{name}}",
+      "renamed": "已將「{{from}}」重新命名為「{{to}}」",
+      "deleted": "已刪除 Profile：{{name}}"
+    },
+    "errors": {
+      "empty": "名稱不能為空。",
+      "reserved": "「default」為保留名稱，無法使用。",
+      "illegalCharacters": "名稱不可包含空白或 / \\ : * ? \" < > |。",
+      "tooLong": "名稱過長（上限 40 字）。",
+      "alreadyExists": "已有同名 Profile，請換一個名稱。",
+      "notFound": "找不到該 Profile。"
+    }
+  },
   "closeWhileRunning": {
     "title": "WhisperFlow Studio",
     "message": "轉錄正在進行中",

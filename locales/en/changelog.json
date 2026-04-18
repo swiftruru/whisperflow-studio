@@ -1,0 +1,23 @@
+{
+  "card": {
+    "label": "Version history",
+    "description": "Browse release notes for every shipped version.",
+    "action": "View version history"
+  },
+  "dialog": {
+    "title": "Version history",
+    "subtitle": "Release notes for every published version, newest first.",
+    "close": "Close",
+    "back": "Back to list",
+    "openOnGitHub": "View on GitHub"
+  },
+  "list": {
+    "loading": "Loading…",
+    "empty": "No changelog entries found.",
+    "failed": "Failed to load version list: {{error}}"
+  },
+  "view": {
+    "loading": "Loading {{version}}…",
+    "failed": "Failed to load {{version}}: {{error}}"
+  }
+}

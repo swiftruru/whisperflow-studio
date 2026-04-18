@@ -75,6 +75,17 @@
   "footer": {
     "copyright": "© 2026 Yu-Ru Pan · MIT License"
   },
+  "diagnostics": {
+    "description": "回報問題時附上診斷資料能加快重現。家目錄下的路徑會自動以 ~ 代換，不會洩漏使用者名稱。",
+    "actions": {
+      "copy": "複製診斷資訊",
+      "save": "儲存為檔案…"
+    },
+    "collecting": "正在收集…",
+    "copied": "診斷資訊已複製到剪貼簿",
+    "saved": "已儲存：{{path}}",
+    "failed": "診斷收集失敗：{{error}}"
+  },
   "toast": {
     "openLinkFailed": "無法開啟連結：{{error}}"
   }

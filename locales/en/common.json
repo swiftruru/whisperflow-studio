@@ -29,5 +29,12 @@
   "emptyState": {
     "noData": "No data",
     "unknown": "Unknown"
+  },
+  "app": {
+    "show": "Show WhisperFlow Studio",
+    "runTranscription": "Start transcription",
+    "scan": "Scan for missing subtitles",
+    "stop": "Stop",
+    "quit": "Quit application"
   }
 }

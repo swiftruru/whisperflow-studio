@@ -15,7 +15,29 @@
     "finishedFailed": "轉錄失敗",
     "stoppedByUser": "使用者已停止",
     "skippedByUser": "使用者已跳過",
-    "skippingWait": "正在跳過目前檔案，等待程序結束…",
-    "stoppingWait": "正在停止目前批次，等待程序結束…"
+    "skippingWait": "已請求跳過目前檔案，等程序結束後接續下一個。",
+    "stoppingWait": "已請求停止批次，等程序結束。",
+    "skippedDone": "目前檔案已跳過，接續處理下一個。",
+    "stoppedDone": "批次已停止。"
+  },
+  "log": {
+    "processPaused": "已暫停轉錄程序。",
+    "processResumed": "已恢復轉錄程序。",
+    "transcriptionCompleted": "✔ 轉錄完成，耗時 {{seconds}} 秒",
+    "scanningQueue": "開始掃描資料夾：「{{path}}」",
+    "foundMissingFiles": "找到 {{count}} 個缺字幕的檔案。",
+    "nextQueuedFile": "下一個待轉錄檔案：「{{fileName}}」",
+    "noMissingFiles": "沒有找到缺字幕的檔案。",
+    "scanComplete": "掃描完成，共 {{dirs}} 個資料夾、{{files}} 個檔案。",
+    "startingTranscription": "開始轉錄:「{{fileName}}」",
+    "noQueuedFiles": "佇列中沒有可轉錄的檔案。",
+    "installCancelled": "安裝已由使用者取消。",
+    "installing": "透過 {{manager}} 安裝 {{package}} 中…",
+    "pathRefreshed": "已從系統登錄重新載入 PATH。",
+    "installFinished": "{{package}}（{{manager}}）安裝完成。",
+    "installFailed": "{{package}} 安裝失敗：{{error}}",
+    "venvCreating": "建立虛擬環境於 {{path}}",
+    "venvUpgradingPip": "升級 pip 中…",
+    "venvInstallingDeps": "從 {{path}} 安裝相依套件中…"
   }
 }

@@ -1,6 +1,7 @@
 {
   "toolbar": {
-    "label": "Config Settings",
+    "label": "Settings",
+    "subtitle": "Tune transcription parameters and personal preferences. Remember to hit Save.",
     "save": "Save",
     "saved": "Saved ✓"
   },
@@ -8,9 +9,75 @@
     "saved": "Settings saved"
   },
   "loading": "Loading config…",
+  "shortcuts": {
+    "title": "Keyboard shortcuts",
+    "hint": "Click a binding, then press the new combination. Esc cancels.",
+    "reset": "Reset",
+    "resetAll": "Reset all",
+    "resetAllToast": "Shortcuts reset to defaults",
+    "unbound": "Unbound",
+    "capturing": "Press keys…",
+    "bound": "Bound \"{{action}}\" to {{combo}}",
+    "actions": {
+      "runTranscription": "Start transcription",
+      "scanFiles": "Scan for missing subtitles",
+      "stopBatch": "Stop batch",
+      "saveSettings": "Save settings",
+      "clearConsole": "Clear Console",
+      "searchConsole": "Search Console"
+    }
+  },
+  "a11y": {
+    "title": "Accessibility",
+    "hint": "Applied immediately and remembered on this device.",
+    "fontSize": {
+      "label": "Font size",
+      "small": "Small",
+      "normal": "Normal",
+      "large": "Large",
+      "xlarge": "Extra large"
+    },
+    "highContrast": {
+      "label": "High contrast"
+    }
+  },
   "sections": {
     "APP_SETTINGS": "Application",
     "SETTING": "Transcription"
+  },
+  "segments": {
+    "transcription": "Transcription",
+    "app": "App"
+  },
+  "groups": {
+    "general": {
+      "title": "General",
+      "description": "Python, models storage, and the folder to scan."
+    },
+    "model": {
+      "title": "Model & Device",
+      "description": "Pick a Whisper model and an inference device."
+    },
+    "transcription": {
+      "title": "Transcription",
+      "description": "Target language, translation mode, and prompting."
+    },
+    "output": {
+      "title": "Subtitle output",
+      "description": "Which formats to emit, where to put them, how to handle existing files."
+    },
+    "vad": {
+      "title": "Voice activity detection",
+      "description": "Segmentation strategy — affects speed and boundary quality."
+    },
+    "advanced": {
+      "title": "Advanced decoder",
+      "description": "Fine-tuning for people who know Whisper internals; usually leave as-is."
+    },
+    "other": {
+      "title": "Other",
+      "description": "Fields not yet categorized."
+    }
   },
   "fields": {
     "pythonPath": {
@@ -18,46 +85,120 @@
       "detectButton": "Detect now",
       "detecting": "Detecting…",
       "detectSuccess": "Detected Python: {{path}}",
-      "detectFailed": "Still no Python 3 found — please specify a path manually."
+      "detectFailed": "Still no Python 3 found — please specify a path manually.",
+      "label": "Python path"
     },
     "uiLanguage": {
-      "description": "Interface language. 'auto' follows your OS locale; Chinese systems get Traditional Chinese, everything else gets English."
+      "description": "Interface language. 'auto' follows your OS locale; Chinese systems get Traditional Chinese, everything else gets English.",
+      "label": "Interface language"
     },
     "model": {
-      "description": "Whisper model to use. Larger models are more accurate but slower and bigger. Only models already downloaded from the Models tab appear here."
+      "description": "Whisper model to use. Larger models are more accurate but slower and bigger. Only models already downloaded from the Models tab appear here.",
+      "label": "Model"
     },
     "models_dir": {
-      "description": "Directory where model weights are downloaded. Leave blank to use the system default (macOS: Application Support; Windows: %APPDATA%)."
+      "description": "Directory where model weights are downloaded. Leave blank to use the system default (macOS: Application Support; Windows: %APPDATA%).",
+      "label": "Models folder"
     },
     "device": {
-      "description": "Inference device. 'auto' picks CUDA if available, otherwise CPU. macOS currently runs on CPU."
+      "description": "Inference device. 'auto' picks CUDA if available, otherwise CPU. macOS currently runs on CPU.",
+      "label": "Inference device"
     },
     "compute_type": {
-      "description": "Model precision. 'auto' picks based on device. int8 is fastest and uses the least memory; float16 is slightly higher quality; float32 is the most accurate but most resource-hungry."
+      "description": "Model precision. 'auto' picks based on device. int8 is fastest and uses the least memory; float16 is slightly higher quality; float32 is the most accurate but most resource-hungry.",
+      "label": "Compute precision"
     },
     "vad": {
-      "description": "Voice activity detection strategy. The silero-vad variants cut out speech segments before transcribing, which is much faster and reduces hallucinations; 'none' sends the entire file to Whisper."
+      "description": "Voice activity detection strategy. The silero-vad variants cut out speech segments before transcribing, which is much faster and reduces hallucinations; 'none' sends the entire file to Whisper.",
+      "label": "VAD strategy"
     },
     "vad_merge_window": {
-      "description": "Silence merge window (seconds). Two speech segments separated by less than this gap are merged into one, preventing over-segmentation."
+      "description": "Silence merge window (seconds). Two speech segments separated by less than this gap are merged into one, preventing over-segmentation.",
+      "label": "Merge window (sec)"
     },
     "vad_max_merge_size": {
-      "description": "Maximum merged-segment length (seconds). Segments longer than this get split so Whisper never receives an over-long chunk."
+      "description": "Maximum merged-segment length (seconds). Segments longer than this get split so Whisper never receives an over-long chunk.",
+      "label": "Max merged length (sec)"
     },
     "vad_padding": {
-      "description": "Padding (seconds) added before and after each detected speech segment, so the first/last word isn't clipped."
+      "description": "Padding (seconds) added before and after each detected speech segment, so the first/last word isn't clipped.",
+      "label": "Segment padding (sec)"
     },
     "vad_prompt_window": {
-      "description": "Cross-segment prompt window (seconds). Whisper will be fed the last N seconds of the previous segment as context, helping it keep terminology consistent."
+      "description": "Cross-segment prompt window (seconds). Whisper will be fed the last N seconds of the previous segment as context, helping it keep terminology consistent.",
+      "label": "Cross-segment prompt (sec)"
     },
     "language": {
-      "description": "Target language. Leave blank to let Whisper auto-detect; specifying a language usually gives more stable output."
+      "description": "Target language. Leave blank to let Whisper auto-detect; specifying a language usually gives more stable output.",
+      "label": "Target language"
     },
     "initial_prompt": {
-      "description": "Initial prompt. A starting string fed to Whisper — useful for forcing specific vocabulary, writing system (e.g. Traditional vs. Simplified Chinese), or tone. Selecting a language auto-fills a sensible default."
+      "description": "Initial prompt. A starting string fed to Whisper — useful for forcing specific vocabulary, writing system (e.g. Traditional vs. Simplified Chinese), or tone. Selecting a language auto-fills a sensible default.",
+      "label": "Initial prompt"
     },
     "initial_prompt_mode": {
-      "description": "How the prompt is applied. prepend_all_segments: every segment; prepend_first_segment: only the first; json_prompt_mode: read per-segment prompts from a JSON file."
+      "description": "How the prompt is applied. prepend_all_segments: every segment; prepend_first_segment: only the first; json_prompt_mode: read per-segment prompts from a JSON file.",
+      "label": "Prompt mode"
+    },
+    "task": {
+      "description": "Transcription mode. 'transcribe' keeps the source language; 'translate' uses Whisper's built-in translate-to-English (no external API calls).",
+      "label": "Mode"
+    },
+    "write_srt": {
+      "description": "Emit SubRip (.srt) subtitles. Widely supported across players. On by default.",
+      "label": "Emit SRT"
+    },
+    "write_vtt": {
+      "description": "Emit WebVTT (.vtt) subtitles. Useful for HTML <video> elements. On by default.",
+      "label": "Emit VTT"
+    },
+    "write_txt": {
+      "description": "Emit a plain-text transcript (.txt) with no timestamps. Handy for reading or copy-pasting.",
+      "label": "Emit plain text"
+    },
+    "write_json": {
+      "description": "Emit raw segment JSON (.json) with per-segment timestamps, text and avg_logprob, so downstream scripts can post-process easily.",
+      "label": "Emit JSON"
+    },
+    "output_dir": {
+      "description": "Where to write subtitles. Leave blank to write next to the source media; set a path to collect all output into one folder.",
+      "label": "Output folder"
+    },
+    "max_line_width": {
+      "description": "Maximum characters per subtitle line. Longer lines get wrapped. Leave blank to use Whisper's default.",
+      "label": "Max line width"
+    },
+    "overwrite_policy": {
+      "description": "What to do when a subtitle file already exists. overwrite: replace silently. skip: keep the existing file, don't rewrite. rename-suffix: write alongside as .1, .2, … instead.",
+      "label": "Overwrite policy"
+    },
+    "beam_size": {
+      "description": "Beam search width. Larger is more accurate but slower. Default 5. Set to 1 for a meaningful speedup when quality is already good enough.",
+      "label": "Beam size"
+    },
+    "best_of": {
+      "description": "When temperature > 0, sample N candidates per segment and keep the best. Default 5. Has no effect when temperature is 0.",
+      "label": "Best of"
+    },
+    "temperature": {
+      "description": "Sampling temperature. 0 = deterministic. Whisper auto-ramps this up on fallback retries when it detects repetition/low quality. Default 0.",
+      "label": "Sampling temperature"
+    },
+    "condition_on_previous_text": {
+      "description": "Feed the previous segment's text as the next segment's prompt. Keeps terminology consistent but can get stuck in loops; turn off if you see runaway repetition.",
+      "label": "Use previous text as prompt"
+    },
+    "no_speech_threshold": {
+      "description": "'No speech' probability threshold. Segments above this are treated as silence and dropped. Default 0.6.",
+      "label": "No-speech threshold"
+    },
+    "logprob_threshold": {
+      "description": "Average log-probability threshold. Segments below this are treated as low-quality and retried with fallback settings. Default -1.0.",
+      "label": "LogProb threshold"
+    },
+    "compression_ratio_threshold": {
+      "description": "Compression ratio threshold. Above this Whisper flags the segment as repetitive/hallucinated and retries. Default 2.4.",
+      "label": "Compression-ratio threshold"
     },
     "media_root_path": {
       "description": "Folder to scan for media. Scan recursively finds every video/audio file under this directory that doesn't already have a matching subtitle."

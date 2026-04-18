@@ -42,6 +42,18 @@
     if (!isDark) {
       document.documentElement.setAttribute('data-theme', 'light');
     }
+
+    // Accessibility: font size + high contrast, same boot-time pattern as
+    // theme.  See src/renderer/lib/a11y.js for the full runtime controls.
+    try {
+      var fs = localStorage.getItem('a11y.fontSize');
+      if (fs === 'small' || fs === 'large' || fs === 'xlarge') {
+        document.documentElement.setAttribute('data-font-size', fs);
+      }
+      if (localStorage.getItem('a11y.highContrast') === '1') {
+        document.documentElement.setAttribute('data-high-contrast', 'true');
+      }
+    } catch (_) {}
   } catch (_) {
     // Last-resort no-op — never let theme bootstrap crash the app.
   }

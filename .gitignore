@@ -5,6 +5,9 @@ dist/
 # must be tracked so CI builds ship the Settings-tab i18n strings.
 /settings.json
 python/config/config.json
+# User-created config profiles (profile-switcher.js creates each as a
+# subdirectory of python/config/ containing its own config.json).
+python/config/*/
 test.mjs
 
 # Claude Code local session state (permissions, memory, plans).

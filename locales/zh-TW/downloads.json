@@ -43,11 +43,12 @@
     "modelNotDownloaded": "模型「{{model}}」尚未下載，請先到「模型」分頁下載後再開始轉錄。"
   },
   "error": {
-    "network": "網路連線失敗，請檢查網路後重試。",
-    "disk": "磁碟空間不足。此模型需要約 {{needed}}，但目前只剩 {{free}}。",
-    "permission": "無法寫入模型目錄，請檢查 {{path}} 的讀寫權限。",
-    "remote": "HuggingFace 伺服器回應錯誤（{{code}}），請稍後重試。",
+    "network": "無法連線至網路，請確認網路後重試。",
+    "disk": "磁碟空間不足，請釋出空間後重試。",
+    "permission": "無法寫入模型目錄，請檢查資料夾的讀寫權限。",
+    "remote": "HuggingFace 伺服器回應錯誤，請稍後再試。",
     "verify": "下載完成但檔案不完整，請重試。",
+    "process": "下載程序意外中斷，請重試；若仍失敗，可能是防毒軟體攔截或系統資源不足。",
     "cancelled": "下載已取消",
     "interrupted": "下載被 App 關閉中斷，請點擊重試繼續下載。",
     "unknown": "未知錯誤：{{message}}"

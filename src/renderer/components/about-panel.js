@@ -25,12 +25,79 @@
 
 import { showToast } from './toast.js';
 import { t } from '../lib/i18n.js';
+import { initChangelogViewer, openChangelogViewer } from './changelog-viewer.js';
+import { getRecentLogLines } from './console-log.js';
 
 async function initAboutPanel() {
   await fillVersionBadge();
   bindExternalLinks();
   bindCheckForUpdatesButton();
+  bindChangelogButton();
+  bindDiagnosticsButtons();
   bindMenuOpenAbout();
+}
+
+async function runDiagnosticsCollect() {
+  const recentLogLines = getRecentLogLines(500);
+  return window.electronAPI.diagnostics.collect({ recentLogLines });
+}
+
+function bindDiagnosticsButtons() {
+  const copyBtn = document.getElementById('btn-about-copy-diagnostics');
+  const saveBtn = document.getElementById('btn-about-save-diagnostics');
+
+  if (copyBtn) {
+    copyBtn.addEventListener('click', async () => {
+      const originalLabel = copyBtn.textContent;
+      copyBtn.disabled = true;
+      copyBtn.textContent = t('about:diagnostics.collecting');
+      try {
+        const { text } = await runDiagnosticsCollect();
+        await navigator.clipboard.writeText(text);
+        showToast(t('about:diagnostics.copied'), 'success', 2500);
+      } catch (err) {
+        showToast(
+          t('about:diagnostics.failed', { error: err?.message || String(err) }),
+          'error',
+          4000,
+        );
+      } finally {
+        copyBtn.disabled = false;
+        copyBtn.textContent = originalLabel;
+      }
+    });
+  }
+
+  if (saveBtn) {
+    saveBtn.addEventListener('click', async () => {
+      const originalLabel = saveBtn.textContent;
+      saveBtn.disabled = true;
+      saveBtn.textContent = t('about:diagnostics.collecting');
+      try {
+        const { text } = await runDiagnosticsCollect();
+        const savedPath = await window.electronAPI.diagnostics.save({ text });
+        if (savedPath) {
+          showToast(t('about:diagnostics.saved', { path: savedPath }), 'success', 3500);
+        }
+      } catch (err) {
+        showToast(
+          t('about:diagnostics.failed', { error: err?.message || String(err) }),
+          'error',
+          4000,
+        );
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = originalLabel;
+      }
+    });
+  }
+}
+
+function bindChangelogButton() {
+  const btn = document.getElementById('btn-about-view-changelog');
+  if (!btn) return;
+  initChangelogViewer();
+  btn.addEventListener('click', openChangelogViewer);
 }
 
 /**

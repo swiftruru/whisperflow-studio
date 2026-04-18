@@ -44,6 +44,33 @@ extraResources:
       - "**/*"
       - "!**/__pycache__/**"
       - "!**/*.pyc"
+  - from: changelog
+    to: changelog
+    filter:
+      - "v*.md"
+
+fileAssociations:
+  - ext: mp4
+    name: MP4 Video
+    role: Viewer
+  - ext: mov
+    name: QuickTime Movie
+    role: Viewer
+  - ext: mkv
+    name: Matroska Video
+    role: Viewer
+  - ext: mp3
+    name: MP3 Audio
+    role: Viewer
+  - ext: wav
+    name: WAV Audio
+    role: Viewer
+  - ext: m4a
+    name: M4A Audio
+    role: Viewer
+  - ext: flac
+    name: FLAC Audio
+    role: Viewer
 
 mac:
   target:

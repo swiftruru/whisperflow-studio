@@ -43,11 +43,12 @@
     "modelNotDownloaded": "Model \"{{model}}\" is not downloaded. Please download it from the Models tab first."
   },
   "error": {
-    "network": "Network connection failed. Please check your connection and retry.",
-    "disk": "Not enough disk space. This model needs approximately {{needed}}, but only {{free}} is available.",
-    "permission": "Cannot write to the models directory. Please check read/write permissions on {{path}}.",
-    "remote": "HuggingFace returned an error ({{code}}). Please try again later.",
+    "network": "Unable to reach the network. Please check your connection and retry.",
+    "disk": "Not enough disk space. Free up some space and retry.",
+    "permission": "Cannot write to the models directory. Please check folder permissions.",
+    "remote": "HuggingFace server returned an error. Please try again later.",
     "verify": "Download finished but files are incomplete. Please retry.",
+    "process": "Download process exited unexpectedly. Retry — if it keeps failing, antivirus or low system memory may be blocking it.",
     "cancelled": "Download cancelled",
     "interrupted": "Download was interrupted by app shutdown. Click Retry to resume.",
     "unknown": "Unknown error: {{message}}"

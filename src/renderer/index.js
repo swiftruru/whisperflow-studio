@@ -1,4 +1,4 @@
-import { renderSettings } from './components/settings-panel.js';
+import { renderSettings, initSettingsSegments } from './components/settings-panel.js';
 import { openSearch } from './components/console-log.js';
 import { triggerRun, triggerScan } from './components/controls-bar.js';
 import { initProfileSwitcher } from './components/profile-switcher.js';
@@ -23,6 +23,12 @@ import { initDownloadPanel } from './components/download-panel.js';
 import { initDownloadIndicator } from './components/download-indicator.js';
 import { showToast } from './components/toast.js';
 import { t } from './lib/i18n.js';
+import { initA11yControls } from './lib/a11y.js';
+import {
+  initKeyboardShortcuts as initCustomKeyboardShortcuts,
+  registerShortcutAction,
+} from './lib/shortcuts.js';
+import { initShortcutsPanel } from './components/shortcuts-panel.js';
 import './components/controls-bar.js';
 
 // ── Theme toggle ──────────────────────────────────────────────────────────────
@@ -61,12 +67,25 @@ function initTheme() {
 function initTabs() {
   const tabBtns = document.querySelectorAll('.tab-btn');
   const tabPanes = document.querySelectorAll('.tab-pane');
+  const appShell = document.querySelector('.app-shell');
+
+  function applyActiveTab(target) {
+    tabBtns.forEach(b => b.classList.toggle('active', b.dataset.tab === target));
+    tabPanes.forEach(p => p.classList.toggle('active', p.id === `tab-${target}`));
+    // Expose active tab so CSS can collapse the right-side Console on
+    // tabs that don't benefit from it (Settings, About).
+    if (appShell) appShell.dataset.activeTab = target;
+  }
+
+  // Initial state — reflect whichever tab is `.active` in markup.
+  const activePane = document.querySelector('.tab-pane.active');
+  if (activePane && appShell) {
+    appShell.dataset.activeTab = activePane.id.replace(/^tab-/, '');
+  }
 
   tabBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
-      const target = btn.dataset.tab;
-      tabBtns.forEach(b => b.classList.toggle('active', b === btn));
-      tabPanes.forEach(p => p.classList.toggle('active', p.id === `tab-${target}`));
+      applyActiveTab(btn.dataset.tab);
     });
   });
 }
@@ -229,12 +248,31 @@ function initDragDrop() {
   });
 }
 
+// ── File-association bridge: OS "Open with" events add to the queue ─────────
+function initFileAssociationBridge() {
+  if (!window.electronAPI?.onFileAssociationOpen) return;
+  window.electronAPI.onFileAssociationOpen(async (paths) => {
+    if (!Array.isArray(paths) || paths.length === 0) return;
+    try {
+      const result = await window.electronAPI.addQueueFiles(paths);
+      if (result?.added > 0) {
+        showToast(t('queue:toast.filesAdded', { count: result.added }), 'success');
+      }
+    } catch (err) {
+      console.error('[file-association] failed to add files:', err);
+    }
+  });
+}
+
 // ── After scan: refresh found file card ───────────────────────────────────────
 export function onScanComplete() {
   refreshDirDisplay();
 }
 
 // ── Keyboard shortcuts ────────────────────────────────────────────────────────
+// Customizable user-action bindings live in `src/renderer/lib/shortcuts.js`;
+// this function just registers each action handler and wires the
+// non-customizable help-modal shortcut ("?").
 function initKeyboardShortcuts() {
   const shortcutsModal = document.getElementById('shortcuts-modal');
   document.getElementById('btn-shortcuts-close').addEventListener('click', () => {
@@ -244,42 +282,31 @@ function initKeyboardShortcuts() {
     if (e.target === shortcutsModal) shortcutsModal.hidden = true;
   });
 
+  // Register customizable action handlers.
+  registerShortcutAction('runTranscription', () => triggerRun());
+  registerShortcutAction('scanFiles', () => triggerScan());
+  registerShortcutAction('stopBatch', () => {
+    const btnStop = document.getElementById('btn-stop');
+    if (btnStop && !btnStop.disabled) btnStop.click();
+  });
+  registerShortcutAction('saveSettings', () => {
+    const settingsPane = document.getElementById('tab-settings');
+    if (settingsPane?.classList.contains('active')) {
+      document.getElementById('btn-save-settings')?.click();
+    }
+  });
+  registerShortcutAction('clearConsole', () => {
+    document.getElementById('btn-clear-log')?.click();
+  });
+  registerShortcutAction('searchConsole', () => openSearch());
+
+  initCustomKeyboardShortcuts();
+
+  // Non-customizable bindings: "?" opens help, Escape closes it.
   document.addEventListener('keydown', (e) => {
-    const mod = e.metaKey || e.ctrlKey;
     const tag = e.target.tagName;
     const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
-
-    if (mod && !e.shiftKey && e.key === 's') {
-      e.preventDefault();
-      const settingsPane = document.getElementById('tab-settings');
-      if (settingsPane.classList.contains('active')) {
-        document.getElementById('btn-save-settings').click();
-      }
-    }
-    if (mod && e.key === 'k') {
-      e.preventDefault();
-      document.getElementById('btn-clear-log').click();
-    }
-    if (mod && e.key === 'f') {
-      e.preventDefault();
-      openSearch();
-    }
-    // Run transcription
-    if (mod && e.key === 'r') {
-      e.preventDefault();
-      triggerRun();
-    }
-    // Scan for missing subtitles
-    if (mod && e.shiftKey && e.key === 'S') {
-      e.preventDefault();
-      triggerScan();
-    }
-    // Stop batch
-    if (mod && e.key === '.') {
-      e.preventDefault();
-      const btnStop = document.getElementById('btn-stop');
-      if (btnStop && !btnStop.disabled) btnStop.click();
-    }
+    const mod = e.metaKey || e.ctrlKey;
     if (e.key === '?' && !isTyping && !mod) {
       shortcutsModal.hidden = false;
     }
@@ -302,9 +329,12 @@ async function init() {
   initLanguageToggle();
 
   initTheme();
+  initA11yControls();
+  initShortcutsPanel();
   initTabs();
   initBrowseDir();
   initDragDrop();
+  initFileAssociationBridge();
   initKeyboardShortcuts();
   initRecentDirs();
   initErrorState();
@@ -321,6 +351,7 @@ async function init() {
   initDownloadIndicator();
   await initAboutPanel();
   initHelpPanel();
+  initSettingsSegments();
   const startupTasks = [
     refreshPreflight(),
     Promise.resolve().then(() => renderSettings()),

@@ -299,26 +299,54 @@ class Transcriber:
 
         base_name = cfg.output_name or source.stem
 
+        def resolve(path: Path) -> Optional[Path]:
+            """Apply overwrite_policy.  Returns the path to write to, or
+            None when the caller should skip writing entirely."""
+            if not path.exists():
+                return path
+            policy = (cfg.overwrite_policy or "overwrite").lower()
+            if policy == "skip":
+                return None
+            if policy == "rename-suffix":
+                stem = path.stem
+                suffix = path.suffix
+                parent = path.parent
+                for i in range(1, 1000):
+                    candidate = parent / f"{stem}.{i}{suffix}"
+                    if not candidate.exists():
+                        return candidate
+                return path  # give up after 1000 — overwrite as last resort
+            # "overwrite" or any unknown value
+            return path
+
         srt_path = None
         vtt_path = None
         txt_path = None
         json_path = None
 
         if cfg.write_srt:
-            srt_path = output_dir / f"{base_name}.srt"
-            with srt_path.open("w", encoding="utf-8") as f:
-                write_srt(result["segments"], f, max_line_width=cfg.max_line_width)
+            target = resolve(output_dir / f"{base_name}.srt")
+            if target is not None:
+                srt_path = target
+                with target.open("w", encoding="utf-8") as f:
+                    write_srt(result["segments"], f, max_line_width=cfg.max_line_width)
         if cfg.write_vtt:
-            vtt_path = output_dir / f"{base_name}.vtt"
-            with vtt_path.open("w", encoding="utf-8") as f:
-                write_vtt(result["segments"], f, max_line_width=cfg.max_line_width)
+            target = resolve(output_dir / f"{base_name}.vtt")
+            if target is not None:
+                vtt_path = target
+                with target.open("w", encoding="utf-8") as f:
+                    write_vtt(result["segments"], f, max_line_width=cfg.max_line_width)
         if cfg.write_txt:
-            txt_path = output_dir / f"{base_name}.txt"
-            with txt_path.open("w", encoding="utf-8") as f:
-                write_txt(result["segments"], f)
+            target = resolve(output_dir / f"{base_name}.txt")
+            if target is not None:
+                txt_path = target
+                with target.open("w", encoding="utf-8") as f:
+                    write_txt(result["segments"], f)
         if cfg.write_json:
-            json_path = output_dir / f"{base_name}.json"
-            json_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+            target = resolve(output_dir / f"{base_name}.json")
+            if target is not None:
+                json_path = target
+                target.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
 
         return TranscribeOutputs(
             srt_path=srt_path,

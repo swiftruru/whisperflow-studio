@@ -39,6 +39,7 @@ def build_parser() -> argparse.ArgumentParser:
     mode.add_argument("--list-models", action="store_true", help="List built-in models and installation status.")
     mode.add_argument("--download-model", metavar="NAME", help="Download the named model into the managed models directory.")
     mode.add_argument("--delete-model", metavar="NAME", help="Delete the named model from the managed models directory.")
+    mode.add_argument("--scan-hf-cache", action="store_true", help="Scan the system HuggingFace cache for importable models and print a JSON report.")
 
     # When set, --download-model emits structured [WhisperFlowEvent] JSON
     # lines to stdout for every stage transition and progress tick so the
@@ -106,6 +107,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         return _cmd_download_model(args.download_model, args.models_dir, emit_events=args.emit_events)
     if args.delete_model:
         return _cmd_delete_model(args.delete_model, args.models_dir)
+    if args.scan_hf_cache:
+        return _cmd_scan_hf_cache(args.models_dir)
 
     # --- default: transcribe a file -----------------------------------
 
@@ -132,6 +135,38 @@ def main(argv: Optional[list[str]] = None) -> int:
 
 
 # --- model management sub-commands ------------------------------------
+
+
+def _cmd_scan_hf_cache(models_dir: Optional[str]) -> int:
+    """Report which registered models are available in the system HF cache
+    but not yet installed in the managed models directory.  Users can then
+    one-click import them via the Models tab; the normal download() flow
+    picks up the fast-path automatically.
+    """
+    from .models.manager import default_hf_cache_dir, _resolve_source_files_dir, _has_required_files
+
+    manager = ModelManager(Path(models_dir) if models_dir else None)
+    installed_names = {m.entry.name for m in manager.list_installed()}
+    cache_root = default_hf_cache_dir()
+
+    available = []
+    for entry in all_models():
+        if entry.name in installed_names:
+            continue
+        source = cache_root / entry.local_dir_name
+        snapshot = _resolve_source_files_dir(source)
+        if snapshot and _has_required_files(snapshot):
+            available.append({
+                "name": entry.name,
+                "repo_id": entry.repo_id,
+                "approx_size_mb": entry.approx_size_mb,
+            })
+
+    print(json.dumps({
+        "cache_dir": str(cache_root),
+        "available": available,
+    }, ensure_ascii=False, indent=2))
+    return 0
 
 
 def _cmd_list_models(models_dir: Optional[str]) -> int:

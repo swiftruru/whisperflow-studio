@@ -15,5 +15,5 @@
     "saveLog": "儲存 Log",
     "clear": "清除"
   },
-  "bootMessage": "[WhisperFlow Studio] 已就緒。請選擇媒體資料夾並點擊 Scan。"
+  "bootMessage": "[WhisperFlow Studio] 已就緒。請選擇媒體資料夾並點擊「掃描缺字幕的檔案」。"
 }

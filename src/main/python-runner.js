@@ -3,6 +3,26 @@
 const { spawn } = require('child_process');
 const stripAnsi = require('strip-ansi');
 const { parseRunnerEventLine } = require('./runner-event');
+const { t } = require('./i18n');
+
+// Known English log patterns emitted by the Python backend that we want
+// to rewrite with the user's current UI language before sending them to
+// the Console.  Python itself doesn't know the UI locale, so we do this
+// here in the main process just before forwarding stdout to the renderer.
+const LOG_REWRITE_PATTERNS = [
+  {
+    regex: /^✔ Transcription completed in ([\d.]+)s$/,
+    translate: (match) => t('events:log.transcriptionCompleted', { seconds: match[1] }),
+  },
+];
+
+function rewriteBackendLogLine(line) {
+  for (const rule of LOG_REWRITE_PATTERNS) {
+    const match = rule.regex.exec(line);
+    if (match) return rule.translate(match);
+  }
+  return line;
+}
 
 let activeProcess = null;
 let activeState = 'idle';
@@ -111,7 +131,7 @@ function runScript(pythonPath, scriptPath, args, cwd, onData, onError, onClose, 
       return;
     }
 
-    onData(`${line}\n`);
+    onData(`${rewriteBackendLogLine(line)}\n`);
   });
 
   let settled = false;

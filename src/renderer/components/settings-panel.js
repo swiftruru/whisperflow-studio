@@ -78,11 +78,38 @@ function toDisplayValue(value) {
 function buildField(section, key, value) {
   const row = document.createElement('div');
   row.className = 'field-row';
+  row.dataset.key = key;
 
+  const fieldType = inferFieldType(key, value);
+  if (fieldType === 'boolean') row.classList.add('field-row-bool');
+
+  // Left-hand label block: human-friendly label + description.  We look
+  // up an explicit label via i18n first (settings:fields.<key>.label),
+  // fall back to a humanized version of the key name (snake_case →
+  // "Snake case") so the UI never exposes raw identifier strings.
+  const labelBlock = document.createElement('div');
+  labelBlock.className = 'field-label-block';
+
+  const humanLabel = t(`settings:fields.${key}.label`, {
+    defaultValue: humanizeKey(key),
+  });
   const label = document.createElement('label');
-  label.textContent = key;
+  label.className = 'field-label';
+  label.textContent = humanLabel;
+  // Tooltip shows the raw config.json key for power users who want
+  // to trace "which JSON key am I editing?" — keeps the row tidy.
   label.title = key;
-  row.appendChild(label);
+  labelBlock.appendChild(label);
+
+  const descriptionText = t(`settings:fields.${key}.description`, { defaultValue: '' });
+  if (descriptionText) {
+    const descEl = document.createElement('div');
+    descEl.className = 'field-description';
+    descEl.textContent = descriptionText;
+    labelBlock.appendChild(descEl);
+  }
+
+  row.appendChild(labelBlock);
 
   const controlWrap = document.createElement('div');
   controlWrap.className = 'field-control';
@@ -90,7 +117,6 @@ function buildField(section, key, value) {
   const inputRow = document.createElement('div');
   inputRow.className = 'field-input-row';
 
-  const fieldType = inferFieldType(key, value);
   let input;
 
   if (fieldType === 'select') {
@@ -216,21 +242,17 @@ function buildField(section, key, value) {
   controlWrap.appendChild(inputRow);
   controlWrap.appendChild(hint);
 
-  // Per-field description: render a translated explanation below the
-  // input so non-expert users understand what each setting actually
-  // does.  Looked up via i18n key `settings:fields.<key>.description`
-  // and silently skipped when missing (keeps the form compact for
-  // fields we haven't documented yet — e.g. one-off debug params).
-  const descriptionText = t(`settings:fields.${key}.description`, { defaultValue: '' });
-  if (descriptionText) {
-    const descEl = document.createElement('div');
-    descEl.className = 'field-description';
-    descEl.textContent = descriptionText;
-    controlWrap.appendChild(descEl);
-  }
-
   row.appendChild(controlWrap);
   return row;
+}
+
+function humanizeKey(key) {
+  if (!key) return '';
+  // pythonPath → "Python path", max_line_width → "Max line width"
+  const withSpaces = String(key)
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/_/g, ' ');
+  return withSpaces.charAt(0).toUpperCase() + withSpaces.slice(1);
 }
 
 function collectFormValues() {
@@ -296,16 +318,38 @@ const HIDDEN_APP_SETTING_KEYS = new Set([
   'updater',           // nested object owned by the updater module
 ]);
 
-function getRenderedSections() {
-  const visibleAppSettings = {};
+function getHiddenFieldKeys() {
+  const list = configMetadata?.settingsUi?.hiddenFieldKeys;
+  return new Set(Array.isArray(list) ? list : []);
+}
+
+function getFieldGroups() {
+  const groups = configMetadata?.settingsUi?.fieldGroups;
+  return Array.isArray(groups) ? groups : [];
+}
+
+/**
+ * Build a flat lookup of every visible field: key → { section, value }.
+ * APP_SETTINGS and SETTING are collapsed into one map so fieldGroups
+ * metadata can reference any key without caring about which section it
+ * lives in.  HIDDEN_APP_SETTING_KEYS and hiddenFieldKeys are filtered
+ * out here so consumers never see internal-state fields.
+ */
+function buildFieldLookup() {
+  const hiddenConfigKeys = getHiddenFieldKeys();
+  const lookup = {};
   for (const [k, v] of Object.entries(appSettingsObj || {})) {
     if (HIDDEN_APP_SETTING_KEYS.has(k)) continue;
-    visibleAppSettings[k] = v;
+    lookup[k] = { section: APP_SETTINGS_SECTION, value: v };
   }
-  return [
-    [APP_SETTINGS_SECTION, visibleAppSettings],
-    ...Object.entries(configObj || {}),
-  ];
+  for (const [section, fields] of Object.entries(configObj || {})) {
+    if (!fields || typeof fields !== 'object') continue;
+    for (const [k, v] of Object.entries(fields)) {
+      if (hiddenConfigKeys.has(k)) continue;
+      lookup[k] = { section, value: v };
+    }
+  }
+  return lookup;
 }
 
 function shouldValidateField(key) {
@@ -444,59 +488,101 @@ async function renderSettings() {
 
   container.innerHTML = '';
 
-  for (const [section, fields] of getRenderedSections()) {
-    const isCollapsed = localStorage.getItem(`section-collapsed:${section}`) === 'true';
+  const lookup = buildFieldLookup();
+  const groups = getFieldGroups();
+  const claimed = new Set();
 
-    const header = document.createElement('div');
-    header.className = 'section-header section-header-collapsible';
-    // Look up a human-readable name for this section via the
-    // `settings:sections.<KEY>` i18n path.  We keep the section KEY
-    // (APP_SETTINGS / SETTING) as the stable identifier used for
-    // collapse-state persistence and form submission, but surface
-    // a friendly label in the heading so non-technical users don't
-    // have to decode raw config section names.  Falls back to the
-    // raw KEY if the translation is missing (so future new sections
-    // still render something instead of a blank heading).
-    const sectionLabel = t(`settings:sections.${section}`, { defaultValue: section });
-    const headerLabel = document.createElement('span');
-    headerLabel.textContent = sectionLabel;
-    const chevron = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    chevron.setAttribute('class', 'section-chevron');
-    chevron.setAttribute('viewBox', '0 0 24 24');
-    chevron.setAttribute('width', '12');
-    chevron.setAttribute('height', '12');
-    chevron.setAttribute('fill', 'none');
-    chevron.setAttribute('stroke', 'currentColor');
-    chevron.setAttribute('stroke-width', '2.5');
-    const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-    polyline.setAttribute('points', '6 9 12 15 18 9');
-    chevron.appendChild(polyline);
-    header.appendChild(headerLabel);
-    header.appendChild(chevron);
-    if (isCollapsed) header.classList.add('collapsed');
-    container.appendChild(header);
+  for (const group of groups) {
+    const keys = (group.keys || []).filter((k) => lookup[k] !== undefined);
+    if (keys.length === 0) continue;
+    container.appendChild(buildGroupCard({ group, keys, lookup }));
+    keys.forEach((k) => claimed.add(k));
+  }
 
-    const group = document.createElement('div');
-    group.className = 'section-group';
-    if (isCollapsed) group.hidden = true;
-
-    for (const [key, rawValue] of Object.entries(fields)) {
-      group.appendChild(buildField(section, key, toDisplayValue(rawValue)));
-    }
-
-    container.appendChild(group);
-
-    header.addEventListener('click', () => {
-      const collapsed = !group.hidden;
-      group.hidden = collapsed;
-      header.classList.toggle('collapsed', collapsed);
-      localStorage.setItem(`section-collapsed:${section}`, collapsed);
-    });
+  // Any field not explicitly grouped lands in an "Other" card at the
+  // end — ensures a schema extension (e.g. someone adds a new config
+  // key without updating fieldGroups) still renders a control instead
+  // of silently dropping the field.
+  const unclaimed = Object.keys(lookup).filter((k) => !claimed.has(k));
+  if (unclaimed.length > 0) {
+    container.appendChild(buildGroupCard({
+      group: { id: 'other' },
+      keys: unclaimed,
+      lookup,
+    }));
   }
 
   initLanguagePromptSync();
   initDirtyTracking();
   initFieldValidation();
+}
+
+function buildGroupCard({ group, keys, lookup }) {
+  const card = document.createElement('section');
+  card.className = 'settings-group-card';
+  card.dataset.group = group.id;
+  // Tag the card with its segment (transcription / app) so the top
+  // segmented control can hide/show entire cards without re-rendering.
+  if (group.segment) card.dataset.segment = group.segment;
+
+  const storedCollapsed = localStorage.getItem(`settings-group-collapsed:${group.id}`);
+  const isCollapsed = storedCollapsed === 'true'
+    || (storedCollapsed === null && group.defaultCollapsed === true);
+
+  const header = document.createElement('button');
+  header.type = 'button';
+  header.className = 'settings-group-header';
+  if (isCollapsed) header.classList.add('collapsed');
+
+  const headerText = document.createElement('div');
+  headerText.className = 'settings-group-header-text';
+  const title = document.createElement('div');
+  title.className = 'settings-group-title';
+  title.textContent = t(`settings:groups.${group.id}.title`, { defaultValue: group.id });
+  headerText.appendChild(title);
+
+  const desc = t(`settings:groups.${group.id}.description`, { defaultValue: '' });
+  if (desc) {
+    const descEl = document.createElement('div');
+    descEl.className = 'settings-group-description';
+    descEl.textContent = desc;
+    headerText.appendChild(descEl);
+  }
+
+  const chevron = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  chevron.setAttribute('class', 'settings-group-chevron');
+  chevron.setAttribute('viewBox', '0 0 24 24');
+  chevron.setAttribute('width', '14');
+  chevron.setAttribute('height', '14');
+  chevron.setAttribute('fill', 'none');
+  chevron.setAttribute('stroke', 'currentColor');
+  chevron.setAttribute('stroke-width', '2.5');
+  const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+  polyline.setAttribute('points', '6 9 12 15 18 9');
+  chevron.appendChild(polyline);
+
+  header.appendChild(headerText);
+  header.appendChild(chevron);
+
+  const body = document.createElement('div');
+  body.className = 'settings-group-body';
+  if (isCollapsed) body.hidden = true;
+
+  for (const key of keys) {
+    const { section, value } = lookup[key];
+    body.appendChild(buildField(section, key, toDisplayValue(value)));
+  }
+
+  header.addEventListener('click', () => {
+    const collapsed = !body.hidden;
+    body.hidden = collapsed;
+    header.classList.toggle('collapsed', collapsed);
+    localStorage.setItem(`settings-group-collapsed:${group.id}`, String(collapsed));
+  });
+
+  card.appendChild(header);
+  card.appendChild(body);
+  return card;
 }
 
 function initDirtyTracking() {
@@ -665,9 +751,49 @@ window.addEventListener('app:language-changed', () => {
   }
 });
 
+// ── Segmented control (Transcription / App) ─────────────────────────────
+// Each group card gets a `data-segment` attribute during render, and the
+// hand-written local-prefs cards (shortcuts / a11y) are tagged in HTML.
+// We toggle visibility with a single class on #tab-settings so the CSS
+// owns all the show/hide logic — no per-card display juggling here.
+const ACTIVE_SEGMENT_KEY = 'settings.activeSegment';
+const DEFAULT_SEGMENT = 'transcription';
+
+function getStoredSegment() {
+  try {
+    const v = localStorage.getItem(ACTIVE_SEGMENT_KEY);
+    if (v === 'transcription' || v === 'app') return v;
+  } catch (_) {}
+  return DEFAULT_SEGMENT;
+}
+
+function applySettingsSegment(segment) {
+  const tab = document.getElementById('tab-settings');
+  if (!tab) return;
+  const resolved = (segment === 'app' || segment === 'transcription') ? segment : DEFAULT_SEGMENT;
+  tab.dataset.activeSegment = resolved;
+  const buttons = document.querySelectorAll('#settings-segments .settings-segment');
+  buttons.forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.segment === resolved);
+    btn.setAttribute('aria-selected', btn.dataset.segment === resolved ? 'true' : 'false');
+  });
+  try { localStorage.setItem(ACTIVE_SEGMENT_KEY, resolved); } catch (_) {}
+}
+
+function initSettingsSegments() {
+  const container = document.getElementById('settings-segments');
+  if (!container) return;
+  container.querySelectorAll('.settings-segment').forEach((btn) => {
+    btn.addEventListener('click', () => applySettingsSegment(btn.dataset.segment));
+  });
+  applySettingsSegment(getStoredSegment());
+}
+
 export {
   collectFormValues,
   invalidateDynamicModelNames,
   renderSettings,
   saveSettings,
+  initSettingsSegments,
+  applySettingsSegment,
 };

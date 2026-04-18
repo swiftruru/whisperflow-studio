@@ -3,8 +3,19 @@
 const { ipcMain, dialog, Notification, shell, app } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { readConfig, writeConfig, getProfileList, copyProfileToActive } = require('./config-manager');
+const {
+  readConfig,
+  writeConfig,
+  getProfileList,
+  copyProfileToActive,
+  createProfile: createProfileFs,
+  renameProfile: renameProfileFs,
+  deleteProfile: deleteProfileFs,
+} = require('./config-manager');
 const { readConfigMetadata, getSupportedMediaExtensions } = require('./config-metadata');
+const { listChangelogEntries, readChangelogEntry } = require('./changelog');
+const { collectDiagnostics, formatDiagnosticsAsText } = require('./diagnostics');
+const { readTranscriptForMedia } = require('./transcript-reader');
 const { runPreflight, validateSettingField } = require('./preflight-checker');
 const { createQueueManager } = require('./queue-manager');
 const { runScript, stopProcess, pauseProcess, resumeProcess } = require('./python-runner');
@@ -167,6 +178,18 @@ function registerHandlers(
     return readConfig(configPath);
   });
 
+  ipcMain.handle('config:profiles:create', (_event, name) => {
+    return createProfileFs(path.join(PYTHON_DIR, 'config'), name);
+  });
+
+  ipcMain.handle('config:profiles:rename', (_event, payload = {}) => {
+    return renameProfileFs(path.join(PYTHON_DIR, 'config'), payload.oldName, payload.newName);
+  });
+
+  ipcMain.handle('config:profiles:delete', (_event, name) => {
+    return deleteProfileFs(path.join(PYTHON_DIR, 'config'), name);
+  });
+
   // ── File System Dialogs ───────────────────────────────────────────────────
 
   ipcMain.handle('fs:browse-folder', async () => {
@@ -193,6 +216,15 @@ function registerHandlers(
 
   ipcMain.handle('shell:show-in-folder', (_event, filePath) => {
     shell.showItemInFolder(filePath);
+  });
+
+  // Open a directory directly (not its parent).  Used by the Models
+  // tab's "open folder" button next to the models_dir path — we want
+  // Finder/Explorer to drop the user *inside* the folder rather than
+  // revealing it in its parent like `showItemInFolder` does.
+  ipcMain.handle('shell:open-path', async (_event, dirPath) => {
+    if (!dirPath) return '';
+    return shell.openPath(dirPath);
   });
 
   ipcMain.handle('fs:save-log', async (_event, text) => {
@@ -297,18 +329,21 @@ function registerHandlers(
     }
 
     try {
-      sendLog(`[WhisperFlow] Scanning queue from: "${effectiveRootPath}"\n`);
+      sendLog(`[WhisperFlow] ${t('events:log.scanningQueue', { path: effectiveRootPath })}\n`);
       const snapshot = queueManager.scanMedia(effectiveRootPath);
       const { stats, currentJob, scanSummary } = snapshot;
 
       if (stats.total > 0 && currentJob) {
-        sendLog(`[WhisperFlow] Found ${stats.total} media files without subtitles.\n`);
-        sendLog(`[WhisperFlow] Next queued file: "${currentJob.fileName}"\n`);
+        sendLog(`[WhisperFlow] ${t('events:log.foundMissingFiles', { count: stats.total })}\n`);
+        sendLog(`[WhisperFlow] ${t('events:log.nextQueuedFile', { fileName: currentJob.fileName })}\n`);
       } else {
-        sendLog('[WhisperFlow] No media files without subtitles were found.\n');
+        sendLog(`[WhisperFlow] ${t('events:log.noMissingFiles')}\n`);
       }
 
-      sendLog(`[WhisperFlow] Scan complete. Directories: ${scanSummary.scannedDirectories}, files: ${scanSummary.scannedFiles}.\n`);
+      sendLog(`[WhisperFlow] ${t('events:log.scanComplete', {
+        dirs: scanSummary.scannedDirectories,
+        files: scanSummary.scannedFiles,
+      })}\n`);
       sendDone(0);
     } catch (error) {
       sendRunError(error, {
@@ -441,14 +476,14 @@ function registerHandlers(
 
     const job = queueManager.startNextJob();
     if (!job) {
-      sendLog('[WhisperFlow] No queued media files are ready for transcription.\n');
+      sendLog(`[WhisperFlow] ${t('events:log.noQueuedFiles')}\n`);
       sendDone(0);
       return;
     }
 
     let stderrBuffer = '';
     let lastStructuredError = null;
-    sendLog(`[WhisperFlow] Starting CLI transcription for "${job.fileName}"...\n`);
+    sendLog(`[WhisperFlow] ${t('events:log.startingTranscription', { fileName: job.fileName })}\n`);
 
     runScript(
       venvPython,
@@ -467,8 +502,13 @@ function registerHandlers(
       (code) => {
         if (code === -3) {
           queueManager.skipCurrentJob();
+          // Emit a completion log so the Console has a clear "closing
+          // bracket" for the "Skip requested" line above — otherwise
+          // the user is left wondering if the skip actually happened.
+          sendLog(`[WhisperFlow] ${t('events:queue.skippedDone')}\n`);
         } else if (code === -2) {
           queueManager.stopCurrentJob();
+          sendLog(`[WhisperFlow] ${t('events:queue.stoppedDone')}\n`);
         } else {
           queueManager.finishCurrentJob(code, stderrBuffer.trim());
           if (code !== 0) {
@@ -524,7 +564,7 @@ function registerHandlers(
     }
 
     queueManager.pauseCurrentJob();
-    sendLog('[WhisperFlow] Process paused.\n');
+    sendLog(`[WhisperFlow] ${t('events:log.processPaused')}\n`);
   });
 
   ipcMain.on('run:resume', () => {
@@ -541,7 +581,7 @@ function registerHandlers(
     }
 
     queueManager.resumeCurrentJob();
-    sendLog('[WhisperFlow] Process resumed.\n');
+    sendLog(`[WhisperFlow] ${t('events:log.processResumed')}\n`);
   });
 
   ipcMain.on('run:skip-current', () => {
@@ -558,7 +598,7 @@ function registerHandlers(
     }
 
     queueManager.markSkippingCurrent();
-    sendLog('[WhisperFlow] Skipping current file. Waiting for current process to exit...\n');
+    sendLog(`[WhisperFlow] ${t('events:queue.skippingWait')}\n`);
   });
 
   // ── Bundled venv initialisation ──────────────────────────────────────────
@@ -578,7 +618,7 @@ function registerHandlers(
     // { cancelled: false } if there was nothing to cancel.  Never throws.
     const cancelled = cancelActiveInstall();
     if (cancelled) {
-      sendLog('[WhisperFlow] Install cancelled by user.\n');
+      sendLog(`[WhisperFlow] ${t('events:log.installCancelled')}\n`);
     }
     return { cancelled };
   });
@@ -591,7 +631,7 @@ function registerHandlers(
       err.code = 'PM_INSTALL_BAD_ARGS';
       throw err;
     }
-    sendLog(`[WhisperFlow] Installing ${packageName} via ${managerId}…\n`);
+    sendLog(`[WhisperFlow] ${t('events:log.installing', { package: packageName, manager: managerId })}\n`);
     const busyKey = `pm-install:${packageName}`;
     addBusyReason(busyKey);
     try {
@@ -612,12 +652,12 @@ function registerHandlers(
       // users hit with winget install ffmpeg on Windows.
       const changed = refreshSystemPathFromRegistry();
       if (changed) {
-        sendLog('[WhisperFlow] PATH refreshed from registry after install.\n');
+        sendLog(`[WhisperFlow] ${t('events:log.pathRefreshed')}\n`);
       }
-      sendLog(`[WhisperFlow] ${packageName} install via ${managerId} finished.\n`);
+      sendLog(`[WhisperFlow] ${t('events:log.installFinished', { package: packageName, manager: managerId })}\n`);
       return { ok: true };
     } catch (error) {
-      sendLog(`[WhisperFlow] ${packageName} install failed: ${error.message}\n`);
+      sendLog(`[WhisperFlow] ${t('events:log.installFailed', { package: packageName, error: error.message })}\n`);
       throw error;
     } finally {
       removeBusyReason(busyKey);
@@ -641,6 +681,97 @@ function registerHandlers(
   // comes from package.json), so a release bump propagates without
   // touching any About-specific constants.
   ipcMain.handle('app:get-version', () => app.getVersion());
+
+  // ── Changelog viewer (About → Version history) ─────────────────
+  ipcMain.handle('changelog:list', () => listChangelogEntries(ELECTRON_APP_ROOT));
+  ipcMain.handle('changelog:read', (_event, version) => readChangelogEntry(ELECTRON_APP_ROOT, version));
+
+  // ── Diagnostics (About → Report an issue) ──────────────────────
+  async function buildDiagnosticsPayload(recentLogLines) {
+    const { configPath, venvRoot } = getPaths();
+    const config = readConfig(configPath);
+    const modelsDir = config?.SETTING?.models_dir || null;
+    return collectDiagnostics({
+      recentLogLines,
+      electronAppRoot: ELECTRON_APP_ROOT,
+      venvRoot,
+      configPath,
+      getLocalSettings,
+      modelsDir,
+    });
+  }
+
+  ipcMain.handle('diagnostics:collect', async (_event, payload = {}) => {
+    const data = await buildDiagnosticsPayload(payload.recentLogLines || []);
+    return {
+      data,
+      text: formatDiagnosticsAsText(data),
+    };
+  });
+
+  // ── Transcript preview (Main tab → post-run) ───────────────────
+  ipcMain.handle('transcript:read', (_event, payload = {}) => {
+    const { mediaPath, outputDir } = payload;
+    return readTranscriptForMedia(mediaPath, outputDir);
+  });
+
+  // ── Storage info (Models tab disk usage) ───────────────────────
+  ipcMain.handle('storage:info', (_event, payload = {}) => {
+    const targetDir = payload?.dir || readConfig(getPaths().configPath)?.SETTING?.models_dir || '';
+    const result = {
+      dir: targetDir,
+      usedBytes: 0,
+      fileCount: 0,
+      freeBytes: null,
+      totalBytes: null,
+    };
+    if (!targetDir || !fs.existsSync(targetDir)) {
+      return result;
+    }
+    // Used bytes — recursive file stat (models are typically a handful of
+    // large files, so this is fast even without caching).
+    const stack = [targetDir];
+    while (stack.length) {
+      const current = stack.pop();
+      let entries;
+      try {
+        entries = fs.readdirSync(current, { withFileTypes: true });
+      } catch (_) { continue; }
+      for (const entry of entries) {
+        const full = path.join(current, entry.name);
+        if (entry.isDirectory()) {
+          stack.push(full);
+        } else if (entry.isFile()) {
+          try {
+            result.usedBytes += fs.statSync(full).size;
+            result.fileCount += 1;
+          } catch (_) {}
+        }
+      }
+    }
+    // Free / total — Node 18+ has statfsSync; fall back to nulls on older runtimes.
+    if (typeof fs.statfsSync === 'function') {
+      try {
+        const stats = fs.statfsSync(targetDir);
+        result.freeBytes = Number(stats.bavail) * Number(stats.bsize);
+        result.totalBytes = Number(stats.blocks) * Number(stats.bsize);
+      } catch (_) {}
+    }
+    return result;
+  });
+
+  ipcMain.handle('diagnostics:save', async (_event, payload = {}) => {
+    const text = payload.text || '';
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: 'Save diagnostics',
+      defaultPath: `whisperflow-diagnostics-${app.getVersion()}-${stamp}.txt`,
+      filters: [{ name: 'Text Files', extensions: ['txt'] }],
+    });
+    if (result.canceled || !result.filePath) return false;
+    fs.writeFileSync(result.filePath, text, 'utf-8');
+    return result.filePath;
+  });
 
   ipcMain.handle('venv:status', () => {
     const { venvRoot } = getPaths();
@@ -725,6 +856,12 @@ function registerHandlers(
   ipcMain.handle('models:list', async () => {
     ensureModelsDirInConfig();
     const stdout = await runVenvPython(['-m', 'whisperflow.cli', '--list-models']);
+    return JSON.parse(stdout);
+  });
+
+  ipcMain.handle('models:scan-hf-cache', async () => {
+    ensureModelsDirInConfig();
+    const stdout = await runVenvPython(['-m', 'whisperflow.cli', '--scan-hf-cache']);
     return JSON.parse(stdout);
   });
 
@@ -858,7 +995,7 @@ function registerHandlers(
     }
 
     queueManager.markStoppingCurrent();
-    sendLog('[WhisperFlow] Stopping current batch. Waiting for current process to exit...\n');
+    sendLog(`[WhisperFlow] ${t('events:queue.stoppingWait')}\n`);
   });
 }
 

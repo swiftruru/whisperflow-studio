@@ -15,6 +15,7 @@ const {
   registerUpdaterIpcHandlers,
 } = require('./updater/updater-ipc');
 const { setApplicationMenu } = require('./app-menu');
+const { initTray } = require('./tray');
 
 // ── Path Resolution ───────────────────────────────────────────────────────────
 // In development:  ELECTRON_APP_ROOT = <project>/
@@ -253,6 +254,12 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
 
+  // Drain any file paths that arrived via file-association events
+  // before the window existed (macOS `open-file`, Windows argv).
+  mainWindow.webContents.on('did-finish-load', () => {
+    flushOpenFiles();
+  });
+
   mainWindow.on('close', (e) => {
     if (isAppQuitting || isForceClosingWindow) return;
     if (!isBusy()) return;
@@ -389,6 +396,21 @@ app.whenReady().then(async () => {
       }
     },
   });
+
+  // Tray icon + global shortcuts (opt-out via settings.json :: trayEnabled).
+  // Default-on so power users get the menubar affordance without fiddling.
+  // Tray menu labels reflect the language active at boot; users flipping
+  // the UI-language toggle at runtime will see the updated labels on the
+  // next app launch (main-process i18next already switches correctly —
+  // rebuilding the Menu is the cheap-but-deferred part).
+  const trayEnabled = persistedSettings.trayEnabled !== false;
+  if (trayEnabled) {
+    initTray({
+      mainWindow,
+      electronAppRoot: ELECTRON_APP_ROOT,
+      t,
+    });
+  }
 });
 
 app.on('before-quit', () => {
@@ -399,6 +421,13 @@ app.on('before-quit', () => {
   // Synchronously flush download state to disk so a reboot picks
   // up the latest progress / status of any in-flight download.
   require('./download-state').shutdown();
+});
+
+app.on('will-quit', () => {
+  // Release all global shortcuts so the next launch (or other apps)
+  // can re-register them cleanly.
+  const { globalShortcut } = require('electron');
+  try { globalShortcut.unregisterAll(); } catch (_) {}
 });
 
 app.on('window-all-closed', () => {
@@ -418,3 +447,63 @@ app.on('activate', () => {
   );
   }
 });
+
+// ── File-association handlers ─────────────────────────────────────────────
+// Queue pending file paths that arrive before the renderer is ready (via
+// `open-file` events on macOS, or argv on Windows / Linux) — we drain
+// them into the queue manager right after the BrowserWindow loads.
+const _pendingOpenFiles = [];
+function _enqueuePath(filePath) {
+  if (!filePath || typeof filePath !== 'string') return;
+  try {
+    const stat = fs.statSync(filePath);
+    if (!stat.isFile()) return;
+  } catch (_) { return; }
+  _pendingOpenFiles.push(filePath);
+  flushOpenFiles();
+}
+
+function flushOpenFiles() {
+  if (_pendingOpenFiles.length === 0) return;
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (!mainWindow.webContents || mainWindow.webContents.isLoading()) return;
+  const paths = _pendingOpenFiles.splice(0);
+  mainWindow.webContents.send('file-association:open', paths);
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+app.on('open-file', (event, filePath) => {
+  event.preventDefault();
+  _enqueuePath(filePath);
+});
+
+// On Windows/Linux the OS passes the path as an argv.  Filter out flags
+// and non-existent entries so the Electron CLI args don't confuse the
+// queue.  This runs once per launch; second-instance path below handles
+// later double-click events.
+for (const arg of process.argv.slice(1)) {
+  if (typeof arg === 'string' && !arg.startsWith('-')) {
+    _enqueuePath(arg);
+  }
+}
+
+// single-instance lock so a second double-click forwards the path to
+// the already-running window instead of launching a duplicate.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on('second-instance', (_event, argv) => {
+    for (const arg of argv.slice(1)) {
+      if (typeof arg === 'string' && !arg.startsWith('-')) {
+        _enqueuePath(arg);
+      }
+    }
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+}

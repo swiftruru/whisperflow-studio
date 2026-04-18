@@ -36,6 +36,7 @@
   --border-modal: rgba(160,125,30,0.38);
 
   --radius-sm:  8px;
+  --radius-md:  10px;
   --radius:     12px;
   --radius-lg:  18px;
 
@@ -182,6 +183,67 @@ body {
   grid-template-columns: var(--left-w) 1fr;
   overflow: hidden;
   min-height: 0;
+}
+
+/* Settings / Models / About don't benefit from the streaming Console —
+   give them the full window width so dense forms / cards / model lists
+   can breathe.  Only the Main tab still shows the right-hand Console
+   pane since transcription runs stream output there in real time. */
+.app-shell[data-active-tab="settings"],
+.app-shell[data-active-tab="models"],
+.app-shell[data-active-tab="about"] {
+  grid-template-columns: 1fr;
+}
+
+.app-shell[data-active-tab="settings"] .right-panel,
+.app-shell[data-active-tab="models"] .right-panel,
+.app-shell[data-active-tab="about"] .right-panel {
+  display: none;
+}
+
+.app-shell[data-active-tab="settings"] .left-panel,
+.app-shell[data-active-tab="models"] .left-panel,
+.app-shell[data-active-tab="about"] .left-panel {
+  border-right: none;
+}
+
+/* When Settings / About get the full window, cap content width and
+   center it so forms and cards don't stretch edge-to-edge on wide
+   monitors.  The sticky settings header is deliberately excluded so
+   it spans the full viewport width — otherwise the sticky section
+   floats as a centered box and leaves ugly strips of empty space on
+   either side while the user scrolls. */
+.app-shell[data-active-tab="settings"] #tab-settings > *:not(.settings-sticky-header) {
+  max-width: 880px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.app-shell[data-active-tab="about"] #tab-about {
+  align-items: center;
+}
+
+.app-shell[data-active-tab="about"] #tab-about > * {
+  max-width: 920px;
+  width: 100%;
+}
+
+.app-shell[data-active-tab="models"] #tab-models {
+  align-items: center;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Sticky header stays full-width so the band bleeds to the viewport
+   edges when stuck.  All other children get the 880px content cap. */
+.app-shell[data-active-tab="models"] #tab-models > *:not(.models-sticky-header) {
+  max-width: 880px;
+  width: 100%;
+}
+
+.app-shell[data-active-tab="models"] #tab-models > .models-sticky-header {
+  width: 100%;
 }
 
 /* ── Titlebar ────────────────────────────────────────────────────────────────── */
@@ -452,16 +514,68 @@ html:not([data-platform="darwin"]) .titlebar-logo {
   font-weight: 600;
 }
 
+.profile-chip-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.profile-chip-action {
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--overlay0);
+  font: inherit;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.profile-chip-action:hover {
+  background: var(--surface1);
+  color: var(--text);
+  border-color: var(--surface2);
+}
+
+.profile-chip-action--danger:hover {
+  background: color-mix(in srgb, var(--red) 18%, var(--surface0));
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 40%, transparent);
+}
+
+.profile-chip-add {
+  font-weight: 600;
+  color: var(--mauve);
+  border-style: dashed;
+}
+
+.profile-prompt-input {
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  margin-top: 8px;
+  background: var(--surface1);
+  border: 1px solid var(--surface2);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+
 /* ── Cards ───────────────────────────────────────────────────────────────────── */
+/* Flat card design shared across Main / Models / Settings / About so
+   every page reads as the same product.  Individual cards that need
+   more presence (e.g. drag-over ring on .dir-card) opt in via
+   state-specific box-shadow overrides below. */
 .card {
   background: var(--surface0);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border: 1px solid var(--surface1);
+  border-radius: var(--radius-md);
   padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  box-shadow: var(--shadow-sm);
 }
 
 .card-label {
@@ -1466,24 +1580,79 @@ html:not([data-theme="light"]) .btn-primary:hover:not(:disabled) {
 .history-folder-btn:hover { opacity: 1; }
 
 /* ── Settings Tab ────────────────────────────────────────────────────────────── */
-#tab-settings { overflow: hidden; }
+/* Single scroll container for the entire settings page — toolbar sticks
+   to the top, content + local prefs flow below in one document.  This
+   replaces the previous layout where #settings-content had its own
+   flex-grow + overflow-y:auto, which stole all the available height
+   and made .settings-local-prefs unreachable behind tab-pane's clip. */
+#tab-settings {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
 
-.settings-toolbar {
+/* Sticky header wraps toolbar + segmented control so they stay
+   pinned together while content scrolls below.  Spans the full
+   viewport width (an explicit exception to the 880px cap on its
+   siblings) so the sticky section reads as one continuous band
+   instead of a floating centered rectangle. */
+.settings-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  width: 100%;
+  background: var(--base);
+  border-bottom: 1px solid var(--border);
+}
+
+/* New single-row header: title + subtitle on the left, segmented
+   control + Save on the right.  The row itself stays capped at 880px
+   and centered inside the full-width sticky band above. */
+.settings-header-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
-  background: var(--surface0);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
+  gap: 20px;
+  padding: 18px 24px;
+  max-width: 880px;
+  margin: 0 auto;
+  flex-wrap: wrap;
 }
 
+.settings-header-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.settings-header-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  margin: 0;
+}
+
+.settings-header-subtitle {
+  font-size: 11.5px;
+  color: var(--subtext0);
+  line-height: 1.45;
+}
+
+.settings-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Leftover legacy selector — some code still references
+   `.settings-toolbar-label` for i18n fallbacks; keep it neutral so
+   we don't paint stray boxes if it's ever rendered. */
 .settings-toolbar-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--overlay0);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
 }
 
 .btn-save {
@@ -1513,69 +1682,192 @@ html:not([data-theme="light"]) .btn-primary:hover:not(:disabled) {
 
 .btn-save.dirty::after { content: ' •'; }
 
-#settings-content { flex: 1; overflow-y: auto; padding: 8px 0 16px; }
-
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 14px 14px 6px;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--amber);
-  border-top: 1px solid var(--border);
-  margin-top: 4px;
+/* ── Segmented control (Transcription / App) ─────────────────── */
+/* iOS-style segmented pill: darker "track" with a brighter "thumb"
+   marking the active segment.  The extra contrast between track
+   (surface2 tint) and thumb (surface0) is what makes this read as a
+   switcher at a glance rather than a pair of floating buttons. */
+.settings-segments {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: color-mix(in srgb, var(--yellow) 10%, var(--surface1));
+  border: 1px solid color-mix(in srgb, var(--yellow) 24%, var(--border));
+  border-radius: 99px;
 }
 
-.section-header:first-child { border-top: none; margin-top: 0; padding-top: 8px; }
-.section-header-collapsible { cursor: pointer; justify-content: space-between; user-select: none; }
-.section-header-collapsible:hover { color: var(--yellow); }
+.settings-segment {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--subtext0);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 99px;
+  cursor: pointer;
+  transition: background-color .15s ease, color .15s ease, box-shadow .15s ease;
+}
 
-.section-chevron { flex-shrink: 0; transition: transform 0.2s var(--easing); color: var(--overlay0); }
-.section-header-collapsible.collapsed .section-chevron { transform: rotate(-90deg); }
+.settings-segment:hover:not(.active) {
+  color: var(--text);
+  background: color-mix(in srgb, var(--yellow) 6%, transparent);
+}
 
-/* Stacked field layout (v1.6.1).  Replaces the old 110px-label + 1fr
-   two-column grid, which left only ~180px for the input + description
-   inside a 340px left panel — too narrow for Chinese descriptions to
-   read naturally without 5-line wraps.
-   Now: label sits on its own row above a full-width input + description,
-   giving the description column ~300px of breathing room (the same look
-   as Linear / Notion / Raycast settings pages). */
-.field-row {
+.settings-segment.active {
+  background: var(--base);
+  color: var(--amber);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.08),
+    0 0 0 1px color-mix(in srgb, var(--yellow) 50%, transparent);
+}
+
+/* Show only the cards whose data-segment matches the active one.
+   `data-active-segment` lives on #tab-settings (set by JS).  The
+   :not(.settings-segment) filter excludes the segmented-control
+   buttons themselves (they also carry a data-segment attribute). */
+#tab-settings[data-active-segment="transcription"] [data-segment="app"]:not(.settings-segment) {
+  display: none;
+}
+#tab-settings[data-active-segment="app"] [data-segment="transcription"]:not(.settings-segment) {
+  display: none;
+}
+
+#settings-content {
+  padding: 16px 20px 28px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 14px 16px 16px;
-  border-bottom: 1px dashed var(--border);
+  gap: 14px;
+}
+
+/* ── Group card ─────────────────────────────────────────────────── */
+.settings-group-card {
+  background: var(--surface0);
+  border: 1px solid var(--surface1);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-group-header {
+  appearance: none;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  transition: background-color .12s ease;
+}
+
+.settings-group-header:hover {
+  background: color-mix(in srgb, var(--yellow) 5%, transparent);
+}
+
+.settings-group-header-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-group-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.01em;
+}
+
+.settings-group-description {
+  font-size: 11px;
+  color: var(--subtext0);
+  line-height: 1.5;
+}
+
+.settings-group-chevron {
+  flex-shrink: 0;
+  margin-top: 4px;
+  color: var(--overlay1);
+  transition: transform .15s ease;
+}
+
+.settings-group-header.collapsed .settings-group-chevron {
+  transform: rotate(-90deg);
+}
+
+.settings-group-body {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--surface1);
+}
+
+/* ── Field row (single row within a group card) ───────────────── */
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--surface1);
+  min-width: 0;
 }
 
 .field-row:last-child {
   border-bottom: none;
 }
 
-.field-row label {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--gold);
-  letter-spacing: 0.02em;
-  /* Monospace echoes the config.json key format so power users can
-     see at a glance which JSON key they're editing. */
-  font-family: var(--font-mono);
-  /* Long keys like `initial_prompt_mode` wrap at word boundaries
-     instead of overflowing. */
+/* Wide-layout two-column: label-block on the left, control on the right.
+   Kicks in above 640px which is roughly the settings content's minimum
+   breathable width — below that we fall back to the stacked layout to
+   keep descriptions readable on narrow windows / small zoom levels. */
+@media (min-width: 640px) {
+  .field-row {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 1.1fr);
+    gap: 24px;
+    align-items: start;
+  }
+}
+
+.field-label-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.field-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.01em;
   word-break: break-word;
-  white-space: normal;
-  overflow: visible;
 }
 
 .field-row .field-control {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
+}
+
+.field-row-bool .field-control {
+  align-items: flex-start;
+  flex-direction: row;
+  justify-content: flex-end;
+}
+
+@media (max-width: 639px) {
+  .field-row-bool .field-control {
+    justify-content: flex-start;
+  }
 }
 
 .field-input-row {
@@ -1731,23 +2023,14 @@ select { appearance: auto; cursor: pointer; }
   color: var(--red);
 }
 
-/* Per-field description — rendered under every settings input that
-   has a `settings:fields.<key>.description` i18n entry.  Styled as a
-   left-bordered callout box so it clearly reads as metadata
-   *belonging to the input above it*, not as a stray line of text
-   floating between rows.  Before this fix (v1.6.0 dev) the gap-only
-   separation caused the description of row N to visually touch the
-   input of row N+1 — see the v1.6.0 UX feedback for why we moved to
-   a bordered/tinted block. */
+/* Per-field description — rendered under the field label, in the
+   left-hand column of the two-column field layout.  Appears as plain
+   secondary text (Linear / Raycast pattern) rather than a callout box
+   since it's visually grouped with the label already. */
 .field-description {
-  margin-top: 2px;
-  padding: 8px 11px;
-  font-size: 11px;
+  font-size: 11.5px;
   line-height: 1.6;
   color: var(--subtext0);
-  background: color-mix(in srgb, var(--yellow) 5%, var(--surface1));
-  border-left: 2px solid color-mix(in srgb, var(--yellow) 45%, transparent);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   word-wrap: break-word;
   overflow-wrap: break-word;
 }
@@ -2476,50 +2759,183 @@ kbd {
 }
 
 /* ── Model Manager tab ──────────────────────────────────────────────────────── */
-.models-toolbar {
+/* ── Models sticky header (parallels the Settings page) ──────── */
+.models-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  width: 100%;
+  background: var(--base);
+  border-bottom: 1px solid var(--border);
+}
+
+.models-header-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface1);
+  gap: 20px;
+  padding: 18px 24px;
+  max-width: 880px;
+  margin: 0 auto;
+  flex-wrap: wrap;
 }
 
-.models-toolbar .btn-secondary {
-  padding: 0 16px;
-  min-width: 84px;
+.models-header-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.models-header-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  margin: 0;
+}
+
+.models-header-subtitle {
+  font-size: 11.5px;
+  color: var(--subtext0);
+  line-height: 1.45;
+}
+
+.models-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Shared header action pill — used for secondary actions in tab
+   headers (Models: Scan / Refresh).  Keeps a consistent visual
+   language so we don't accidentally mix btn-secondary (outline) with
+   btn-save (yellow) in the same row. */
+.btn-header-action {
+  appearance: none;
+  padding: 7px 16px;
+  border-radius: 99px;
+  border: 1px solid color-mix(in srgb, var(--yellow) 45%, transparent);
+  background: color-mix(in srgb, var(--yellow) 7%, var(--surface0));
+  color: var(--amber);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
+  white-space: nowrap;
+}
+
+.btn-header-action:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--yellow) 14%, var(--surface0));
+  border-color: var(--yellow);
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
+}
+
+.btn-header-action:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* ── Storage summary card ─────────────────────────────────────── */
+.models-storage-card {
+  background: var(--surface0);
+  border: 1px solid var(--surface1);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin: 16px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.models-storage-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.models-storage-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--mauve);
+}
+
+.models-storage-heading svg {
   flex-shrink: 0;
 }
 
-.models-toolbar-left {
+.models-storage-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.models-storage-values {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.models-storage-used {
+  font-weight: 600;
+}
+
+.models-storage-free {
+  color: var(--green);
+  font-weight: 600;
+}
+
+.models-storage-sep {
+  color: var(--overlay0);
+}
+
+.models-storage-path-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.models-storage-path {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--overlay1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   min-width: 0;
   flex: 1;
 }
 
-.models-toolbar-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-  letter-spacing: 0.3px;
+.models-storage-open-btn {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--surface2);
+  color: var(--overlay1);
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+  flex-shrink: 0;
 }
 
-.models-dir-label {
-  font-size: 11px;
-  color: var(--subtext0);
-  font-family: var(--font-mono);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.models-storage-open-btn:hover {
+  background: color-mix(in srgb, var(--yellow) 10%, var(--surface1));
+  color: var(--amber);
+  border-color: color-mix(in srgb, var(--yellow) 40%, transparent);
 }
 
 .models-panel-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px 14px 20px;
+  padding: 10px 0 28px;
 }
 
 .models-empty-msg {
@@ -2533,22 +2949,45 @@ kbd {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  background: var(--surface0);
+  border: 1px solid var(--surface1);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  padding: 0;
 }
 
 .model-row {
   display: flex;
-  align-items: stretch;
-  gap: 14px;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface0);
-  transition: border-color 0.18s var(--easing), background 0.18s var(--easing);
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+  background: transparent;
+  border-bottom: 1px solid var(--surface1);
+  transition: background-color 0.15s var(--easing);
+}
+
+.model-row:last-child {
+  border-bottom: none;
+}
+
+.model-row:hover {
+  background: color-mix(in srgb, var(--yellow) 4%, transparent);
 }
 
 .model-row.installed {
-  border-color: rgba(59, 170, 110, 0.35);
-  background: linear-gradient(180deg, rgba(59,170,110,0.06), rgba(59,170,110,0));
+  background: color-mix(in srgb, var(--green) 5%, transparent);
+}
+
+.model-row.installed:hover {
+  background: color-mix(in srgb, var(--green) 8%, transparent);
+}
+
+.model-row-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .model-row-info {
@@ -2562,32 +3001,35 @@ kbd {
 .model-row-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .model-row-name {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
   color: var(--text);
   font-family: var(--font-mono);
+  letter-spacing: 0.01em;
 }
 
 .model-row-badge {
   font-size: 10px;
   padding: 2px 8px;
   border-radius: 999px;
-  font-weight: 500;
-  letter-spacing: 0.4px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
 
 .model-row-badge.installed {
-  background: rgba(59, 170, 110, 0.18);
-  color: var(--success);
+  background: color-mix(in srgb, var(--green) 20%, transparent);
+  color: var(--green);
+  border: 1px solid color-mix(in srgb, var(--green) 35%, transparent);
 }
 
 .model-row-repo {
-  font-size: 11px;
-  color: var(--subtext0);
+  font-size: 10.5px;
+  color: var(--overlay1);
   font-family: var(--font-mono);
   white-space: nowrap;
   overflow: hidden;
@@ -2595,33 +3037,34 @@ kbd {
 }
 
 .model-row-description {
-  font-size: 12px;
-  color: var(--subtext1);
-  line-height: 1.4;
+  font-size: 11.5px;
+  color: var(--subtext0);
+  line-height: 1.5;
 }
 
 .model-row-actions {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 8px;
-  min-width: 88px;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 .model-row-size {
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--subtext0);
   font-family: var(--font-mono);
+  font-weight: 600;
+  min-width: 60px;
+  text-align: right;
 }
 
 .model-row-btn {
-  min-width: 84px;
-  height: 30px;
-  padding: 0 14px;
+  min-width: 80px;
+  height: 32px;
+  padding: 0 16px;
   font-size: 12px;
-  font-weight: 500;
-  border-radius: var(--radius-sm);
+  font-weight: 600;
+  border-radius: 99px;
 }
 
 .model-row-btn:disabled {
@@ -2757,6 +3200,7 @@ kbd {
   gap: 14px;
   overflow-y: auto;
 }
+
 
 /* ── ① Hero block ──────────────────────────────────────────────── */
 .about-hero {
@@ -2911,12 +3355,15 @@ kbd {
 }
 
 .author-link-btn {
-  flex: 1;
-  min-width: 120px;
-  height: 34px;
-  padding: 0 12px;
-  font-size: 11px;
+  /* Size to content (+ padding) so the buttons read as links rather
+     than a pair of slabs.  Previously had `flex: 1` which stretched
+     each button to half the row and made them feel oversized on wide
+     layouts. */
+  height: 32px;
+  padding: 0 14px;
+  font-size: 12px;
   gap: 6px;
+  white-space: nowrap;
 }
 
 .author-link-btn svg {
@@ -3003,6 +3450,12 @@ kbd {
   font-size: 11px;
   line-height: 1.65;
   color: var(--subtext0);
+}
+
+.credits-text-muted {
+  margin-top: 10px;
+  color: var(--overlay1);
+  font-size: 10.5px;
 }
 
 .credits-actions {
@@ -3810,3 +4263,382 @@ kbd {
 .update-action-primary {
   min-width: 120px;
 }
+
+/* ── Changelog viewer ─────────────────────────────────────────────── */
+.changelog-dialog {
+  max-width: 640px;
+  padding-top: 18px;
+  display: flex;
+  flex-direction: column;
+  max-height: 80vh;
+}
+
+.changelog-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.changelog-dialog-header h2 {
+  margin: 0;
+}
+
+.changelog-dialog-subtitle {
+  font-size: 11.5px;
+  color: var(--subtext0);
+  margin: 0 0 12px;
+}
+
+.changelog-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.changelog-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+  overflow-y: auto;
+  padding: 4px 2px;
+}
+
+.changelog-list-item {
+  appearance: none;
+  background: var(--surface1);
+  border: 1px solid var(--surface2);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  cursor: pointer;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  transition: background-color .12s ease, border-color .12s ease;
+  text-align: left;
+}
+
+.changelog-list-item:hover {
+  background: var(--surface2);
+  border-color: var(--overlay1);
+}
+
+.changelog-list-item-version {
+  display: block;
+}
+
+.changelog-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.changelog-entry-toolbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.changelog-entry-version {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  margin: 0;
+  color: var(--gold);
+}
+
+.changelog-entry-body {
+  overflow-y: auto;
+  padding: 8px 10px;
+  background: var(--surface0);
+  border: 1px solid var(--surface1);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  line-height: 1.65;
+  flex: 1 1 auto;
+}
+
+.changelog-entry-body h4 {
+  margin: 12px 0 6px;
+  font-size: 13px;
+  color: var(--mauve);
+}
+
+.changelog-entry-body h5 {
+  margin: 10px 0 4px;
+  font-size: 12px;
+  color: var(--lavender);
+}
+
+.changelog-entry-body ul {
+  margin: 4px 0 8px;
+  padding-left: 20px;
+}
+
+.changelog-entry-body p {
+  margin: 6px 0;
+}
+
+.changelog-entry-body code {
+  background: var(--surface1);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+
+.changelog-status {
+  text-align: center;
+  color: var(--overlay1);
+  font-size: 11.5px;
+  padding: 12px;
+}
+
+/* ── Transcript preview card (Main tab, post-run) ─────────────── */
+.transcript-preview-card {
+  background: var(--surface0);
+  border: 1px solid var(--surface1);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 420px;
+}
+
+.transcript-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.transcript-preview-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.transcript-preview-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--mauve);
+}
+
+.transcript-preview-filename {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transcript-preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.transcript-preview-search {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  background: var(--surface1);
+  border: 1px solid var(--surface2);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  min-width: 180px;
+}
+
+.transcript-preview-meta {
+  font-size: 11px;
+  color: var(--subtext0);
+}
+
+.transcript-preview-status {
+  font-size: 11.5px;
+  color: var(--overlay1);
+  padding: 6px 2px;
+}
+
+.transcript-preview-segments {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 4px;
+}
+
+.transcript-segment {
+  display: grid;
+  grid-template-columns: 170px 1fr auto;
+  align-items: start;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.transcript-segment:hover {
+  background: var(--surface1);
+}
+
+.transcript-segment-time {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--overlay1);
+  white-space: nowrap;
+  padding-top: 1px;
+}
+
+.transcript-segment-text mark {
+  background: color-mix(in srgb, var(--yellow) 40%, transparent);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.transcript-segment-copy {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--overlay0);
+  font: inherit;
+  font-size: 10.5px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .12s ease, background-color .12s ease, color .12s ease;
+}
+
+.transcript-segment:hover .transcript-segment-copy {
+  opacity: 1;
+}
+
+.transcript-segment-copy:hover {
+  background: var(--surface2);
+  color: var(--text);
+  border-color: var(--overlay1);
+}
+
+/* ── Accessibility: font size + high contrast ─────────────────── */
+html[data-font-size="small"] { font-size: 13px; }
+html[data-font-size="large"] { font-size: 16px; }
+html[data-font-size="xlarge"] { font-size: 18px; }
+
+html[data-high-contrast="true"] {
+  --subtext0: var(--text);
+  --subtext1: var(--text);
+  --overlay0: var(--subtext0);
+  --overlay1: var(--subtext0);
+}
+
+html[data-high-contrast="true"] button,
+html[data-high-contrast="true"] input,
+html[data-high-contrast="true"] select {
+  border-width: 2px;
+}
+
+/* Per-device preferences container below the dynamic config cards.
+   Uses the same spacing / typography as the group cards above so it
+   reads as one continuous settings page. */
+.settings-local-prefs {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0 20px 28px;
+  margin-top: 6px;
+}
+
+.settings-group-header-static {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.btn-sm {
+  height: 28px;
+  font-size: 11px;
+  padding: 0 12px;
+}
+
+/* Shortcut row — each customizable binding.  Lives inside a
+   .settings-group-body so it inherits the row separator; we just need
+   to lay out label / combo button / reset button. */
+.shortcut-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--surface1);
+}
+
+.shortcut-row:last-child {
+  border-bottom: none;
+}
+
+.shortcut-row-label {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.shortcut-row-combo {
+  appearance: none;
+  background: var(--surface1);
+  border: 1px solid var(--surface2);
+  color: var(--text);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  cursor: pointer;
+  min-width: 120px;
+  text-align: center;
+}
+
+.shortcut-row-combo:hover {
+  border-color: var(--overlay1);
+}
+
+.shortcut-row-combo.capturing {
+  border-color: var(--mauve);
+  color: var(--mauve);
+  background: color-mix(in srgb, var(--mauve) 14%, var(--surface0));
+}
+
+.shortcut-row-reset {
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--overlay0);
+  font: inherit;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.shortcut-row-reset:hover {
+  background: var(--surface1);
+  color: var(--text);
+  border-color: var(--surface2);
+}
+

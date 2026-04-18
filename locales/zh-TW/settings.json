@@ -1,6 +1,7 @@
 {
   "toolbar": {
     "label": "設定",
+    "subtitle": "微調轉錄參數與個人偏好；變更後記得按「儲存」。",
     "save": "儲存",
     "saved": "已儲存 ✓"
   },
@@ -8,12 +9,79 @@
     "saved": "設定已儲存"
   },
   "loading": "正在載入設定…",
+  "shortcuts": {
+    "title": "鍵盤快捷鍵",
+    "hint": "點擊快捷鍵後按下新組合即可重新綁定，Esc 取消。",
+    "reset": "重設",
+    "resetAll": "全部重設",
+    "resetAllToast": "已回復預設的快捷鍵設定",
+    "unbound": "未設定",
+    "capturing": "按下組合鍵…",
+    "bound": "已將「{{action}}」設為 {{combo}}",
+    "actions": {
+      "runTranscription": "開始轉錄",
+      "scanFiles": "掃描缺字幕",
+      "stopBatch": "停止批次",
+      "saveSettings": "儲存設定",
+      "clearConsole": "清除 Console",
+      "searchConsole": "搜尋 Console"
+    }
+  },
+  "a11y": {
+    "title": "無障礙",
+    "hint": "會立即生效並記錄於本機，下次啟動依舊保留。",
+    "fontSize": {
+      "label": "文字大小",
+      "small": "較小",
+      "normal": "標準",
+      "large": "較大",
+      "xlarge": "特大"
+    },
+    "highContrast": {
+      "label": "高對比模式"
+    }
+  },
   "sections": {
     "APP_SETTINGS": "應用程式設定",
     "SETTING": "轉錄參數"
   },
+  "segments": {
+    "transcription": "轉錄參數",
+    "app": "應用程式"
+  },
+  "groups": {
+    "general": {
+      "title": "一般",
+      "description": "Python、模型儲存位置與掃描資料夾。"
+    },
+    "model": {
+      "title": "模型與裝置",
+      "description": "選擇 Whisper 模型與推論裝置。"
+    },
+    "transcription": {
+      "title": "轉錄",
+      "description": "目標語言、翻譯模式與提示詞。"
+    },
+    "output": {
+      "title": "字幕輸出",
+      "description": "要輸出哪些格式、存放位置、覆寫策略。"
+    },
+    "vad": {
+      "title": "語音活動偵測（VAD）",
+      "description": "切段策略，影響轉錄速度與斷句品質。"
+    },
+    "advanced": {
+      "title": "進階解碼參數",
+      "description": "給熟悉 Whisper 內部參數的使用者微調；一般無需調整。"
+    },
+    "other": {
+      "title": "其他",
+      "description": "尚未分類的設定。"
+    }
+  },
   "fields": {
     "pythonPath": {
+      "label": "Python 路徑",
       "description": "系統 Python 路徑，僅在第一次建立虛擬環境時使用。留空讓 App 自動偵測（會先尋找 pyenv、Homebrew、系統 Python）。",
       "detectButton": "立即偵測",
       "detecting": "偵測中…",
@@ -21,43 +89,116 @@
       "detectFailed": "仍然找不到 Python 3，請手動指定路徑。"
     },
     "uiLanguage": {
+      "label": "介面語言",
       "description": "介面顯示語言。auto 會依作業系統語系自動挑選；中文系統會選繁體中文，其餘選英文。"
     },
     "model": {
+      "label": "模型",
       "description": "Whisper 模型。模型越大越準確，但也更慢、檔案更大。清單只會列出已在 Models 頁下載的模型。"
     },
     "models_dir": {
+      "label": "模型資料夾",
       "description": "模型權重下載目錄。留空會使用系統預設位置（macOS：Application Support；Windows：%APPDATA%）。"
     },
     "device": {
+      "label": "推論裝置",
       "description": "推論裝置。auto 會依機器選擇 CUDA 或 CPU。macOS 主要走 CPU。"
     },
     "compute_type": {
+      "label": "運算精度",
       "description": "模型精度。auto 依裝置挑選；int8 最快最省記憶體，float16 品質略好，float32 最準但最耗資源。"
     },
     "vad": {
+      "label": "VAD 策略",
       "description": "語音活動偵測策略。silero-vad 系列會先切出有人說話的片段再轉錄，能大幅加快並減少幻覺；none 則整段送給 Whisper。"
     },
     "vad_merge_window": {
+      "label": "合併視窗 (秒)",
       "description": "靜音合併視窗（秒）。兩段偵測到的語音若間隔小於此值會被合併成同一段，避免被切得太碎。"
     },
     "vad_max_merge_size": {
+      "label": "最大合併長度 (秒)",
       "description": "合併後單一段落的最長長度（秒）。超過此長度的會被強制切開，避免一次送給 Whisper 過長的段落。"
     },
     "vad_padding": {
+      "label": "段落緩衝 (秒)",
       "description": "語音段前後各加入的靜音緩衝（秒），避免切到開頭或結尾的字。"
     },
     "vad_prompt_window": {
+      "label": "跨段提示視窗 (秒)",
       "description": "跨段提示視窗長度（秒）。Whisper 轉錄下一段時會帶上前段的最後 N 秒做上下文，有助於維持術語一致。"
     },
     "language": {
+      "label": "目標語言",
       "description": "目標語言。留空代表讓 Whisper 自動偵測；指定語言通常能得到更穩定的結果。"
     },
     "initial_prompt": {
+      "label": "初始提示詞",
       "description": "初始提示詞。給 Whisper 看的起始文字，可用來強制特定詞彙、字型（繁中/簡中）或語氣。選語言時會自動套用預設提示。"
     },
     "initial_prompt_mode": {
+      "label": "提示套用方式",
       "description": "提示詞套用方式。prepend_all_segments：每段都加入提示；prepend_first_segment：只加在第一段；json_prompt_mode：讀取每段自己的 JSON 提示。"
+    },
+    "task": {
+      "label": "轉錄模式",
+      "description": "轉錄模式。transcribe：以原文語言輸出；translate：直接翻譯成英文字幕（Whisper 內建，不經外部 API）。"
+    },
+    "write_srt": {
+      "label": "輸出 SRT",
+      "description": "輸出 SRT 格式字幕（.srt），大多數播放器都支援。預設開啟。"
+    },
+    "write_vtt": {
+      "label": "輸出 VTT",
+      "description": "輸出 WebVTT 格式字幕（.vtt），適合網頁 <video> 標籤使用。預設開啟。"
+    },
+    "write_txt": {
+      "label": "輸出純文字",
+      "description": "輸出純文字逐字稿（.txt），無時間碼，適合直接閱讀或複製。"
+    },
+    "write_json": {
+      "label": "輸出 JSON",
+      "description": "輸出原始分段 JSON（.json），包含每段的時間碼、文字、平均 logprob 等資訊，便於後續程式化處理。"
+    },
+    "output_dir": {
+      "label": "輸出資料夾",
+      "description": "字幕輸出資料夾。留空會輸出到原媒體檔旁邊；指定路徑後所有字幕會集中到該資料夾。"
+    },
+    "max_line_width": {
+      "label": "單行最大字元",
+      "description": "字幕單行最長字元數。超過會自動折行，避免一行過長。留空使用 Whisper 預設。"
+    },
+    "overwrite_policy": {
+      "label": "覆寫策略",
+      "description": "當輸出字幕已存在時的處理方式。overwrite：直接覆蓋；skip：保留既有檔案不覆寫；rename-suffix：追加 .1 / .2 / …後綴避免覆蓋。"
+    },
+    "beam_size": {
+      "label": "Beam size",
+      "description": "Beam search 寬度。越大越精準但越慢，預設 5。一般不需要調整；改成 1 可以顯著加速。"
+    },
+    "best_of": {
+      "label": "Best of",
+      "description": "temperature > 0 時，每段會取樣 N 次取最佳解，預設 5。temperature 為 0 時此值無作用。"
+    },
+    "temperature": {
+      "label": "取樣溫度",
+      "description": "取樣溫度。0 = 決定性輸出；>0 會引入隨機性，Whisper 在偵測到重複或品質低落時會自動逐步升溫重試，預設 0。"
+    },
+    "condition_on_previous_text": {
+      "label": "用前段文字當 prompt",
+      "description": "把前一段文字作為下一段 prompt。開啟可維持術語一致，但若內容一直重複可改成 False 以打破迴圈。"
+    },
+    "no_speech_threshold": {
+      "label": "No-speech 門檻",
+      "description": "「無語音」機率門檻，超過此值該段會被視為純靜音而丟棄，預設 0.6。"
+    },
+    "logprob_threshold": {
+      "label": "LogProb 門檻",
+      "description": "平均 log-probability 門檻，低於此值該段被視為低品質並重試，預設 -1.0。"
+    },
+    "compression_ratio_threshold": {
+      "label": "壓縮比門檻",
+      "description": "壓縮比門檻，超過此值視為幻覺/重複並重試，預設 2.4。遇到鸚鵡式重複可稍微調低。"
     },
     "media_root_path": {
       "description": "要掃描的媒體資料夾。Scan 會遞迴找出此目錄下所有沒有字幕的影片／音訊檔。"

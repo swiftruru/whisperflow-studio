@@ -1,8 +1,24 @@
 {
   "toolbar": {
-    "label": "Model Manager",
+    "label": "Models",
+    "subtitle": "Download and manage Whisper model weights. Installed models appear in the Settings → Model dropdown.",
     "refresh": "Refresh",
     "dirUnset": "(not configured)"
+  },
+  "storage": {
+    "label": "Storage",
+    "used": "{{size}} used ({{count}} files)",
+    "free": "{{size}} free",
+    "openFolder": "Reveal folder in Finder"
+  },
+  "hfCache": {
+    "scanButton": "Scan HuggingFace cache",
+    "scanning": "Scanning…",
+    "noneFound": "No importable models found in the system HuggingFace cache.",
+    "importTitle": "Import from HuggingFace cache",
+    "importMessage": "Found {{count}} importable model(s) in the system cache: {{names}}. Importing hard-links or copies the weights into the app-managed models directory — usually finishes in seconds.",
+    "importConfirm": "Start import",
+    "scanFailed": "Scan failed: {{error}}"
   },
   "list": {
     "loading": "Loading model list…",

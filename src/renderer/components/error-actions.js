@@ -52,12 +52,15 @@ function openSettingsField(section, key) {
     if (!section || !key) return;
 
     const field = document.querySelector(`[data-section="${section}"][data-key="${key}"]`);
-    const group = field?.closest('.section-group');
+    const card = field?.closest('.settings-group-card');
+    const body = card?.querySelector('.settings-group-body');
+    const header = card?.querySelector('.settings-group-header');
 
-    if (group?.hidden) {
-      group.hidden = false;
-      group.previousElementSibling?.classList.remove('collapsed');
-      localStorage.setItem(`section-collapsed:${section}`, 'false');
+    if (body?.hidden) {
+      body.hidden = false;
+      header?.classList.remove('collapsed');
+      const groupId = card?.dataset?.group;
+      if (groupId) localStorage.setItem(`settings-group-collapsed:${groupId}`, 'false');
     }
 
     field?.focus();

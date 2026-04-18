@@ -48,6 +48,11 @@ class TranscribeConfig:
     write_txt: bool = False
     write_json: bool = False
     max_line_width: Optional[int] = None
+    # When an output file already exists at the target path:
+    #   "overwrite"      — default: replace silently
+    #   "skip"           — don't write; leave the existing file untouched
+    #   "rename-suffix"  — write alongside as `<name>.1.srt`, `<name>.2.srt`, ...
+    overwrite_policy: str = "overwrite"
 
     # --- model ---------------------------------------------------------
     model: str = "large-v2"

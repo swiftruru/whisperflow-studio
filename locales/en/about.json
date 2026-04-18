@@ -75,6 +75,17 @@
   "footer": {
     "copyright": "© 2026 Yu-Ru Pan · MIT License"
   },
+  "diagnostics": {
+    "description": "When filing an issue, attach diagnostics so we can reproduce faster. Paths under your home directory are redacted automatically.",
+    "actions": {
+      "copy": "Copy diagnostics",
+      "save": "Save as file…"
+    },
+    "collecting": "Collecting…",
+    "copied": "Diagnostics copied to clipboard",
+    "saved": "Saved to {{path}}",
+    "failed": "Failed to collect diagnostics: {{error}}"
+  },
   "toast": {
     "openLinkFailed": "Couldn't open link: {{error}}"
   }

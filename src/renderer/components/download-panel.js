@@ -51,6 +51,80 @@ function formatEta(seconds) {
   return `${t('downloads:current.etaPrefix')} ${s}s`;
 }
 
+// Map raw Python exception class names + message fragments to a stable
+// i18n key under downloads:error.*.  Keeps the toast/history readable
+// instead of dumping a multi-line HuggingFace traceback on the user.
+const _NETWORK_ERROR_CLASSES = new Set([
+  'connecterror',
+  'connecttimeout',
+  'readtimeout',
+  'connectionerror',
+  'newconnectionerror',
+  'maxretryerror',
+  'proxyerror',
+  'localentrynotfounderror',
+  'offlinemodeisenabled',
+  'gaierror',
+]);
+
+const _NETWORK_MESSAGE_PATTERNS = [
+  'getaddrinfo',
+  'name or service not known',
+  'temporary failure in name resolution',
+  'failed to establish a new connection',
+  'check your internet connection',
+  'connection refused',
+  'connection reset',
+  'network is unreachable',
+  'nodename nor servname',
+  'no address associated with hostname',
+  'an error happened while trying to locate the files on the hub',
+];
+
+function _classifyDownloadError(errorCode, errorMessage) {
+  const code = String(errorCode || '').toLowerCase();
+  const msg = String(errorMessage || '').toLowerCase();
+
+  if (_NETWORK_ERROR_CLASSES.has(code) || _NETWORK_MESSAGE_PATTERNS.some((p) => msg.includes(p))) {
+    return 'network';
+  }
+  if (code === 'permissionerror' || msg.includes('permission denied')) {
+    return 'permission';
+  }
+  if (msg.includes('no space left') || msg.includes('not enough space')) {
+    return 'disk';
+  }
+  if (code.includes('hfhubhttperror') || code === 'httperror') {
+    return 'remote';
+  }
+  // Python child died without emitting a structured error — usually
+  // means it was killed externally (antivirus, OOM) or crashed in a C
+  // extension.  The stderr tail has already been folded into the
+  // message, so if nothing else matched there's no actionable category
+  // beyond "the process died".
+  if (code === 'process_exit' || code === 'spawn_failed') {
+    return 'process';
+  }
+  return null;
+}
+
+function _truncateErrorMessage(msg, max = 140) {
+  const firstLine = String(msg || '').split(/\r?\n/)[0].trim();
+  if (!firstLine) return '';
+  return firstLine.length > max ? firstLine.slice(0, max - 1) + '…' : firstLine;
+}
+
+function _formatDownloadError(dl) {
+  if (!dl) return '';
+  if (dl.status === 'cancelled') return t('downloads:error.cancelled');
+  if (dl.status === 'interrupted') return t('downloads:error.interrupted');
+  const kind = _classifyDownloadError(dl.errorCode, dl.errorMessage);
+  if (kind) return t(`downloads:error.${kind}`);
+  const short = _truncateErrorMessage(dl.errorMessage);
+  if (!short) return t('downloads:error.unknown', { message: '' }).replace(/[：:]\s*$/, '');
+  return t('downloads:error.unknown', { message: short });
+}
+
 function renderCurrent(dl) {
   if (!dl) {
     currentWrap.hidden = true;
@@ -101,10 +175,10 @@ function renderHistory(history) {
     status.textContent = t(`downloads:status.${dl.status}`, { defaultValue: dl.status });
     li.appendChild(status);
 
-    if (dl.errorMessage) {
+    if (dl.errorMessage || dl.status === 'cancelled' || dl.status === 'interrupted') {
       const error = document.createElement('span');
       error.className = 'download-history-error';
-      error.textContent = dl.errorMessage;
+      error.textContent = _formatDownloadError(dl);
       li.appendChild(error);
     }
 
@@ -151,7 +225,7 @@ function _detectTransitions(state) {
       showToast(t('downloads:toast.completed', { name: tracked.name }), 'success', 3500);
       refreshModelManager().catch(() => {});
     } else if (tracked.status === 'failed' && prevSt === 'running') {
-      showToast(t('downloads:toast.failed', { name: tracked.name, error: tracked.errorMessage || '' }), 'error', 5000);
+      showToast(t('downloads:toast.failed', { name: tracked.name, error: _formatDownloadError(tracked) }), 'error', 5000);
     } else if (tracked.status === 'cancelled' && prevSt === 'running') {
       showToast(t('downloads:toast.cancelled', { name: tracked.name }), 'info', 3000);
     }

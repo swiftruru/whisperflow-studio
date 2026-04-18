@@ -1,0 +1,30 @@
+{
+  "card": {
+    "title": "字幕預覽"
+  },
+  "searchPlaceholder": "搜尋字幕…",
+  "actions": {
+    "copyAll": "全部複製",
+    "copySegment": "複製此段",
+    "reveal": "在檔案總管顯示",
+    "close": "關閉預覽"
+  },
+  "stats": {
+    "segments": "共 {{count}} 段",
+    "duration": "總長 {{duration}}",
+    "source": "來源：{{path}}"
+  },
+  "search": {
+    "noMatch": "找不到「{{query}}」"
+  },
+  "empty": {
+    "loading": "讀取字幕中…",
+    "noFile": "找不到對應字幕檔，可能尚未產生。",
+    "loadFailed": "讀取失敗：{{error}}"
+  },
+  "toast": {
+    "copiedAll": "整份字幕已複製",
+    "copiedSegment": "已複製此段文字",
+    "copyFailed": "複製失敗：{{error}}"
+  }
+}

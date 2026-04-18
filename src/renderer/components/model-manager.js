@@ -92,7 +92,45 @@ function getPanelElements() {
     list:       document.getElementById('models-list'),
     refreshBtn: document.getElementById('btn-models-refresh'),
     emptyMsg:   document.getElementById('models-empty-msg'),
+    storageRow: document.getElementById('models-storage'),
+    storageUsed: document.getElementById('models-storage-used'),
+    storageFree: document.getElementById('models-storage-free'),
   };
+}
+
+function formatBytesShort(bytes) {
+  if (bytes === null || bytes === undefined) return '—';
+  const mb = bytes / (1024 * 1024);
+  if (mb < 1024) return `${mb.toFixed(1)} MB`;
+  return `${(mb / 1024).toFixed(2)} GB`;
+}
+
+async function refreshStorageRow() {
+  const els = getPanelElements();
+  if (!els.storageRow) return;
+  const dir = cachedState.modelsDir;
+  if (!dir) {
+    els.storageRow.hidden = true;
+    return;
+  }
+  try {
+    const info = await window.electronAPI.storage.info({ dir });
+    els.storageRow.hidden = false;
+    els.storageUsed.textContent = t('models:storage.used', {
+      size: formatBytesShort(info.usedBytes),
+      count: info.fileCount,
+    });
+    if (info.freeBytes !== null && info.freeBytes !== undefined) {
+      els.storageFree.textContent = t('models:storage.free', {
+        size: formatBytesShort(info.freeBytes),
+      });
+      els.storageFree.hidden = false;
+    } else {
+      els.storageFree.hidden = true;
+    }
+  } catch (_) {
+    els.storageRow.hidden = true;
+  }
 }
 
 function renderRow(entry) {
@@ -292,6 +330,7 @@ async function handleDelete(name) {
     invalidateDynamicModelNames();
     await fetchModels();
     render();
+    refreshStorageRow();
   } catch (error) {
     showToast(t('models:toast.deleteFailed', { error: error?.message || error }), 'error', 5000);
   }
@@ -300,6 +339,7 @@ async function handleDelete(name) {
 async function refreshModelManager() {
   await fetchModels();
   render();
+  refreshStorageRow();
 }
 
 function subscribeModels(listener) {
@@ -317,6 +357,53 @@ function initModelManager() {
   if (!els.panel) return;
 
   els.refreshBtn?.addEventListener('click', () => refreshModelManager());
+
+  const openDirBtn = document.getElementById('btn-models-open-dir');
+  if (openDirBtn) {
+    openDirBtn.addEventListener('click', () => {
+      const dir = cachedState.modelsDir;
+      if (!dir) return;
+      window.electronAPI.openPath(dir).catch((err) => {
+        console.error('[models] openPath failed:', err);
+      });
+    });
+  }
+
+  const scanBtn = document.getElementById('btn-scan-hf-cache');
+  if (scanBtn) {
+    scanBtn.addEventListener('click', async () => {
+      const originalLabel = scanBtn.textContent;
+      scanBtn.disabled = true;
+      scanBtn.textContent = t('models:hfCache.scanning');
+      try {
+        const result = await window.electronAPI.scanHfCache();
+        const available = Array.isArray(result?.available) ? result.available : [];
+        if (available.length === 0) {
+          showToast(t('models:hfCache.noneFound'), 'info', 3500);
+        } else {
+          const names = available.map((m) => m.name).join(', ');
+          const confirmed = await confirmDialog({
+            title: t('models:hfCache.importTitle'),
+            message: t('models:hfCache.importMessage', { count: available.length, names }),
+            confirmText: t('models:hfCache.importConfirm'),
+          });
+          if (confirmed) {
+            // Trigger a normal download for each — download() uses the
+            // fast-path HF-cache import when the model is available,
+            // so this effectively just hard-links the files into place.
+            for (const model of available) {
+              try { await handleDownload(model.name); } catch (_) {}
+            }
+          }
+        }
+      } catch (err) {
+        showToast(t('models:hfCache.scanFailed', { error: err?.message || String(err) }), 'error', 4000);
+      } finally {
+        scanBtn.disabled = false;
+        scanBtn.textContent = originalLabel;
+      }
+    });
+  }
 
   // If the user kicked off venv bootstrap from another tab, our cached
   // "needsVenv" state is now stale — refetch and replace the CTA with the
@@ -349,8 +436,15 @@ function initModelManager() {
 
   // Disable all download buttons while a download is running so the
   // user can't spam-click and trigger "already running" errors.
+  let _wasDownloading = false;
   subscribeDownloads((dlState) => {
     const isDownloading = dlState.stats.running > 0;
+    if (_wasDownloading && !isDownloading) {
+      // A download just finished — the Models directory just grew (or
+      // was freed via cancel).  Refresh storage to reflect the change.
+      refreshStorageRow();
+    }
+    _wasDownloading = isDownloading;
     const currentName = dlState.current?.name || '';
     const btns = document.querySelectorAll('.model-row-download');
     for (const btn of btns) {

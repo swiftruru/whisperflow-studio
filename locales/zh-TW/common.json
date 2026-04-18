@@ -29,5 +29,12 @@
   "emptyState": {
     "noData": "沒有資料",
     "unknown": "未知"
+  },
+  "app": {
+    "show": "顯示 WhisperFlow Studio",
+    "runTranscription": "開始轉錄",
+    "scan": "掃描缺字幕檔案",
+    "stop": "停止",
+    "quit": "結束應用程式"
   }
 }
