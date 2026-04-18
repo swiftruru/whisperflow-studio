@@ -9,7 +9,7 @@
   "actions": {
     "copyAll": "全部複製",
     "copySegment": "複製此段",
-    "reveal": "在檔案總管顯示",
+    "reveal": "在資料夾中顯示",
     "close": "關閉預覽",
     "preview": "查看預覽",
     "viewLatest": "查看最新字幕"
