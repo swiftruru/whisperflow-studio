@@ -91,7 +91,8 @@ async function fetchLatestRelease() {
 
   const tagName = data.tag_name;
   const version = tagName.replace(/^v/i, '');
-  const body = typeof data.body === 'string' ? data.body : '';
+  const rawBody = typeof data.body === 'string' ? data.body : '';
+  const body = stripDownloadGuide(rawBody);
 
   return {
     tagName,
@@ -115,23 +116,45 @@ function stripAsset(a) {
 }
 
 /**
+ * Remove the auto-prepended download-guide block from the release
+ * body so only the version's changelog remains.  The guide is
+ * delimited by a `<!-- download-guide -->` marker at the top of the
+ * release body (see .github/workflows/release.yml) and ends at the
+ * first `---` horizontal rule that follows.  Returns the body
+ * unchanged when no guide is present.
+ */
+function stripDownloadGuide(body) {
+  if (!body || !body.includes('<!-- download-guide -->')) return body;
+  return body.replace(/<!-- download-guide -->[\s\S]*?\n---\s*\n?/, '').trim();
+}
+
+/**
  * Strip raw markdown down to something presentable as plain text
- * without pulling in a markdown parser.
+ * without pulling in a markdown parser.  Used as a fallback preview
+ * when the dialog can't render markdown.
  *
+ * - Drop the auto-prepended download guide
+ * - Drop HTML comments, tables, <details>/<summary>, images
  * - Drop leading `##` / `###` headings (keep their text)
  * - Collapse consecutive blank lines
  * - Trim to N chars with an ellipsis
  */
 function truncateForPreview(body, max) {
   if (!body) return '';
-  const cleaned = body
-    .replace(/^#{1,6}\s+/gm, '')           // drop heading markers
-    .replace(/`{1,3}([^`]+)`{1,3}/g, '$1') // strip code fences / inline code
-    .replace(/\*\*([^*]+)\*\*/g, '$1')     // strip bold
-    .replace(/__([^_]+)__/g, '$1')         // strip bold (alt)
-    .replace(/\*([^*]+)\*/g, '$1')         // strip italic
+  const cleaned = stripDownloadGuide(body)
+    .replace(/<!--[\s\S]*?-->/g, '')         // strip HTML comments
+    .replace(/<details[\s\S]*?<\/details>/gi, '') // strip collapsible sections
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, '')   // strip images
+    .replace(/^\|.*\|\s*$/gm, '')            // strip markdown table rows
+    .replace(/^---+\s*$/gm, '')              // strip horizontal rules
+    .replace(/^>\s?/gm, '')                  // strip blockquote markers
+    .replace(/^#{1,6}\s+/gm, '')             // drop heading markers
+    .replace(/`{1,3}([^`]+)`{1,3}/g, '$1')   // strip code fences / inline code
+    .replace(/\*\*([^*]+)\*\*/g, '$1')       // strip bold
+    .replace(/__([^_]+)__/g, '$1')           // strip bold (alt)
+    .replace(/\*([^*]+)\*/g, '$1')           // strip italic
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // [text](url) → text
-    .replace(/\n{3,}/g, '\n\n')            // collapse blank lines
+    .replace(/\n{3,}/g, '\n\n')              // collapse blank lines
     .trim();
 
   if (cleaned.length <= max) return cleaned;
@@ -141,4 +164,5 @@ function truncateForPreview(body, max) {
 module.exports = {
   fetchLatestRelease,
   truncateForPreview,
+  stripDownloadGuide,
 };

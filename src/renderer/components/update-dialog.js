@@ -25,6 +25,7 @@
 
 import { showToast } from './toast.js';
 import { t, onLanguageChanged } from '../lib/i18n.js';
+import { renderMarkdown } from '../lib/markdown-render.js';
 
 const overlay = document.getElementById('update-dialog');
 const currentVersionEl = document.getElementById('update-current-version');
@@ -89,7 +90,11 @@ function populate(release) {
 
   currentVersionEl.textContent = `v${release.current}`;
   latestVersionEl.textContent = `v${release.latest}`;
-  notesEl.textContent = release.notesPreview || release.body || '';
+  // Prefer the full body so the renderer can format headings / lists /
+  // bold nicely; fall back to the truncated preview text if body is
+  // empty for any reason.
+  const markdownSource = release.body || release.notesPreview || '';
+  renderMarkdown(markdownSource, notesEl);
   viewFullBtn.dataset.href = release.htmlUrl || '';
 
   // Platform hint — explains why the button does what it does on
