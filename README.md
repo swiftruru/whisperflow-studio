@@ -62,6 +62,20 @@ Pre-built binaries are published on every tagged release. Pick your platform:
   </sub>
 </p>
 
+### 🍎 macOS: `"WhisperFlow Studio.app" is damaged and can't be opened`
+
+The app is **not broken** — macOS shows this message for any app that isn't signed with a paid Apple Developer ID, which this project deliberately skips (the certificate costs USD 99/year for a hobby project). Your browser tags the downloaded `.dmg` with a `com.apple.quarantine` attribute, and Gatekeeper refuses to launch any quarantined app that isn't notarized by Apple.
+
+**Fix (one-time, per install):** drag the app into `/Applications`, then run in Terminal:
+
+```bash
+xattr -cr "/Applications/WhisperFlow Studio.app"
+```
+
+That strips the quarantine flag. After this the app launches normally and you never need to do it again — until you install a new version.
+
+> <sub>Didn't need this before? Recent macOS releases (Sonoma 14.5+ / Sequoia) tightened Gatekeeper enforcement. The right-click → **Open** bypass that used to work on ad-hoc signed apps was phased out, so the `xattr` step is now the standard workaround for every unsigned app downloaded via a browser.</sub>
+
 ---
 
 ## Overview
