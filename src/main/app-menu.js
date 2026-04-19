@@ -48,7 +48,10 @@ function setApplicationMenu({ onCheckForUpdates, onOpenAbout }) {
       ? [{
         label: app.name,
         submenu: [
-          { role: 'about' },
+          {
+            label: `About ${app.name}`,
+            click: () => onOpenAbout?.(),
+          },
           {
             label: 'Check for Updates…',
             click: () => onCheckForUpdates?.(),

@@ -4674,7 +4674,8 @@ kbd {
   margin-top: 2px;
 }
 
-.transcript-modal-close {
+.transcript-modal-close,
+.modal-close-btn {
   flex-shrink: 0;
   width: 32px;
   height: 32px;
@@ -4687,17 +4688,21 @@ kbd {
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
+  padding: 0;
 }
 
-.transcript-modal-close:hover {
+.transcript-modal-close:hover,
+.modal-close-btn:hover {
   background: var(--surface1);
   color: var(--text);
 }
 
-.transcript-modal-close:focus-visible {
+.transcript-modal-close:focus-visible,
+.modal-close-btn:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--yellow) 55%, transparent);
   outline-offset: 2px;
 }
+
 
 .transcript-modal-search-row {
   padding: 12px 22px;
