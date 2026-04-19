@@ -1,7 +1,7 @@
 {
   "name": "whisperflow-studio",
   "productName": "WhisperFlow Studio",
-  "version": "1.11.2",
+  "version": "1.12.0",
   "description": "WhisperFlow Studio - self-contained faster-whisper desktop transcription app",
   "main": "src/main/main.js",
   "scripts": {
@@ -15,7 +15,10 @@
     "prebuild:linux": "node scripts/clean-dist.js && node scripts/i18n-lint.js",
     "build:mac": "electron-builder --mac --publish never",
     "build:win": "electron-builder --win --publish never",
-    "build:linux": "electron-builder --linux --publish never"
+    "build:linux": "electron-builder --linux --publish never",
+    "test:e2e": "playwright test --config=e2e/playwright.config.js",
+    "test:e2e:ui": "playwright test --config=e2e/playwright.config.js --ui",
+    "test:e2e:report": "playwright show-report e2e/playwright-report"
   },
   "dependencies": {
     "electron-updater": "^6.8.3",
@@ -23,6 +26,7 @@
     "strip-ansi": "6.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "electron": "^35.0.0",
     "electron-builder": "^25.0.0"
   },

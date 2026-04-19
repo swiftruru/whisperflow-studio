@@ -17,6 +17,16 @@ const {
 const { setApplicationMenu } = require('./app-menu');
 const { initTray } = require('./tray');
 
+// E2E mode: set WHISPERFLOW_E2E=1 to suppress side effects that make
+// Playwright tests flaky (auto-updater popping a dialog, tray icon
+// polluting the menubar). Optionally pass WHISPERFLOW_E2E_USERDATA=<dir>
+// to redirect userData so tests don't touch real settings.json. The flag
+// has zero effect on a normal launch.
+const IS_E2E = process.env.WHISPERFLOW_E2E === '1';
+if (IS_E2E && process.env.WHISPERFLOW_E2E_USERDATA) {
+  app.setPath('userData', process.env.WHISPERFLOW_E2E_USERDATA);
+}
+
 // ── Path Resolution ───────────────────────────────────────────────────────────
 // In development:  ELECTRON_APP_ROOT = <project>/
 // In packaged app: ELECTRON_APP_ROOT = <app>.app/Contents/Resources/
@@ -45,7 +55,12 @@ applyExtraPathPrefixes(APP_RUNTIME_CONFIG.extraPathPrefixes?.[process.platform] 
 
 // settings.json: portable in dev (lives with the project), userData in packaged build.
 const SETTINGS_TEMPLATE_PATH = path.join(APP_SOURCE_ROOT, 'settings.example.json');
-const LOCAL_SETTINGS_PATH = app.isPackaged
+// In E2E mode also pin settings.json to userData so the test fixture's
+// pre-seeded file (uiLanguage='en', trayEnabled=false, etc.) is the one
+// main.js actually reads — without this branch, dev-mode would still
+// read the developer's portable settings.json at the project root and
+// the locale-pinning would never take effect.
+const LOCAL_SETTINGS_PATH = (app.isPackaged || IS_E2E)
   ? path.join(app.getPath('userData'), 'settings.json')
   : path.join(APP_SOURCE_ROOT, 'settings.json');
 
@@ -374,11 +389,13 @@ app.whenReady().then(async () => {
   // After init, the orchestrator itself schedules a 5-second passive
   // check; we don't have to call checkForUpdates() explicitly here.
   registerUpdaterIpcHandlers();
-  updater.initUpdater({
-    readSettings: readLocalSettings,
-    writeSettings: writeLocalSettings,
-    broadcast: broadcastUpdaterEvent,
-  });
+  if (!IS_E2E) {
+    updater.initUpdater({
+      readSettings: readLocalSettings,
+      writeSettings: writeLocalSettings,
+      broadcast: broadcastUpdaterEvent,
+    });
+  }
 
   // Install the custom application menu (Check for Updates…, etc.).
   // The "Open About" click tells the renderer to switch to the About
@@ -403,7 +420,7 @@ app.whenReady().then(async () => {
   // the UI-language toggle at runtime will see the updated labels on the
   // next app launch (main-process i18next already switches correctly —
   // rebuilding the Menu is the cheap-but-deferred part).
-  const trayEnabled = persistedSettings.trayEnabled !== false;
+  const trayEnabled = persistedSettings.trayEnabled !== false && !IS_E2E;
   if (trayEnabled) {
     initTray({
       mainWindow,

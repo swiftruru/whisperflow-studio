@@ -1,13 +1,13 @@
 {
   "hero": {
-    "tagline": "自包含桌面轉錄工具，以 faster-whisper 為核心，支援中英切換、模型管理與批次佇列。"
+    "tagline": "開箱即用的桌面轉錄工具，以 faster-whisper 為核心，支援中英切換、模型管理與批次佇列。"
   },
   "author": {
     "cardLabel": "關於作者",
     "monogram": "RU",
     "nameZh": "潘昱如",
     "nameLatin": "Yu-Ru Pan",
-    "role": "相信軟體可以又好用又可愛",
+    "role": "喜歡把開源工具做成小巧可愛的桌面 app",
     "github": "GitHub 專案",
     "personalSite": "個人首頁"
   },
