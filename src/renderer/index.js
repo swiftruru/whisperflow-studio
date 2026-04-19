@@ -30,6 +30,7 @@ import {
 } from './lib/shortcuts.js';
 import { initShortcutsPanel } from './components/shortcuts-panel.js';
 import { initTranscriptAutoOpenToggle } from './components/transcript-preview.js';
+import { initSubtitleEditor } from './components/subtitle-editor.js';
 import './components/controls-bar.js';
 
 // ── Theme toggle ──────────────────────────────────────────────────────────────
@@ -333,6 +334,7 @@ async function init() {
   initA11yControls();
   initShortcutsPanel();
   initTranscriptAutoOpenToggle();
+  initSubtitleEditor();
   initTabs();
   initBrowseDir();
   initDragDrop();

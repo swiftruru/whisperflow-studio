@@ -19,10 +19,13 @@
 
 import { t, onLanguageChanged } from '../lib/i18n.js';
 import { showToast } from './toast.js';
+import { openSubtitleEditor } from './subtitle-editor.js';
 
 let initialized = false;
 let currentSegments = [];
 let currentSource = null;
+let currentMediaPath = null;
+let currentOutputDir = null;
 
 const modalEl = () => document.getElementById('transcript-modal');
 const panelEl = () => modalEl()?.querySelector('.transcript-modal-panel');
@@ -179,6 +182,8 @@ function closePreview() {
   if (m) m.hidden = true;
   currentSegments = [];
   currentSource = null;
+  currentMediaPath = null;
+  currentOutputDir = null;
   clearSegments();
   setStatus('');
   // Clear the search input so the next open doesn't inherit a stale filter.
@@ -193,6 +198,8 @@ async function openTranscriptPreview({ mediaPath, outputDir }) {
 
   currentSegments = [];
   currentSource = null;
+  currentMediaPath = mediaPath || null;
+  currentOutputDir = outputDir || null;
 
   m.hidden = false;
   filenameEl().textContent = basename(mediaPath);
@@ -261,11 +268,18 @@ function initTranscriptPreview() {
   closeBtn()?.addEventListener('click', closePreview);
   doneBtn()?.addEventListener('click', closePreview);
 
-  // Backdrop click closes (clicking the panel itself does not
-  // bubble past the panel boundary since the overlay is the listener).
-  modalEl().addEventListener('click', (event) => {
-    if (event.target === modalEl()) closePreview();
+  const editBtn = document.getElementById('btn-transcript-modal-edit');
+  editBtn?.addEventListener('click', () => {
+    if (!currentMediaPath) return;
+    const media = currentMediaPath;
+    const out = currentOutputDir;
+    closePreview();
+    openSubtitleEditor({ mediaPath: media, outputDir: out });
   });
+
+  // No backdrop-click-to-close — users asked to avoid accidental
+  // dismissals when the mouse slips off the edge of the panel.
+  // Close is only via the ✕ button, the Close Preview button, or Esc.
 
   // Esc closes — only when the modal is visible, so we don't fight
   // other Esc handlers elsewhere in the app.

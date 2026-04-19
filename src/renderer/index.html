@@ -1167,8 +1167,97 @@
                 data-i18n="transcript:actions.copyAll">Copy all</button>
         <button class="btn-secondary" type="button" id="btn-transcript-modal-reveal"
                 data-i18n="transcript:actions.reveal">Reveal in folder</button>
+        <button class="btn-secondary" type="button" id="btn-transcript-modal-edit"
+                data-i18n="transcript:actions.edit">Edit subtitles</button>
         <button class="btn-primary" type="button" id="btn-transcript-modal-done"
                 data-i18n="transcript:actions.close">Close preview</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Subtitle editor — in-app SRT/VTT editor that writes changes
+       straight back over the source file via subtitle:save IPC. -->
+  <div class="modal-overlay" id="subtitle-editor-modal" hidden>
+    <div class="modal subtitle-editor-panel" role="dialog" aria-modal="true">
+      <div class="subtitle-editor-header">
+        <div class="subtitle-editor-heading">
+          <h2 class="subtitle-editor-title" data-i18n="transcript:editor.title">Subtitle editor</h2>
+          <div class="subtitle-editor-filename" id="subtitle-editor-filename"></div>
+          <div class="subtitle-editor-meta" id="subtitle-editor-meta"></div>
+        </div>
+        <button class="transcript-modal-close" type="button" id="btn-subtitle-editor-close"
+                aria-label="Close">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M18 6 6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="subtitle-editor-toolbar">
+        <span class="subtitle-editor-hint" data-i18n="transcript:editor.hints.textOnly">Only text is editable; timestamps stay locked.</span>
+        <div class="subtitle-editor-toolbar-right">
+          <span class="subtitle-editor-dirty-flag" id="subtitle-editor-dirty" hidden></span>
+          <button class="subtitle-editor-find-toggle" type="button" id="btn-subtitle-editor-find-toggle"
+                  data-i18n-attr="title=transcript:editor.find.toggle" title="Find and replace">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="7"/>
+              <path d="m21 21-4.3-4.3"/>
+            </svg>
+            <span data-i18n="transcript:editor.find.toggle">Find / Replace</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="subtitle-editor-findbar" id="subtitle-editor-findbar" hidden>
+        <div class="subtitle-editor-findbar-row">
+          <input type="search" class="subtitle-editor-find-input" id="subtitle-editor-find-input"
+                 data-i18n-attr="placeholder=transcript:editor.find.findPlaceholder"
+                 placeholder="Find…" spellcheck="false" />
+          <span class="subtitle-editor-find-count" id="subtitle-editor-find-count">0 / 0</span>
+          <button class="subtitle-editor-find-nav" type="button" id="btn-subtitle-editor-find-prev"
+                  data-i18n-attr="title=transcript:editor.find.prev" title="Previous">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>
+          </button>
+          <button class="subtitle-editor-find-nav" type="button" id="btn-subtitle-editor-find-next"
+                  data-i18n-attr="title=transcript:editor.find.next" title="Next">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <label class="subtitle-editor-find-opt">
+            <input type="checkbox" id="subtitle-editor-find-case" />
+            <span data-i18n="transcript:editor.find.caseSensitive">Aa</span>
+          </label>
+        </div>
+        <div class="subtitle-editor-findbar-row">
+          <input type="text" class="subtitle-editor-find-input" id="subtitle-editor-replace-input"
+                 data-i18n-attr="placeholder=transcript:editor.find.replacePlaceholder"
+                 placeholder="Replace with…" spellcheck="false" />
+          <button class="btn-secondary subtitle-editor-find-action" type="button" id="btn-subtitle-editor-replace-one"
+                  data-i18n="transcript:editor.find.replace">Replace</button>
+          <button class="btn-secondary subtitle-editor-find-action" type="button" id="btn-subtitle-editor-replace-all"
+                  data-i18n="transcript:editor.find.replaceAll">Replace all</button>
+        </div>
+      </div>
+
+      <div class="subtitle-editor-body">
+        <table class="subtitle-editor-table">
+          <thead>
+            <tr>
+              <th class="col-index" data-i18n="transcript:editor.columns.index">#</th>
+              <th class="col-time"  data-i18n="transcript:editor.columns.time">Time</th>
+              <th class="col-text"  data-i18n="transcript:editor.columns.text">Text</th>
+            </tr>
+          </thead>
+          <tbody id="subtitle-editor-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="subtitle-editor-footer">
+        <button class="btn-secondary" type="button" id="btn-subtitle-editor-revert"
+                data-i18n="transcript:editor.actions.revert">Revert</button>
+        <button class="btn-secondary" type="button" id="btn-subtitle-editor-cancel"
+                data-i18n="transcript:editor.actions.close">Close</button>
+        <button class="btn-primary" type="button" id="btn-subtitle-editor-save"
+                data-i18n="transcript:editor.actions.save" disabled>Save</button>
       </div>
     </div>
   </div>

@@ -3469,35 +3469,51 @@ kbd {
 
 /* ── Confirm dialog (themed replacement for window.confirm) ─────────────── */
 .confirm-dialog {
-  max-width: 440px;
-  padding: 28px 28px 22px;
+  max-width: 460px;
+  width: min(90vw, 460px);
+  padding: 26px 28px 22px;
+  box-sizing: border-box;
 }
 
 .confirm-dialog h2 {
   text-align: left;
-  margin-bottom: 12px;
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text);
 }
 
 .confirm-dialog-message {
   text-align: left;
   color: var(--subtext1);
   font-size: 13px;
-  line-height: 1.65;
+  line-height: 1.6;
   margin: 0 0 22px;
+  padding: 0;
 }
 
 .confirm-dialog-actions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 10px;
+  margin: 0;
+  padding: 0;
 }
 
 .confirm-dialog-btn {
-  min-width: 96px;
+  flex: 0 0 auto;
+  min-width: 104px;
   height: 36px;
-  padding: 0 18px;
+  padding: 0 16px;
   font-size: 13px;
   font-weight: 500;
+  white-space: nowrap;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /*
@@ -5065,3 +5081,296 @@ html[data-high-contrast="true"] select {
   border-color: var(--surface2);
 }
 
+/* ── Subtitle editor modal ─────────────────────────────────────────
+ * Shares the same overlay / panel sizing as the transcript preview
+ * so the two feel like the same UI family. The body is an editable
+ * table: fixed-width time columns, flexible text column that hosts
+ * auto-sizing textareas. */
+.subtitle-editor-panel {
+  width: 95vw;
+  max-width: 1400px;
+  height: 90vh;
+  max-height: 900px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+  border-radius: var(--radius);
+}
+
+.subtitle-editor-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--surface1);
+  flex-shrink: 0;
+}
+
+.subtitle-editor-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.subtitle-editor-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--mauve);
+}
+
+.subtitle-editor-filename {
+  font-family: var(--font-mono);
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 4px;
+}
+
+.subtitle-editor-meta {
+  font-size: 11.5px;
+  color: var(--subtext0);
+  margin-top: 2px;
+}
+
+.subtitle-editor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 22px;
+  background: var(--surface0);
+  border-bottom: 1px solid var(--surface1);
+  font-size: 12px;
+  color: var(--overlay1);
+  flex-shrink: 0;
+}
+
+.subtitle-editor-hint {
+  font-family: var(--font-mono);
+}
+
+.subtitle-editor-dirty-flag {
+  color: var(--amber, var(--yellow));
+  font-weight: 600;
+}
+
+.subtitle-editor-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.subtitle-editor-find-toggle {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--surface2);
+  color: var(--subtext0);
+  font: inherit;
+  font-size: 11.5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s;
+}
+
+.subtitle-editor-find-toggle:hover {
+  background: var(--surface1);
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--yellow) 40%, transparent);
+}
+
+.subtitle-editor-findbar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 22px;
+  background: color-mix(in srgb, var(--yellow) 6%, var(--surface0));
+  border-bottom: 1px solid var(--surface1);
+  flex-shrink: 0;
+}
+
+.subtitle-editor-findbar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.subtitle-editor-find-input {
+  flex: 1;
+  height: 30px;
+  padding: 0 10px;
+  font-size: 13px;
+  background: var(--base);
+  border: 1px solid var(--surface2);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+}
+
+.subtitle-editor-find-input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--yellow) 55%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--yellow) 12%, transparent);
+}
+
+.subtitle-editor-find-count {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--overlay1);
+  min-width: 60px;
+  text-align: center;
+}
+
+.subtitle-editor-find-nav {
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--surface2);
+  color: var(--subtext0);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 0;
+  transition: background .12s, color .12s, border-color .12s;
+}
+
+.subtitle-editor-find-nav:hover:not(:disabled) {
+  background: var(--surface1);
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--yellow) 40%, transparent);
+}
+
+.subtitle-editor-find-nav:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.subtitle-editor-find-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--subtext0);
+  cursor: pointer;
+  user-select: none;
+}
+
+.subtitle-editor-find-opt input { margin: 0; cursor: pointer; }
+
+.subtitle-editor-find-action {
+  height: 30px;
+  padding: 0 14px;
+  font-size: 12px;
+}
+
+.subtitle-editor-find-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.subtitle-editor-body {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding: 8px 12px 16px;
+}
+
+.subtitle-editor-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 2px;
+  font-size: 13px;
+}
+
+.subtitle-editor-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface0);
+  color: var(--subtext0);
+  font-weight: 600;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--surface1);
+}
+
+.subtitle-editor-table .col-index { width: 48px; }
+.subtitle-editor-table .col-time  { width: 220px; }
+.subtitle-editor-table .col-text  { width: auto; }
+
+.subtitle-editor-row td {
+  padding: 6px 8px;
+  vertical-align: top;
+}
+
+.subtitle-editor-cell-index {
+  font-family: var(--font-mono);
+  color: var(--overlay0);
+  text-align: right;
+  padding-right: 12px !important;
+  padding-top: 12px !important;
+}
+
+.subtitle-editor-cell-time {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--overlay1);
+  white-space: nowrap;
+  padding-top: 12px !important;
+  user-select: text;
+}
+
+.subtitle-editor-text-input {
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  background: var(--base);
+  border: 1px solid var(--surface2);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  resize: vertical;
+  overflow: hidden;
+}
+
+.subtitle-editor-text-input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--yellow) 55%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--yellow) 12%, transparent);
+}
+
+.subtitle-editor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 22px;
+  border-top: 1px solid var(--surface1);
+  background: var(--surface0);
+  flex-shrink: 0;
+}
+
+.history-action-edit {
+  /* Same look-and-feel as preview/folder history icon buttons. */
+}

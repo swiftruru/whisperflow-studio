@@ -2,6 +2,7 @@
 
 import { t } from '../lib/i18n.js';
 import { openTranscriptPreview } from './transcript-preview.js';
+import { openSubtitleEditor } from './subtitle-editor.js';
 
 const HISTORY_MAX = 10;
 
@@ -64,6 +65,13 @@ const EYE_SVG_MARKUP = `
 const FOLDER_SVG_MARKUP = `
   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/>
+  </svg>
+`;
+
+const PENCIL_SVG_MARKUP = `
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M12 20h9"/>
+    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
   </svg>
 `;
 
@@ -144,6 +152,17 @@ async function renderHistory(entries) {
         openTranscriptPreview({ mediaPath: entry.filePath, outputDir });
       });
       row.appendChild(previewBtn);
+
+      const editBtn = document.createElement('button');
+      editBtn.className = 'history-action-btn history-action-edit';
+      editBtn.type = 'button';
+      editBtn.title = t('transcript:actions.edit');
+      editBtn.innerHTML = PENCIL_SVG_MARKUP;
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openSubtitleEditor({ mediaPath: entry.filePath, outputDir });
+      });
+      row.appendChild(editBtn);
     }
 
     if (entry.filePath) {

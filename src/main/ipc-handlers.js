@@ -16,6 +16,7 @@ const { readConfigMetadata, getSupportedMediaExtensions } = require('./config-me
 const { listChangelogEntries, readChangelogEntry } = require('./changelog');
 const { collectDiagnostics, formatDiagnosticsAsText } = require('./diagnostics');
 const { readTranscriptForMedia, hasTranscriptForMedia } = require('./transcript-reader');
+const { writeEditedSubtitles } = require('./subtitle-writer');
 const { runPreflight, validateSettingField } = require('./preflight-checker');
 const { createQueueManager } = require('./queue-manager');
 const { runScript, stopProcess, pauseProcess, resumeProcess } = require('./python-runner');
@@ -740,6 +741,26 @@ function registerHandlers(
         ok: false,
         errorCode: code,
         message: error?.message || String(error),
+      };
+    }
+  });
+
+  // ── Subtitle editor save (post-transcription in-app edits) ─────
+  // Renderer passes the exact `source` path it got back from
+  // transcript:read, so we don't re-derive the path here — that
+  // keeps edits from ever creating a new file at the wrong place
+  // if output_dir shifted between read and save.
+  ipcMain.handle('subtitle:save', (_event, payload = {}) => {
+    const { mediaPath, outputDir, segments, formats } = payload;
+    try {
+      const result = writeEditedSubtitles({ mediaPath, outputDir, segments, formats });
+      return { ok: true, ...result };
+    } catch (error) {
+      return {
+        ok: false,
+        errorCode: error && error.code ? String(error.code) : 'WRITE_FAILED',
+        message: error?.message || String(error),
+        partial: error?.partial || null,
       };
     }
   });

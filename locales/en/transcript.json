@@ -12,7 +12,58 @@
     "reveal": "Reveal in folder",
     "close": "Close preview",
     "preview": "View preview",
-    "viewLatest": "View latest transcript"
+    "viewLatest": "View latest transcript",
+    "edit": "Edit subtitles"
+  },
+  "editor": {
+    "title": "Subtitle editor",
+    "columns": {
+      "index": "#",
+      "time": "Timing (read-only)",
+      "text": "Text"
+    },
+    "meta": {
+      "targets": "Will rewrite: {{formats}}"
+    },
+    "actions": {
+      "save": "Save",
+      "saving": "Saving…",
+      "revert": "Revert",
+      "cancel": "Cancel",
+      "close": "Close"
+    },
+    "hints": {
+      "textOnly": "Only text is editable; timestamps stay locked to Whisper's output.",
+      "unsaved": "Unsaved changes"
+    },
+    "find": {
+      "toggle": "Find / Replace",
+      "findPlaceholder": "Find in subtitles…",
+      "replacePlaceholder": "Replace with…",
+      "prev": "Previous match",
+      "next": "Next match",
+      "replace": "Replace",
+      "replaceAll": "Replace all",
+      "caseSensitive": "Aa",
+      "noMatches": "No matches",
+      "replacedCount": "Replaced {{count}} occurrence(s)"
+    },
+    "confirm": {
+      "discardTitle": "Discard unsaved changes?",
+      "discard": "Your edits from this session will not be written to disk.",
+      "discardConfirm": "Discard and close",
+      "revertTitle": "Revert subtitles?",
+      "revert": "This discards every edit you've made since opening the editor and restores the original subtitles from disk."
+    },
+    "toast": {
+      "saved": "Updated {{count}} subtitle file(s) ({{formats}})",
+      "savedNone": "No subtitle files to overwrite",
+      "skipped": "Skipped {{formats}} (never generated)",
+      "saveFailed": "Save failed: {{error}}",
+      "openFailed": "Failed to open editor: {{error}}",
+      "noFormatsEnabled": "All subtitle output formats are off in Settings. Enable at least one under \"Settings → Subtitle output\" before saving.",
+      "reverted": "Reverted to the version on disk"
+    }
   },
   "stats": {
     "segments": "{{count}} segments",
