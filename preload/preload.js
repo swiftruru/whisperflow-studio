@@ -84,7 +84,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeConfig:   (data)         => ipcRenderer.invoke('config:write', data),
   listProfiles:  ()             => ipcRenderer.invoke('config:profiles:list'),
   loadProfile:   (configPath)   => ipcRenderer.invoke('config:profiles:load', configPath),
-  createProfile: (name)         => ipcRenderer.invoke('config:profiles:create', name),
+  createProfile: (name, seed)   => ipcRenderer.invoke('config:profiles:create', { name, seed }),
   renameProfile: (oldName, newName) => ipcRenderer.invoke('config:profiles:rename', { oldName, newName }),
   deleteProfile: (name)         => ipcRenderer.invoke('config:profiles:delete', name),
 

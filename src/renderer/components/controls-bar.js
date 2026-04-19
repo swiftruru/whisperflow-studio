@@ -257,6 +257,18 @@ async function triggerRun() {
     return false;
   }
 
+  // Guard: if the queue has no pending jobs (e.g. user clicked Run
+  // without scanning first, or the previous batch drained the queue),
+  // bail out here.  Otherwise main would still send run:done(0) and
+  // the renderer's CLI branch would show a stale "轉錄完成" toast +
+  // re-log the previous batch summary, because lastFinishedJob /
+  // stats still reference the prior batch.
+  if (getQueueState().stats.pending === 0) {
+    showToast(t('controls:toast.runNoQueued'), 'info');
+    syncActionState();
+    return false;
+  }
+
   lastAction = 'cli';
   setRunning(true);
   // Arm the progress-card scroll before we kick off the run.  The actual

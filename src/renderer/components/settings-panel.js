@@ -4,6 +4,7 @@ import { showToast } from './toast.js';
 import { t } from '../lib/i18n.js';
 import { refreshPreflight } from './preflight-panel.js';
 import { VENV_INITIALIZED_EVENT } from '../lib/venv-bootstrap.js';
+import { createThemedSelect } from '../lib/themed-select.js';
 
 const APP_SETTINGS_SECTION = 'APP_SETTINGS';
 const VALIDATED_FIELD_KEYS = new Set([
@@ -118,25 +119,22 @@ function buildField(section, key, value) {
   inputRow.className = 'field-input-row';
 
   let input;
+  let appendedToRow = false;
 
   if (fieldType === 'select') {
-    input = document.createElement('select');
-    const options = getEnumOptions(key)[key];
-    for (const opt of options) {
-      const option = document.createElement('option');
-      option.value = opt;
-      option.textContent = opt;
-      if (opt === value) option.selected = true;
-      input.appendChild(option);
-    }
-
-    if (!options.includes(value)) {
-      const option = document.createElement('option');
-      option.value = value;
-      option.textContent = value;
-      option.selected = true;
-      input.insertBefore(option, input.firstChild);
-    }
+    // Themed-select wrapper: the returned root contains a visually-
+    // hidden real <select> that carries data-section/data-key and is
+    // what collectFormValues() reads.  That keeps the existing form
+    // machinery untouched while giving us a fully themed dropdown.
+    const options = getEnumOptions(key)[key] || [];
+    const wrapper = createThemedSelect({
+      options,
+      value,
+      dataset: { section, key },
+    });
+    input = wrapper.nativeSelect;
+    inputRow.appendChild(wrapper);
+    appendedToRow = true;
   } else if (fieldType === 'boolean') {
     input = document.createElement('input');
     input.type = 'checkbox';
@@ -153,7 +151,7 @@ function buildField(section, key, value) {
 
   input.dataset.section = section;
   input.dataset.key = key;
-  inputRow.appendChild(input);
+  if (!appendedToRow) inputRow.appendChild(input);
 
   if (getFolderBrowseKeys().includes(key)) {
     const btn = document.createElement('button');
@@ -594,11 +592,15 @@ function initDirtyTracking() {
 }
 
 function markDirty() {
+  if (saveBtn.classList.contains('dirty')) return;
   saveBtn.classList.add('dirty');
+  window.dispatchEvent(new CustomEvent('settings:dirty-changed', { detail: { dirty: true } }));
 }
 
 function clearDirty() {
+  if (!saveBtn.classList.contains('dirty')) return;
   saveBtn.classList.remove('dirty');
+  window.dispatchEvent(new CustomEvent('settings:dirty-changed', { detail: { dirty: false } }));
 }
 
 function initLanguagePromptSync() {
@@ -622,27 +624,34 @@ async function refreshAfterVenvInit() {
   invalidateDynamicModelNames();
   await loadDynamicModelNames();
 
-  // 2. Rebuild the `model` <select>'s options in place, preserving the
-  //    current selection so the user doesn't lose context.
+  // 2. Rebuild the `model` dropdown's options in place, preserving the
+  //    current selection so the user doesn't lose context.  The field
+  //    may be a themed-select wrapper (hidden native <select> inside a
+  //    .themed-select root) or — for forward-compat — a bare native
+  //    <select>.  Handle both.
   const modelSelect = document.querySelector('#settings-content [data-section="SETTING"][data-key="model"]');
   if (modelSelect && modelSelect.tagName === 'SELECT') {
     const previousValue = modelSelect.value;
     const options = getEnumOptions('model').model || [];
-    modelSelect.innerHTML = '';
-    for (const opt of options) {
-      const option = document.createElement('option');
-      option.value = opt;
-      option.textContent = opt;
-      if (opt === previousValue) option.selected = true;
-      modelSelect.appendChild(option);
-    }
-    // Preserve a custom value the user may have typed/saved earlier.
-    if (previousValue && !options.includes(previousValue)) {
-      const option = document.createElement('option');
-      option.value = previousValue;
-      option.textContent = previousValue;
-      option.selected = true;
-      modelSelect.insertBefore(option, modelSelect.firstChild);
+    const wrapper = modelSelect.closest('.themed-select');
+    if (wrapper && typeof wrapper.setOptions === 'function') {
+      wrapper.setOptions(options, { preserveValue: true });
+    } else {
+      modelSelect.innerHTML = '';
+      for (const opt of options) {
+        const option = document.createElement('option');
+        option.value = opt;
+        option.textContent = opt;
+        if (opt === previousValue) option.selected = true;
+        modelSelect.appendChild(option);
+      }
+      if (previousValue && !options.includes(previousValue)) {
+        const option = document.createElement('option');
+        option.value = previousValue;
+        option.textContent = previousValue;
+        option.selected = true;
+        modelSelect.insertBefore(option, modelSelect.firstChild);
+      }
     }
   }
 
@@ -666,6 +675,21 @@ async function refreshAfterVenvInit() {
     }
   } catch (_) {
     // Non-fatal — leave the form alone if config:read fails.
+  }
+}
+
+// Build the deep-merged config object that saveSettings() would write,
+// WITHOUT touching disk.  Used by "Save current as new profile" to seed
+// the new profile with the in-memory form state (including unsaved
+// edits) while leaving the current profile's config.json untouched.
+async function buildMergedConfigFromForm() {
+  const data = collectFormValues();
+  const { configData } = splitFormValues(data);
+  try {
+    const onDisk = await window.electronAPI.readConfig();
+    return deepMergeConfig(onDisk || {}, configData);
+  } catch (_) {
+    return configData;
   }
 }
 
@@ -791,6 +815,8 @@ function initSettingsSegments() {
 
 export {
   collectFormValues,
+  buildMergedConfigFromForm,
+  clearDirty,
   invalidateDynamicModelNames,
   renderSettings,
   saveSettings,

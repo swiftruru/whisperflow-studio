@@ -1,22 +1,26 @@
 'use strict';
 
 /**
- * Profile switcher — lets users manage multiple config.json profiles
- * stored as subdirectories under python/config/.  A profile represents
- * a complete TranscribeConfig snapshot (language, model, VAD settings,
- * etc.) that can be swapped in with one click.
+ * Profile manager — save/switch/rename/delete multiple config.json
+ * profiles stored as subdirectories under python/config/.  Each profile
+ * is a complete TranscribeConfig snapshot (language, model, VAD, etc.).
  *
- * Supports: switch, create (from current config), rename, delete.
- * The 'default' profile is always present and cannot be renamed or deleted.
+ * Lives in Settings > Transcription.  The profile picker uses the
+ * shared themed-select component so it matches every other dropdown in
+ * the app; rename/delete are low-weight link buttons below.  The
+ * "save current as new profile" button only appears when the settings
+ * form has unsaved changes — see the settings:dirty-changed event.
  */
 
-import { renderSettings } from './settings-panel.js';
+import { renderSettings, buildMergedConfigFromForm, clearDirty } from './settings-panel.js';
 import { showToast } from './toast.js';
 import { confirmDialog } from '../lib/confirm-dialog.js';
 import { t } from '../lib/i18n.js';
+import { createThemedSelect } from '../lib/themed-select.js';
 
 let _profiles = [];
 let _activeProfile = 'default';
+let _dropdown = null;
 
 function promptForName({ title, placeholder = '', initialValue = '' } = {}) {
   return new Promise((resolve) => {
@@ -103,6 +107,10 @@ function errorMessageForCode(code) {
   }
 }
 
+function findActiveProfile() {
+  return _profiles.find((p) => p.name === _activeProfile) || null;
+}
+
 async function handleCreate() {
   const name = await promptForName({
     title: t('dialogs:profile.create.title'),
@@ -110,16 +118,34 @@ async function handleCreate() {
   });
   if (!name) return;
   try {
-    await window.electronAPI.createProfile(name);
+    // Seed the new profile with the CURRENT in-memory form state
+    // (including unsaved edits) — that's the whole point of the "Save
+    // current as new profile" flow.  Previously the backend only copied
+    // the persisted config.json, so unsaved tweaks vanished into the
+    // ether and the dropdown snapped back to the prior profile.
+    const seed = await buildMergedConfigFromForm();
+    const created = await window.electronAPI.createProfile(name, seed);
+    // Point the active profile at the newly created one so backend
+    // state, dropdown, and form agree.  loadProfile copies the new
+    // profile's config.json into the active slot — effectively a
+    // no-op valuewise since we just seeded it with the form state —
+    // but it keeps main process tracking consistent.
+    await window.electronAPI.loadProfile(created.configPath);
+    _activeProfile = created.name;
     showToast(t('dialogs:profile.toast.created', { name }), 'success', 2500);
     await refreshProfiles();
+    await renderSettings();
+    // The form now matches the freshly saved profile → clear dirty
+    // explicitly so the hint banner and save badge both reset.
+    clearDirty();
   } catch (err) {
     showToast(errorMessageForCode(err?.code) || err?.message || String(err), 'error', 4000);
   }
 }
 
-async function handleRename(profile) {
-  if (profile.name === 'default') return;
+async function handleRename() {
+  const profile = findActiveProfile();
+  if (!profile || profile.name === 'default') return;
   const newName = await promptForName({
     title: t('dialogs:profile.rename.title', { name: profile.name }),
     placeholder: t('dialogs:profile.namePlaceholder'),
@@ -128,6 +154,7 @@ async function handleRename(profile) {
   if (!newName || newName === profile.name) return;
   try {
     await window.electronAPI.renameProfile(profile.name, newName);
+    _activeProfile = newName;
     showToast(t('dialogs:profile.toast.renamed', { from: profile.name, to: newName }), 'success', 2500);
     await refreshProfiles();
   } catch (err) {
@@ -135,8 +162,9 @@ async function handleRename(profile) {
   }
 }
 
-async function handleDelete(profile) {
-  if (profile.name === 'default') return;
+async function handleDelete() {
+  const profile = findActiveProfile();
+  if (!profile || profile.name === 'default') return;
   const confirmed = await confirmDialog({
     title: t('dialogs:profile.delete.title'),
     message: t('dialogs:profile.delete.message', { name: profile.name }),
@@ -154,59 +182,66 @@ async function handleDelete(profile) {
   }
 }
 
-async function switchProfile(profile) {
-  if (profile.name === _activeProfile) return;
+function isSettingsDirty() {
+  return !!document.getElementById('btn-save-settings')?.classList.contains('dirty');
+}
+
+async function switchProfile(name) {
+  if (name === _activeProfile) return;
+  const profile = _profiles.find((p) => p.name === name);
+  if (!profile) return;
+
+  // If the settings form has unsaved edits, loading a different profile
+  // would silently overwrite those edits with the other profile's
+  // values — no undo.  Confirm first, and revert the dropdown if the
+  // user backs out so the UI stays truthful about which profile is
+  // actually loaded.
+  if (isSettingsDirty()) {
+    const confirmed = await confirmDialog({
+      title: t('dialogs:profile.switchDirty.title'),
+      message: t('dialogs:profile.switchDirty.message', { name: profile.name }),
+      confirmText: t('dialogs:profile.switchDirty.confirm'),
+      cancelText: t('dialogs:profile.switchDirty.cancel'),
+      destructive: true,
+    });
+    if (!confirmed) {
+      _dropdown?.setValue(_activeProfile);
+      return;
+    }
+  }
+
   await window.electronAPI.loadProfile(profile.configPath);
   _activeProfile = profile.name;
-  renderChips();
+  syncMetaButtons();
   await renderSettings();
 }
 
-function renderChips() {
-  const container = document.getElementById('profile-switcher-container');
-  if (!container) return;
-  container.innerHTML = '';
-  container.hidden = false;
+function syncMetaButtons() {
+  const btnRename = document.getElementById('btn-profile-rename');
+  const btnDelete = document.getElementById('btn-profile-delete');
+  const isDefault = _activeProfile === 'default';
+  if (btnRename) btnRename.disabled = isDefault;
+  if (btnDelete) btnDelete.disabled = isDefault;
+}
 
-  for (const profile of _profiles) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'profile-chip-wrapper';
-
-    const btn = document.createElement('button');
-    btn.className = 'profile-chip' + (profile.name === _activeProfile ? ' active' : '');
-    btn.type = 'button';
-    btn.textContent = profile.name;
-    btn.addEventListener('click', () => switchProfile(profile));
-    wrapper.appendChild(btn);
-
-    if (profile.name !== 'default') {
-      const renameBtn = document.createElement('button');
-      renameBtn.type = 'button';
-      renameBtn.className = 'profile-chip-action';
-      renameBtn.title = t('dialogs:profile.rename.action');
-      renameBtn.textContent = '✎';
-      renameBtn.addEventListener('click', (e) => { e.stopPropagation(); handleRename(profile); });
-      wrapper.appendChild(renameBtn);
-
-      const delBtn = document.createElement('button');
-      delBtn.type = 'button';
-      delBtn.className = 'profile-chip-action profile-chip-action--danger';
-      delBtn.title = t('dialogs:profile.delete.action');
-      delBtn.textContent = '✕';
-      delBtn.addEventListener('click', (e) => { e.stopPropagation(); handleDelete(profile); });
-      wrapper.appendChild(delBtn);
-    }
-
-    container.appendChild(wrapper);
+function renderDropdown() {
+  const mount = document.getElementById('profile-dropdown-mount');
+  if (!mount) return;
+  const options = _profiles.map((p) => ({ value: p.name, label: p.name }));
+  if (!_dropdown) {
+    _dropdown = createThemedSelect({
+      options,
+      value: _activeProfile,
+      ariaLabelledBy: 'profile-dropdown-label',
+      onChange: (name) => { switchProfile(name); },
+    });
+    mount.innerHTML = '';
+    mount.appendChild(_dropdown);
+  } else {
+    _dropdown.setOptions(options, { preserveValue: false });
+    _dropdown.setValue(_activeProfile);
   }
-
-  const addBtn = document.createElement('button');
-  addBtn.className = 'profile-chip profile-chip-add';
-  addBtn.type = 'button';
-  addBtn.title = t('dialogs:profile.create.action');
-  addBtn.textContent = '+ ' + t('dialogs:profile.create.label');
-  addBtn.addEventListener('click', handleCreate);
-  container.appendChild(addBtn);
+  syncMetaButtons();
 }
 
 async function refreshProfiles() {
@@ -215,14 +250,26 @@ async function refreshProfiles() {
   } catch (_) {
     _profiles = [];
   }
-  renderChips();
+  renderDropdown();
 }
 
 async function initProfileSwitcher() {
   await refreshProfiles();
 
-  window.addEventListener('app:language-changed', () => {
-    renderChips();
+  document.getElementById('btn-profile-create')?.addEventListener('click', handleCreate);
+  document.getElementById('btn-profile-rename')?.addEventListener('click', handleRename);
+  document.getElementById('btn-profile-delete')?.addEventListener('click', handleDelete);
+
+  // Hide the "Save as new profile" row by default; show only when the
+  // user has unsaved changes.  This avoids visually nudging users toward
+  // creating profiles they don't need, and keeps the dropdown area calm.
+  const dirtyRow = document.getElementById('settings-profile-dirty-row');
+  const syncDirty = (dirty) => {
+    if (dirtyRow) dirtyRow.hidden = !dirty;
+  };
+  syncDirty(document.getElementById('btn-save-settings')?.classList.contains('dirty'));
+  window.addEventListener('settings:dirty-changed', (e) => {
+    syncDirty(!!e.detail?.dirty);
   });
 }
 

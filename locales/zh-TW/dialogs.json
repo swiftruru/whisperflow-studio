@@ -84,6 +84,12 @@
       "confirm": "刪除",
       "action": "刪除此 Profile"
     },
+    "switchDirty": {
+      "title": "放棄未儲存的變更？",
+      "message": "目前設定有尚未儲存的變更，切換到「{{name}}」會直接覆蓋這些變更，無法復原。確定要切換嗎？",
+      "confirm": "放棄變更並切換",
+      "cancel": "留在目前 Profile"
+    },
     "toast": {
       "created": "已建立 Profile：{{name}}",
       "renamed": "已將「{{from}}」重新命名為「{{to}}」",

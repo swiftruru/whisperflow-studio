@@ -178,8 +178,15 @@ function registerHandlers(
     return readConfig(configPath);
   });
 
-  ipcMain.handle('config:profiles:create', (_event, name) => {
-    return createProfileFs(path.join(PYTHON_DIR, 'config'), name);
+  ipcMain.handle('config:profiles:create', (_event, payload) => {
+    // Back-compat: older callers pass a bare string name.  New callers
+    // send { name, seed } so the renderer can seed the new profile
+    // directly from the current form state (captures unsaved edits).
+    if (typeof payload === 'string') {
+      return createProfileFs(path.join(PYTHON_DIR, 'config'), payload);
+    }
+    const { name, seed } = payload || {};
+    return createProfileFs(path.join(PYTHON_DIR, 'config'), name, seed);
   });
 
   ipcMain.handle('config:profiles:rename', (_event, payload = {}) => {

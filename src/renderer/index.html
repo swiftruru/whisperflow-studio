@@ -71,9 +71,6 @@
       <!-- ── Tab: Main ─────────────────────────────────────────────────── -->
       <div class="tab-pane active" id="tab-main">
 
-        <!-- Profile switcher (hidden when only default profile exists) -->
-        <div id="profile-switcher-container" class="profile-switcher" hidden></div>
-
         <!-- Preflight panel -->
         <div class="card preflight-panel" id="preflight-panel" hidden>
           <div class="card-label">
@@ -385,6 +382,38 @@
           </div>
         </div>
 
+        <!-- Profile management card (lives in Transcription segment since
+             profiles snapshot TranscribeConfig, not localStorage prefs) -->
+        <div class="settings-local-prefs" data-segment="transcription">
+          <section class="settings-group-card" id="settings-profile-card">
+            <div class="settings-group-header-static">
+              <div class="settings-group-header-text">
+                <div class="settings-group-title" data-i18n="settings:profile.title">Profiles</div>
+                <div class="settings-group-description" data-i18n="settings:profile.hint">Save and switch between complete sets of transcription settings.</div>
+              </div>
+            </div>
+            <div class="settings-group-body">
+              <div class="field-row">
+                <div class="field-label-block">
+                  <label class="field-label" id="profile-dropdown-label" data-i18n="settings:profile.activeLabel">Active profile</label>
+                </div>
+                <div class="field-control profile-field-control">
+                  <div id="profile-dropdown-mount"></div>
+                  <div class="settings-profile-meta-actions">
+                    <button class="btn-link" type="button" id="btn-profile-rename" data-i18n="settings:profile.rename">Rename</button>
+                    <span class="settings-profile-meta-sep" aria-hidden="true">·</span>
+                    <button class="btn-link btn-link--danger" type="button" id="btn-profile-delete" data-i18n="settings:profile.delete">Delete</button>
+                  </div>
+                </div>
+              </div>
+              <div class="field-row settings-profile-dirty-row" id="settings-profile-dirty-row" hidden>
+                <div class="settings-profile-dirty-hint" data-i18n="settings:profile.dirtyHint">Unsaved changes detected — save them as a new profile?</div>
+                <button class="btn-secondary btn-sm" type="button" id="btn-profile-create" data-i18n="settings:profile.create">Save current as new profile</button>
+              </div>
+            </div>
+          </section>
+        </div>
+
         <div id="settings-content">
           <p class="loading-msg" data-i18n="settings:loading">Loading config…</p>
         </div>
@@ -437,12 +466,11 @@
                   <label class="field-label" for="a11y-font-size" data-i18n="settings:a11y.fontSize.label">Font size</label>
                 </div>
                 <div class="field-control">
-                  <select id="a11y-font-size">
-                    <option value="small" data-i18n="settings:a11y.fontSize.small">Small</option>
-                    <option value="normal" data-i18n="settings:a11y.fontSize.normal">Normal</option>
-                    <option value="large" data-i18n="settings:a11y.fontSize.large">Large</option>
-                    <option value="xlarge" data-i18n="settings:a11y.fontSize.xlarge">Extra large</option>
-                  </select>
+                  <!-- Themed select mounted by initA11yControls() — the
+                       real <select id="a11y-font-size"> lives inside the
+                       wrapper so localStorage value + change handler keep
+                       working. -->
+                  <div id="a11y-font-size-mount"></div>
                 </div>
               </div>
               <div class="field-row field-row-bool">

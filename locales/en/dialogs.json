@@ -84,6 +84,12 @@
       "confirm": "Delete",
       "action": "Delete this profile"
     },
+    "switchDirty": {
+      "title": "Discard unsaved changes?",
+      "message": "You have unsaved changes. Switching to \"{{name}}\" will overwrite them — this can't be undone. Switch anyway?",
+      "confirm": "Discard and switch",
+      "cancel": "Stay on current profile"
+    },
     "toast": {
       "created": "Profile created: {{name}}",
       "renamed": "Renamed \"{{from}}\" to \"{{to}}\"",

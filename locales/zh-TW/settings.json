@@ -9,6 +9,15 @@
     "saved": "設定已儲存"
   },
   "loading": "正在載入設定…",
+  "profile": {
+    "title": "Profile（設定檔快照）",
+    "hint": "把目前「設定」的整組參數存成 Profile，需要時一鍵切換。預設的 default 無法重新命名或刪除。",
+    "activeLabel": "目前使用",
+    "create": "存成新 Profile",
+    "dirtyHint": "目前有尚未儲存的變更",
+    "rename": "重新命名",
+    "delete": "刪除"
+  },
   "shortcuts": {
     "title": "鍵盤快捷鍵",
     "hint": "點擊快捷鍵後按下新組合即可重新綁定，Esc 取消。",

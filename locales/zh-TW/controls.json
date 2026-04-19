@@ -56,7 +56,8 @@
     "skippedCurrent": "已跳過目前檔案",
     "loopSkipNext": "自動循環：跳到下一個檔案…",
     "stoppedCurrent": "已停止目前批次",
-    "transcriptionFailed": "轉錄失敗"
+    "transcriptionFailed": "轉錄失敗",
+    "runNoQueued": "佇列中沒有可轉錄的檔案，請先點「掃描缺字幕的檔案」"
   },
   "batchSummary": {
     "console": "✔ 批次完成：{{done}} 完成、{{failed}} 失敗、{{skipped}} 略過（共 {{total}} 個）— {{elapsed}}"

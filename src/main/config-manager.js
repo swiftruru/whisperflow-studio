@@ -223,7 +223,7 @@ function validateProfileName(name) {
   return { valid: true, name: trimmed };
 }
 
-function createProfile(configDir, name) {
+function createProfile(configDir, name, seedConfig) {
   const v = validateProfileName(name);
   if (!v.valid) {
     const err = new Error(`invalid profile name: ${v.reason}`);
@@ -237,10 +237,21 @@ function createProfile(configDir, name) {
     throw err;
   }
   fs.mkdirSync(profileDir, { recursive: true });
-  // Seed the new profile from the current active config so the user's
-  // current tuning is the starting point for the new profile.
-  const activePath = path.join(configDir, 'config.json');
-  const src = fs.existsSync(activePath) ? readConfig(activePath) : getDefaultConfig(activePath);
+  // Seed source priority:
+  //   1. Explicit seedConfig (renderer sends the current in-memory form
+  //      state so "Save current as new profile" truly captures unsaved
+  //      edits — without this, we'd only copy what's on disk, losing
+  //      whatever the user had just been tweaking)
+  //   2. The currently active config.json (for code paths that still
+  //      call createProfile without a seed, e.g. future callers)
+  //   3. The schema default (first-run case with no active config yet)
+  let src;
+  if (seedConfig && typeof seedConfig === 'object') {
+    src = seedConfig;
+  } else {
+    const activePath = path.join(configDir, 'config.json');
+    src = fs.existsSync(activePath) ? readConfig(activePath) : getDefaultConfig(activePath);
+  }
   writeConfig(path.join(profileDir, 'config.json'), src);
   return { name: v.name, configPath: path.join(profileDir, 'config.json') };
 }

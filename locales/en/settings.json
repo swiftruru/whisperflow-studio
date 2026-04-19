@@ -9,6 +9,15 @@
     "saved": "Settings saved"
   },
   "loading": "Loading config…",
+  "profile": {
+    "title": "Profiles",
+    "hint": "Save the current Settings as a named profile and switch between them with one click. The built-in 'default' profile can't be renamed or deleted.",
+    "activeLabel": "Active profile",
+    "create": "Save as new profile",
+    "dirtyHint": "Unsaved changes in current settings",
+    "rename": "Rename",
+    "delete": "Delete"
+  },
   "shortcuts": {
     "title": "Keyboard shortcuts",
     "hint": "Click a binding, then press the new combination. Esc cancels.",

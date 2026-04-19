@@ -56,7 +56,8 @@
     "skippedCurrent": "Current file skipped",
     "loopSkipNext": "Auto-loop: skipping to next file…",
     "stoppedCurrent": "Current batch stopped",
-    "transcriptionFailed": "Transcription failed"
+    "transcriptionFailed": "Transcription failed",
+    "runNoQueued": "No files queued — run Scan first to find media missing subtitles"
   },
   "batchSummary": {
     "console": "✔ Batch complete: {{done}} done, {{failed}} failed, {{skipped}} skipped ({{total}} total) — {{elapsed}}"

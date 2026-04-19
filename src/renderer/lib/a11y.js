@@ -10,6 +10,9 @@
  * file owns the runtime toggle UI bindings.
  */
 
+import { createThemedSelect } from './themed-select.js';
+import { t } from './i18n.js';
+
 const FONT_SIZE_KEY = 'a11y.fontSize';
 const HIGH_CONTRAST_KEY = 'a11y.highContrast';
 const FONT_SIZE_VALUES = ['small', 'normal', 'large', 'xlarge'];
@@ -58,17 +61,41 @@ function setHighContrast(on) {
   applyHighContrast(on);
 }
 
+let _fontSizeWrapper = null;
+
+function buildFontSizeOptions() {
+  return FONT_SIZE_VALUES.map((v) => ({
+    value: v,
+    label: t(`settings:a11y.fontSize.${v}`),
+  }));
+}
+
 function initA11yControls() {
-  const fontSelect = document.getElementById('a11y-font-size');
+  const mount = document.getElementById('a11y-font-size-mount');
   const hcToggle = document.getElementById('a11y-high-contrast');
-  if (fontSelect) {
-    fontSelect.value = getFontSize();
-    fontSelect.addEventListener('change', () => setFontSize(fontSelect.value));
+  if (mount) {
+    _fontSizeWrapper = createThemedSelect({
+      options: buildFontSizeOptions(),
+      value: getFontSize(),
+      id: 'a11y-font-size',
+      onChange: (v) => setFontSize(v),
+    });
+    mount.innerHTML = '';
+    mount.appendChild(_fontSizeWrapper);
   }
   if (hcToggle) {
     hcToggle.checked = getHighContrast();
     hcToggle.addEventListener('change', () => setHighContrast(hcToggle.checked));
   }
+  // Rebuild the font-size labels on locale change so the dropdown stays
+  // localized without requiring a full reload.
+  window.addEventListener('app:language-changed', () => {
+    if (_fontSizeWrapper) {
+      const current = _fontSizeWrapper.getValue();
+      _fontSizeWrapper.setOptions(buildFontSizeOptions(), { preserveValue: true });
+      _fontSizeWrapper.setValue(current);
+    }
+  });
   // Ensure attributes reflect stored values even on first render
   applyFontSize(getFontSize());
   applyHighContrast(getHighContrast());
