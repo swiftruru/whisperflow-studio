@@ -454,14 +454,6 @@ app.on('window-all-closed', () => {
 app.on('activate', () => {
   if (!mainWindow) {
     createWindow();
-    registerHandlers(
-    mainWindow,
-    ELECTRON_APP_ROOT,
-    readLocalSettings,
-    writeLocalSettings,
-    setIsRunning,
-    { addBusyReason, removeBusyReason },
-  );
   }
 });
 
