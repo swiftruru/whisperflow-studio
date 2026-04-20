@@ -103,6 +103,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ── File System Dialogs ───────────────────────────────────────────────────
   browseFolder:    ()           => ipcRenderer.invoke('fs:browse-folder'),
+  filterExistingDirs: (paths)   => ipcRenderer.invoke('fs:filter-existing-dirs', paths),
   browseFile:      ()           => ipcRenderer.invoke('fs:browse-file'),
   browseAnyFile:   ()           => ipcRenderer.invoke('fs:browse-any-file'),
   saveLog:         (text)       => ipcRenderer.invoke('fs:save-log', text),

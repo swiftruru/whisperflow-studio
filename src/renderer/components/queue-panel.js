@@ -273,7 +273,10 @@ function renderProgress(state) {
   progressBarFill.style.width = `${getDisplayProgressPercent(state).toFixed(1)}%`;
 
   if (state.stats.total === 0) {
-    progressHeadline.textContent = t('progress:batchCard.noMissing');
+    const filtered = state.scanSummary.filteredBySubtitle || 0;
+    progressHeadline.textContent = filtered > 0
+      ? t('progress:batchCard.allHaveSubtitles', { count: filtered })
+      : t('progress:batchCard.noMissing');
     progressStats.textContent = t('progress:batchCard.scanSummary', {
       files: state.scanSummary.scannedFiles,
       dirs: state.scanSummary.scannedDirectories,

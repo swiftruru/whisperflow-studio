@@ -235,6 +235,19 @@ function registerHandlers(
     return shell.openPath(dirPath);
   });
 
+  // Filter a list of directory paths down to those that still exist and
+  // are directories. Used by the "recent folders" dropdown to silently
+  // drop stale entries instead of letting the user pick one and then
+  // trigger a preflight failure.
+  ipcMain.handle('fs:filter-existing-dirs', (_event, paths) => {
+    if (!Array.isArray(paths)) return [];
+    return paths.filter((p) => {
+      if (typeof p !== 'string' || !p) return false;
+      try { return fs.statSync(p).isDirectory(); }
+      catch (_) { return false; }
+    });
+  });
+
   ipcMain.handle('fs:save-log', async (_event, text) => {
     const result = await dialog.showSaveDialog(mainWindow, {
       title: 'Save Console Log',
@@ -341,14 +354,17 @@ function registerHandlers(
       const snapshot = queueManager.scanMedia(effectiveRootPath);
       const { stats, currentJob, scanSummary } = snapshot;
 
-      if (stats.total > 0 && currentJob) {
-        sendLog(`[WhisperFlow] ${t('events:log.foundMissingFiles', { count: stats.total })}\n`);
+      if (scanSummary.newlyAdded > 0 && currentJob) {
+        sendLog(`[WhisperFlow] ${t('events:log.foundMissingFiles', { count: scanSummary.newlyAdded })}\n`);
         sendLog(`[WhisperFlow] ${t('events:log.nextQueuedFile', { fileName: currentJob.fileName })}\n`);
-      } else {
+      } else if (stats.total === 0) {
         sendLog(`[WhisperFlow] ${t('events:log.noMissingFiles')}\n`);
       }
 
-      sendLog(`[WhisperFlow] ${t('events:log.scanComplete', {
+      sendLog(`[WhisperFlow] ${t('events:log.scanAppendSummary', {
+        added: scanSummary.newlyAdded,
+        queued: scanSummary.alreadyQueued,
+        withSubs: scanSummary.filteredBySubtitle,
         dirs: scanSummary.scannedDirectories,
         files: scanSummary.scannedFiles,
       })}\n`);

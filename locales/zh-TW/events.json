@@ -29,6 +29,7 @@
     "nextQueuedFile": "下一個待轉錄檔案：「{{fileName}}」",
     "noMissingFiles": "沒有找到缺字幕的檔案。",
     "scanComplete": "掃描完成，共 {{dirs}} 個資料夾、{{files}} 個檔案。",
+    "scanAppendSummary": "掃描完成：新增 {{added}} 個、已在佇列 {{queued}} 個、已有字幕 {{withSubs}} 個（共掃描 {{dirs}} 個資料夾、{{files}} 個檔案）",
     "startingTranscription": "開始轉錄:「{{fileName}}」",
     "noQueuedFiles": "佇列中沒有可轉錄的檔案。",
     "installCancelled": "安裝已由使用者取消。",

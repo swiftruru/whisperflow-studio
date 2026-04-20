@@ -98,7 +98,13 @@
           <div class="dir-path-box" id="dir-path-box">
             <span class="dir-path-text" id="dir-path-text" data-i18n="common:status.notConfigured">Not configured</span>
           </div>
-          <button class="btn-browse" id="btn-browse-dir" data-onboard-target="step1" data-i18n="queue:mediaCard.browse">Browse…</button>
+          <div class="browse-row">
+            <button class="btn-browse" id="btn-browse-dir" data-onboard-target="step1" data-i18n="queue:mediaCard.browse">Browse…</button>
+            <button class="btn-browse-more" id="btn-browse-recent" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-attr="title=queue:mediaCard.recentDirs; aria-label=queue:mediaCard.recentDirs" hidden>
+              <svg viewBox="0 0 12 12" width="10" height="10" fill="currentColor" aria-hidden="true"><path d="M2.5 4.5l3.5 3.5 3.5-3.5z"/></svg>
+            </button>
+            <div class="recent-dirs-popover" id="recent-dirs-list" role="menu" hidden></div>
+          </div>
         </div>
 
         <!-- Action buttons -->
@@ -162,9 +168,6 @@
           </button>
 
         </div>
-
-        <!-- Recent directories -->
-        <div class="recent-dirs-list" id="recent-dirs-list" hidden></div>
 
         <!-- Step guide (hidden when directory is set) -->
         <div class="step-guide" id="step-guide">

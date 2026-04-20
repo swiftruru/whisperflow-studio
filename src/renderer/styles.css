@@ -1373,12 +1373,53 @@ html:not([data-platform="darwin"]) .titlebar-logo {
   background: color-mix(in srgb, var(--yellow) 6%, var(--surface1));
 }
 
-/* ── Recent directories ──────────────────────────────────────────────────────── */
-.recent-dirs-list {
+/* ── Browse split button + Recent directories popover ────────────────────────── */
+.browse-row {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  position: relative;
+  justify-content: flex-end;
+}
+
+.btn-browse-more {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  border: 1px solid color-mix(in srgb, var(--yellow) 25%, transparent);
+  border-radius: 6px;
+  color: var(--subtext0);
+  background: transparent;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.btn-browse-more:hover,
+.btn-browse-more[aria-expanded="true"] {
+  color: var(--amber);
+  border-color: color-mix(in srgb, var(--yellow) 45%, transparent);
+  background: color-mix(in srgb, var(--yellow) 6%, var(--surface1));
+}
+
+.recent-dirs-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 220px;
+  max-width: 360px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--surface0);
+  border: 1px solid color-mix(in srgb, var(--yellow) 20%, var(--surface2));
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  z-index: 40;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  margin-top: -2px;
+  gap: 2px;
 }
 
 .recent-dir-item {
@@ -1386,9 +1427,9 @@ html:not([data-platform="darwin"]) .titlebar-logo {
   cursor: pointer;
   display: flex;
   align-items: center;
-  padding: 4px 10px;
+  padding: 6px 10px;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--subtext0);
   background: transparent;
   border: 1px solid transparent;
@@ -1406,7 +1447,8 @@ html:not([data-platform="darwin"]) .titlebar-logo {
   flex-shrink: 0;
 }
 
-.recent-dir-item:hover {
+.recent-dir-item:hover,
+.recent-dir-item:focus-visible {
   background: color-mix(in srgb, var(--yellow) 10%, var(--surface1));
   border-color: color-mix(in srgb, var(--yellow) 30%, transparent);
   color: var(--text);

@@ -3,6 +3,7 @@
     "label": "Batch Progress",
     "stageIdle": "Idle",
     "noMissing": "No missing subtitles found",
+    "allHaveSubtitles": "Scanned {{count}} files — all already have subtitles",
     "scanSummary": "Scanned {{files}} files in {{dirs}} folders",
     "scannedFiles": "Scanned {{files}} files in {{dirs}} folders",
     "processedCount": "{{processed}}/{{total}} processed",

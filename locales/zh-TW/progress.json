@@ -3,6 +3,7 @@
     "label": "批次進度",
     "stageIdle": "待機",
     "noMissing": "找不到缺字幕的檔案",
+    "allHaveSubtitles": "掃描到 {{count}} 個檔案，皆已有字幕",
     "scanSummary": "已掃描 {{files}} 個檔案、{{dirs}} 個資料夾",
     "scannedFiles": "已掃描 {{files}} 個檔案、{{dirs}} 個資料夾",
     "processedCount": "{{processed}}/{{total}} 已處理",

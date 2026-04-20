@@ -135,31 +135,92 @@ function saveRecentDir(folder) {
   localStorage.setItem(RECENT_DIRS_KEY, JSON.stringify(dirs));
 }
 
+function setRecentPopoverOpen(open) {
+  const popover = document.getElementById('recent-dirs-list');
+  const trigger = document.getElementById('btn-browse-recent');
+  if (!popover || !trigger) return;
+  popover.hidden = !open;
+  trigger.setAttribute('aria-expanded', String(open));
+}
+
+// Drop stale entries (folder deleted / renamed since last use) so the
+// user never picks one that would immediately fail preflight.
+async function pruneStaleRecentDirs() {
+  const dirs = getRecentDirs();
+  if (dirs.length === 0) return dirs;
+  if (!window.electronAPI?.filterExistingDirs) return dirs;
+  try {
+    const existing = await window.electronAPI.filterExistingDirs(dirs);
+    const kept = dirs.filter((d) => existing.includes(d));
+    if (kept.length !== dirs.length) {
+      localStorage.setItem(RECENT_DIRS_KEY, JSON.stringify(kept));
+    }
+    return kept;
+  } catch (_) {
+    return dirs;
+  }
+}
+
 function renderRecentDirs() {
-  const list = document.getElementById('recent-dirs-list');
-  if (!list) return;
+  const popover = document.getElementById('recent-dirs-list');
+  const trigger = document.getElementById('btn-browse-recent');
+  if (!popover || !trigger) return;
   const dirs = getRecentDirs();
   if (dirs.length === 0) {
-    list.hidden = true;
+    trigger.hidden = true;
+    setRecentPopoverOpen(false);
     return;
   }
-  list.hidden = false;
-  list.innerHTML = '';
+  trigger.hidden = false;
+  popover.innerHTML = '';
   dirs.forEach(dir => {
     const btn = document.createElement('button');
     btn.className = 'recent-dir-item';
+    btn.type = 'button';
+    btn.setAttribute('role', 'menuitem');
     btn.title = dir;
-    // Show only last 2 path segments for readability
     const parts = dir.replace(/\\/g, '/').split('/').filter(Boolean);
     const label = parts.length > 1 ? `…/${parts.slice(-2).join('/')}` : dir;
     btn.textContent = label;
-    btn.addEventListener('click', () => applyDirectory(dir));
-    list.appendChild(btn);
+    btn.addEventListener('click', async () => {
+      setRecentPopoverOpen(false);
+      await applyDirectory(dir);
+    });
+    popover.appendChild(btn);
   });
 }
 
 function initRecentDirs() {
+  const trigger = document.getElementById('btn-browse-recent');
+  const popover = document.getElementById('recent-dirs-list');
+  if (trigger && popover) {
+    trigger.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const willOpen = popover.hidden;
+      if (willOpen) {
+        await pruneStaleRecentDirs();
+        renderRecentDirs();
+        // pruneStaleRecentDirs may leave zero entries — renderRecentDirs
+        // will have hidden the trigger, so bail out without opening an
+        // empty popover.
+        if (trigger.hidden) return;
+      }
+      setRecentPopoverOpen(willOpen);
+    });
+    // Dismiss on outside click and Escape
+    document.addEventListener('click', (e) => {
+      if (popover.hidden) return;
+      if (popover.contains(e.target) || trigger.contains(e.target)) return;
+      setRecentPopoverOpen(false);
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !popover.hidden) setRecentPopoverOpen(false);
+    });
+  }
   renderRecentDirs();
+  // Best-effort prune at startup so the chevron reflects the real
+  // number of usable entries before the user clicks.
+  pruneStaleRecentDirs().then(renderRecentDirs).catch(() => {});
 }
 
 // ── Shared: apply directory path ──────────────────────────────────────────────

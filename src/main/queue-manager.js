@@ -29,6 +29,9 @@ function createEmptyState() {
     scanSummary: {
       scannedDirectories: 0,
       scannedFiles: 0,
+      newlyAdded: 0,
+      alreadyQueued: 0,
+      filteredBySubtitle: 0,
     },
     lastFinishedJob: null,
     lastRunnerEvent: null,
@@ -252,6 +255,9 @@ function createQueueManager({
       scanSummary: {
         scannedDirectories: stored.scanSummary?.scannedDirectories || 0,
         scannedFiles: stored.scanSummary?.scannedFiles || 0,
+        newlyAdded: stored.scanSummary?.newlyAdded || 0,
+        alreadyQueued: stored.scanSummary?.alreadyQueued || 0,
+        filteredBySubtitle: stored.scanSummary?.filteredBySubtitle || 0,
       },
       lastFinishedJob: stored.lastFinishedJob || null,
       lastRunnerEvent: null,
@@ -396,24 +402,46 @@ function createQueueManager({
     return nextJob;
   }
 
+  // Quiet variant of clearFinishedJobs used inside scanMedia — removes
+  // done/skipped jobs from state without emitting, since the caller
+  // batches a single emit at the end of the scan.
+  function dropFinishedJobsQuiet() {
+    state.jobs = state.jobs.filter((job) => job.status !== 'done' && job.status !== 'skipped');
+    if (state.lastFinishedJob && !state.jobs.some((job) => job.id === state.lastFinishedJob.id)) {
+      state.lastFinishedJob = null;
+    }
+  }
+
   function scanMedia(rootPath) {
+    // Append-mode scan: keep existing pending/running/paused/failed jobs
+    // from any previous scan or manual add, and auto-drop finished
+    // (done/skipped) items so the queue doesn't accumulate indefinitely.
+    dropFinishedJobsQuiet();
+
+    const preserved = state.jobs.slice();
+    const hadActiveJob = preserved.some((job) => job.status === 'running' || job.status === 'paused');
+
     state = {
       ...state,
       rootPath,
       stage: 'scanning',
-      jobs: [],
-      currentJobId: null,
-      lastFinishedJob: null,
+      jobs: preserved,
       scanSummary: {
         scannedDirectories: 0,
         scannedFiles: 0,
+        newlyAdded: 0,
+        alreadyQueued: 0,
+        filteredBySubtitle: 0,
       },
     };
     emitState();
 
-    const jobs = [];
+    const existingPaths = new Set(preserved.map((job) => job.filePath));
+    const newJobs = [];
     let scannedDirectories = 0;
     let scannedFiles = 0;
+    let alreadyQueued = 0;
+    let filteredBySubtitle = 0;
     const stack = [rootPath];
 
     while (stack.length > 0) {
@@ -441,13 +469,24 @@ function createQueueManager({
 
         const fileExt = path.extname(entry.name).toLowerCase();
         if (!supportedMediaExtensions.has(fileExt)) continue;
-        if (hasSubtitleForMedia(entry.name, fileNames, subtitleExtensions)) continue;
 
-        jobs.push({
+        if (hasSubtitleForMedia(entry.name, fileNames, subtitleExtensions)) {
+          filteredBySubtitle += 1;
+          continue;
+        }
+
+        const filePath = path.join(currentDir, entry.name);
+        if (existingPaths.has(filePath)) {
+          alreadyQueued += 1;
+          continue;
+        }
+        existingPaths.add(filePath);
+
+        newJobs.push({
           id: `job_${nextJobId++}`,
           fileName: entry.name,
           dirPath: currentDir,
-          filePath: path.join(currentDir, entry.name),
+          filePath,
           status: 'pending',
           stage: 'idle',
           progress: 0,
@@ -464,23 +503,40 @@ function createQueueManager({
       }
     }
 
-    jobs.sort((left, right) => {
+    newJobs.sort((left, right) => {
       const nameCompare = compareNatural(left.fileName, right.fileName);
       if (nameCompare !== 0) return nameCompare;
       return left.filePath.localeCompare(right.filePath);
     });
 
+    const mergedJobs = preserved.concat(newJobs);
+
+    let stage;
+    if (hadActiveJob) {
+      stage = state.stage === 'paused' ? 'paused' : 'running';
+    } else if (mergedJobs.length === 0) {
+      stage = 'idle';
+    } else {
+      stage = 'ready';
+    }
+
     state = {
-      ...createEmptyState(),
+      ...state,
       rootPath,
-      stage: jobs.length > 0 ? 'ready' : 'idle',
-      jobs,
-      currentJobId: jobs[0]?.id || null,
+      stage,
+      jobs: mergedJobs,
       scanSummary: {
         scannedDirectories,
         scannedFiles,
+        newlyAdded: newJobs.length,
+        alreadyQueued,
+        filteredBySubtitle,
       },
     };
+
+    if (!state.currentJobId || !mergedJobs.some((job) => job.id === state.currentJobId)) {
+      setNextCurrentJob();
+    }
 
     syncActiveConfig();
     emitState();
