@@ -44,7 +44,11 @@
   },
   "toast": {
     "filesAdded": "已加入 {{count}} 個檔案到佇列",
-    "filesNoneAdded": "沒有可加入的新檔案（已在佇列中或已有字幕）"
+    "filesNoneAdded": "沒有可加入的新檔案（已在佇列中或已有字幕）",
+    "filesSkippedHasSubtitle": "跳過：同資料夾內已存在同名字幕檔",
+    "filesSkippedAlreadyQueued": "跳過：檔案已在佇列中",
+    "filesSkippedUnsupported": "跳過：不支援的檔案格式",
+    "filesSkippedNotFound": "跳過：找不到檔案或無法讀取"
   },
   "filters": {
     "all": "全部",

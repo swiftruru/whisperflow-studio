@@ -488,26 +488,29 @@ function createQueueManager({
   }
 
   function addFiles(filePaths) {
+    const emptySkipped = { alreadyQueued: 0, hasSubtitle: 0, unsupported: 0, notFound: 0 };
     if (!Array.isArray(filePaths) || filePaths.length === 0) {
-      return { added: 0, snapshot: buildSnapshot() };
+      return { added: 0, skipped: emptySkipped, snapshot: buildSnapshot() };
     }
 
     const existingPaths = new Set(state.jobs.map((job) => job.filePath));
     const added = [];
+    const skipped = { ...emptySkipped };
 
     for (const filePath of filePaths) {
-      if (existingPaths.has(filePath)) continue;
+      if (existingPaths.has(filePath)) { skipped.alreadyQueued++; continue; }
 
       const ext = path.extname(filePath).toLowerCase();
-      if (!supportedMediaExtensions.has(ext)) continue;
+      if (!supportedMediaExtensions.has(ext)) { skipped.unsupported++; continue; }
 
       let stat;
       try {
         stat = fs.statSync(filePath);
       } catch (_) {
+        skipped.notFound++;
         continue;
       }
-      if (!stat.isFile()) continue;
+      if (!stat.isFile()) { skipped.notFound++; continue; }
 
       const dirPath = path.dirname(filePath);
       const fileName = path.basename(filePath);
@@ -519,7 +522,10 @@ function createQueueManager({
       } catch (_) {
         siblingFiles = [];
       }
-      if (hasSubtitleForMedia(fileName, siblingFiles, subtitleExtensions)) continue;
+      if (hasSubtitleForMedia(fileName, siblingFiles, subtitleExtensions)) {
+        skipped.hasSubtitle++;
+        continue;
+      }
 
       const job = {
         id: `job_${nextJobId++}`,
@@ -545,8 +551,13 @@ function createQueueManager({
     }
 
     if (added.length === 0) {
-      return { added: 0, snapshot: buildSnapshot() };
+      return { added: 0, skipped, snapshot: buildSnapshot() };
     }
+
+    // Keep media_root_path in sync with where the newly-added files live
+    // so the UI's media-folder card reflects the user's latest intent
+    // (e.g. when they drag a file from a different folder).
+    state.rootPath = added[0].dirPath;
 
     state.jobs.push(...added);
 
@@ -559,7 +570,7 @@ function createQueueManager({
 
     syncActiveConfig();
     emitState();
-    return { added: added.length, snapshot: buildSnapshot() };
+    return { added: added.length, skipped, snapshot: buildSnapshot() };
   }
 
   function startNextJob() {

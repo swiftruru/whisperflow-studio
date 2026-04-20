@@ -44,7 +44,11 @@
   },
   "toast": {
     "filesAdded": "Added {{count}} file(s) to queue",
-    "filesNoneAdded": "No new files to add (already queued or have subtitles)"
+    "filesNoneAdded": "No new files to add (already queued or have subtitles)",
+    "filesSkippedHasSubtitle": "Skipped: a subtitle with the same name already exists in the folder",
+    "filesSkippedAlreadyQueued": "Skipped: file is already in the queue",
+    "filesSkippedUnsupported": "Skipped: unsupported file format",
+    "filesSkippedNotFound": "Skipped: file not found or unreadable"
   },
   "filters": {
     "all": "All",

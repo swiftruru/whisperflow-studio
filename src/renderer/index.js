@@ -243,11 +243,32 @@ function initDragDrop() {
 
     const result = await window.electronAPI.addQueueFiles(filePaths);
     if (result.added > 0) {
+      // Sync media-folder UI with where the dropped files live — main-side
+      // addFiles() has already persisted media_root_path via syncActiveConfig;
+      // we still need to refresh the Settings form input and preflight.
+      const newRoot = filePaths[0].replace(/[\\/][^\\/]+$/, '');
+      if (newRoot) await applyDirectory(newRoot);
       showToast(t('queue:toast.filesAdded', { count: result.added }), 'success');
     } else {
-      showToast(t('queue:toast.filesNoneAdded'), 'info');
+      showToast(t(pickSkippedToastKey(result.skipped)), 'info');
     }
   });
+}
+
+// Pick a specific toast message based on why addFiles skipped everything,
+// so users see the actual reason instead of a vague catch-all. Falls back
+// to the generic key when the reasons are mixed or the skipped payload
+// is missing (older IPC shape).
+function pickSkippedToastKey(skipped) {
+  if (!skipped) return 'queue:toast.filesNoneAdded';
+  const reasons = Object.entries(skipped).filter(([, n]) => n > 0);
+  if (reasons.length !== 1) return 'queue:toast.filesNoneAdded';
+  const [only] = reasons[0];
+  if (only === 'hasSubtitle')   return 'queue:toast.filesSkippedHasSubtitle';
+  if (only === 'alreadyQueued') return 'queue:toast.filesSkippedAlreadyQueued';
+  if (only === 'unsupported')   return 'queue:toast.filesSkippedUnsupported';
+  if (only === 'notFound')      return 'queue:toast.filesSkippedNotFound';
+  return 'queue:toast.filesNoneAdded';
 }
 
 // ── File-association bridge: OS "Open with" events add to the queue ─────────
@@ -258,7 +279,11 @@ function initFileAssociationBridge() {
     try {
       const result = await window.electronAPI.addQueueFiles(paths);
       if (result?.added > 0) {
+        const newRoot = paths[0].replace(/[\\/][^\\/]+$/, '');
+        if (newRoot) await applyDirectory(newRoot);
         showToast(t('queue:toast.filesAdded', { count: result.added }), 'success');
+      } else if (result) {
+        showToast(t(pickSkippedToastKey(result.skipped)), 'info');
       }
     } catch (err) {
       console.error('[file-association] failed to add files:', err);
