@@ -2,8 +2,10 @@
   "stage": {
     "preparing": "Preparing model and VAD",
     "loadingModel": "Loading model {{model}}…",
-    "loadingVad": "Loading Silero VAD speech detection model (first run downloads ~10 MB)…",
+    "loadingVad": "First run — downloading Silero VAD (~10 MB; a voice-segment detector used before Whisper)…",
+    "preparingVad": "Preparing voice activity detection (Silero VAD)…",
     "transcribing": "Running VAD and Whisper",
+    "transcribingWhisper": "Whisper transcribing · model {{model}}",
     "writingSubtitle": "Writing subtitle files",
     "completed": "Subtitle files generated"
   },

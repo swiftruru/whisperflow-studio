@@ -120,10 +120,11 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 
 - **Auto-loop mode** — one scan builds the batch queue, then queued items run continuously until done
 - **System Check panel** — surfaces blocking setup problems and links directly to the right settings field
-- **Next to Transcribe card** — current queued file name, path, and remaining count
-- **Batch Progress card** — queue stage, processed counts, per-batch scan summary, elapsed / ETA timing
-- **Queue panel** — lists pending / running / paused / done / skipped / failed items, with search and status chips
+- **State-aware Batch Progress card** — only visible while a job is running or paused, so idle / completed states don't crowd the main column. Shows stage chip, current file line (`N/Total · filename`), full status counts, per-batch scan summary, elapsed / ETA timing, the active stage message (e.g. `Whisper transcribing · model large-v2`), and a single-tap Reveal-in-Folder button for the current file
+- **Queue panel** — lists pending / running / paused / done / skipped / failed items, with search, status chips, and header-level **Retry Failed** / **Clear Finished** actions (the header buttons live alongside the total-files badge so they don't compete with the per-item controls)
 - **Single-item queue controls** — retry, remove, move items up/down directly from the queue list
+- **Append-mode scanning** — scanning a new folder keeps existing pending / running / paused / failed jobs and only adds files not already queued; completed items (`done` / `skipped`) auto-drop at the start of each scan so the queue never accumulates indefinitely. The console log reports an explicit breakdown ("added X, already queued Y, already had subtitles Z")
+- **File-existence guarding** — three layers of protection so a deleted media file can no longer derail a batch: pre-run validation marks missing files as `file-not-found` before Python is invoked, mid-batch stat-checks skip over vanished files while advancing to the next runnable one, and the next scan auto-removes those entries so the queue stays tidy
 - **Queue persistence** — queue state is restored after app restart so pending/skipped/failed work is not lost
 - **Pause / Resume / Skip Current / Stop Batch** — control the current queued transcription without losing the rest of the queue; Skip and Stop both confirm before throwing away progress
 - **Transcript Preview card** — after each job finishes, a segment-by-segment preview with timecodes, search, copy-all / copy-per-segment, and Reveal-in-Folder appears on the Main tab; auto-closes when the next queued file starts
@@ -131,10 +132,10 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 - **Batch completion summary** — when a batch finishes, a green summary line is written to the Console with done / failed / skipped counts and total elapsed time; the Progress card headline updates with the same statistics
 - **Enhanced system notifications** — OS notifications on batch completion include done/failed counts and total elapsed time
 - **Output file quick access** — completed queue items and history rows show a "Show in folder" button to reveal the output in the system file manager
-- **Drag-and-drop files** — drop individual media files onto the directory card to add them directly to the queue (skips duplicates and files with existing subtitles)
+- **Drag-and-drop files** — drop individual media files onto the directory card to add them directly to the queue; dropping a file also snaps the media-folder path to that file's parent directory so the UI reflects your intent even when the file was already queued. Toast feedback tells you the specific reason a drop was skipped (`已在佇列`, `已有字幕`, `不支援的格式`) instead of a vague catch-all
 - **File-association "Open With WhisperFlow"** — OS file associations for mp4 / mov / mkv / mp3 / wav / m4a / flac add the dropped file to the queue automatically, with a single-instance lock so a second double-click doesn't launch a duplicate window
 - **Transcription history** — last 10 transcribed files (✓ / ✗) persisted across sessions
-- **Recent directories** — last 5 used directories shown below the directory card for one-click re-selection
+- **Recent directories dropdown** — last 5 used directories live behind a `▾` button next to **Browse…**, so the list doesn't eat vertical space when you don't need it. The dropdown auto-prunes any entry whose folder has been deleted since last use, so you can never pick a stale path and trigger a preflight error
 - **Profile management** — create / rename / delete named transcription profiles from **Settings → Transcription** (profiles snapshot the whole transcription config, so they live alongside the parameters they capture). The picker is a themed dropdown; "Save current as new profile" only surfaces when the form has unsaved edits, and it seeds the new profile with those edits without touching the currently active profile. Switching profiles mid-edit prompts before overwriting unsaved changes
 - **Toast notifications** — success / info / error feedback for every action
 - **Structured error UI** — runtime failures are normalized into actionable banners/dialogs instead of raw stderr
@@ -169,7 +170,7 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 
 ### Internationalization (zh-TW / en)
 
-- **Production-grade i18n architecture** — built on [i18next](https://www.i18next.com/) with 17 feature namespaces (`common`, `sidebar`, `preflight`, `settings`, `queue`, `progress`, `models`, `console`, `controls`, `dialogs`, `errors`, `events`, `toasts`, `about`, `help`, `updater`, `downloads`). ~608 keys per locale.
+- **Production-grade i18n architecture** — built on [i18next](https://www.i18next.com/) with 19 feature namespaces (`common`, `sidebar`, `preflight`, `settings`, `queue`, `progress`, `models`, `console`, `controls`, `dialogs`, `errors`, `events`, `toasts`, `about`, `help`, `updater`, `downloads`, `changelog`, `transcript`). ~915 keys per locale.
 - **Titlebar language toggle** — one-click flip between Traditional Chinese and English; all static HTML, dynamic components, Python runner events, and Electron native dialogs switch live without restart
 - **Auto-detect on first launch** — reads `app.getLocale()` and picks `zh-TW` for any Chinese system, `en` for English, with `zh-TW` as the fallback
 - **Key-based main→renderer contract** — `createAppError` / `createPreflightCheck` / Python `[WhisperFlowEvent]` all carry `messageKey` + `messageParams` instead of raw strings, so the renderer can localize at display time and switching language updates already-visible error banners / preflight checks

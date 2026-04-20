@@ -2,8 +2,10 @@
   "stage": {
     "preparing": "準備模型與 VAD",
     "loadingModel": "載入模型 {{model}} 中…",
-    "loadingVad": "載入 Silero VAD 語音偵測模型（首次使用需下載約 10 MB）…",
+    "loadingVad": "首次使用，正在下載 Silero VAD（約 10 MB；Whisper 轉錄前的語音片段偵測元件）…",
+    "preparingVad": "準備語音片段偵測（Silero VAD）…",
     "transcribing": "執行 VAD 與 Whisper",
+    "transcribingWhisper": "Whisper 轉錄中·模型 {{model}}",
     "writingSubtitle": "寫入字幕檔",
     "completed": "字幕檔已產生"
   },

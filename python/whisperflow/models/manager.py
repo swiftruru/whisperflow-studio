@@ -191,6 +191,17 @@ def _is_complete_silero_checkout(checkout_dir: Path) -> bool:
     return False
 
 
+def is_silero_vad_cached(torch_hub_dir: Path) -> bool:
+    """Return True when a usable Silero VAD checkout already lives in the
+    managed torch hub dir, i.e. the next transcription will load from
+    cache rather than downloading the ~10 MB checkout from GitHub.
+
+    Callers use this to emit a different UI message on the warm path
+    ("preparing VAD") vs. the cold path ("first run downloads ~10 MB").
+    """
+    return _is_complete_silero_checkout(Path(torch_hub_dir) / _SILERO_REPO_NAME)
+
+
 class ModelManager:
     """Owns the models directory on disk.
 

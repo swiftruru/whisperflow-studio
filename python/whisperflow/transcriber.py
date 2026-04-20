@@ -28,7 +28,7 @@ from .events import (
 )
 from .models.cache import GLOBAL_MODEL_CACHE
 from .models.faster_whisper_backend import FasterWhisperBackend
-from .models.manager import ModelManager
+from .models.manager import ModelManager, is_silero_vad_cached
 from .models.whisper_container import TranscribeResult
 from .progress import NullProgressListener, ProgressListener
 from .prompts.base import InitialPromptMode
@@ -193,15 +193,30 @@ class Transcriber:
         if isinstance(self._vad_model, SileroVad):
             return self._vad_model
 
-        # Emit a stage event so the user knows why the UI stalls for a
-        # few seconds on first run — Silero VAD (~10 MB) is downloaded
-        # from GitHub via torch.hub if no local cache exists.
-        self._emitter.stage(
-            "loading-vad",
-            message="Loading Silero VAD speech detection model",
-            message_key="events:stage.loadingVad",
-            progress=25,
-        )
+        # Emit a stage event so the user knows why the UI briefly stalls.
+        # Two variants:
+        #   - Cold path (first run): ~10 MB download via torch.hub →
+        #     surface the download size so the user doesn't panic.
+        #   - Warm path (subsequent runs): load from managed cache → use
+        #     a shorter phrasing that doesn't misleadingly imply a
+        #     download is about to happen, and clarifies VAD is just a
+        #     pre-processing step (users have confused this with Whisper
+        #     itself).
+        cached = is_silero_vad_cached(self._model_manager.torch_hub_dir)
+        if cached:
+            self._emitter.stage(
+                "loading-vad",
+                message="Preparing voice activity detection (Silero VAD)",
+                message_key="events:stage.preparingVad",
+                progress=25,
+            )
+        else:
+            self._emitter.stage(
+                "loading-vad",
+                message="Downloading Silero VAD speech detection model (~10 MB, first run only)",
+                message_key="events:stage.loadingVad",
+                progress=25,
+            )
 
         self._vad_model = SileroVad(
             cache=GLOBAL_MODEL_CACHE,
@@ -252,6 +267,18 @@ class Transcriber:
             raise ValueError(f"unknown VAD mode: {cfg.vad}")
 
         vad = self._ensure_silero_vad()
+        # Reclaim the stage message before the long Whisper transcription
+        # loop starts — otherwise the "preparing VAD" line emitted by
+        # `_ensure_silero_vad` sticks for the entire run and users think
+        # only VAD is working (faster-whisper core gets no on-screen
+        # credit during its actual transcription phase).
+        self._emitter.stage(
+            STAGE_TRANSCRIBING,
+            message=f"Whisper transcribing · model {cfg.model}",
+            message_key="events:stage.transcribingWhisper",
+            message_params={"model": cfg.model},
+            progress=35,
+        )
         vad_config = self._build_vad_config(strategy)
         return self._dispatch_vad(vad, audio_path, callback, vad_config)
 
