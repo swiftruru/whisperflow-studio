@@ -140,6 +140,7 @@ function saveWindowState(win) {
 let mainWindow;
 let isAppQuitting = false;
 let isForceClosingWindow = false;
+let trayHandle = null;
 
 // ── Busy-reason tracking ─────────────────────────────────────────────────────
 // Any long-running operation that the user would NOT want to be silently
@@ -352,7 +353,11 @@ app.whenReady().then(async () => {
     localesRoot: path.join(APP_SOURCE_ROOT, 'locales'),
     initialLanguage: resolvedLang,
   });
-  registerLocaleIpcHandlers({ readLocalSettings, writeLocalSettings });
+  registerLocaleIpcHandlers({
+    readLocalSettings,
+    writeLocalSettings,
+    onLanguageChanged: () => { if (trayHandle) trayHandle.refresh(); },
+  });
 
   // ── Download state hydration ──────────────────────────────────────
   const downloadState = require('./download-state');
@@ -416,13 +421,11 @@ app.whenReady().then(async () => {
 
   // Tray icon + global shortcuts (opt-out via settings.json :: trayEnabled).
   // Default-on so power users get the menubar affordance without fiddling.
-  // Tray menu labels reflect the language active at boot; users flipping
-  // the UI-language toggle at runtime will see the updated labels on the
-  // next app launch (main-process i18next already switches correctly —
-  // rebuilding the Menu is the cheap-but-deferred part).
+  // Tray menu labels track runtime language changes via the
+  // onLanguageChanged hook wired into registerLocaleIpcHandlers above.
   const trayEnabled = persistedSettings.trayEnabled !== false && !IS_E2E;
   if (trayEnabled) {
-    initTray({
+    trayHandle = initTray({
       mainWindow,
       electronAppRoot: ELECTRON_APP_ROOT,
       t,

@@ -30,7 +30,7 @@ const {
  * @param {() => Object} deps.readLocalSettings
  * @param {(data: Object) => void} deps.writeLocalSettings
  */
-function registerLocaleIpcHandlers({ readLocalSettings, writeLocalSettings }) {
+function registerLocaleIpcHandlers({ readLocalSettings, writeLocalSettings, onLanguageChanged }) {
   ipcMain.handle('i18n:get-initial', () => ({
     lang: getCurrentLanguage(),
     supportedLanguages: SUPPORTED_LANGUAGES,
@@ -57,6 +57,12 @@ function registerLocaleIpcHandlers({ readLocalSettings, writeLocalSettings }) {
     for (const win of BrowserWindow.getAllWindows()) {
       if (!win.isDestroyed()) {
         win.webContents.send('i18n:language-changed', resolved);
+      }
+    }
+
+    if (typeof onLanguageChanged === 'function') {
+      try { onLanguageChanged(resolved); } catch (err) {
+        console.error('[i18n] onLanguageChanged hook failed:', err);
       }
     }
 
