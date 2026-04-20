@@ -331,18 +331,79 @@ function createQueueManager({
     state.batchEtaSeconds = sumBatchEtaSeconds(state.jobs);
   }
 
+  // Jobs flagged fileNotFound cannot be auto-retried — the underlying
+  // file is gone. Skip them here so Run / next-up picks the next
+  // genuinely runnable job instead of looping on an unresolvable one.
+  // (The user can still manually Retry them via the per-item button if
+  // the file comes back.)
+  function isRetryableFailed(job) {
+    return job.status === 'failed' && job.stageMessageKey !== 'events:queue.fileNotFound';
+  }
+
   function getRunnableJob() {
     const runningJob = state.jobs.find((job) => job.status === 'running');
     if (runningJob) return runningJob;
 
     const currentJob = state.jobs.find((job) => job.id === state.currentJobId);
-    if (currentJob && (currentJob.status === 'pending' || currentJob.status === 'failed')) {
+    if (currentJob && (currentJob.status === 'pending' || isRetryableFailed(currentJob))) {
       return currentJob;
     }
 
     return state.jobs.find((job) => job.status === 'pending')
-      || state.jobs.find((job) => job.status === 'failed')
+      || state.jobs.find(isRetryableFailed)
       || null;
+  }
+
+  function markJobAsFileNotFound(job) {
+    job.status = 'failed';
+    job.stage = 'failed';
+    job.progress = 0;
+    job.error = 'File not found';
+    job.finishedAt = new Date().toISOString();
+    job.stageMessage = 'File not found';
+    job.stageMessageKey = 'events:queue.fileNotFound';
+    job.stageMessageParams = null;
+    job.etaSeconds = null;
+  }
+
+  // Drop jobs whose underlying media file no longer exists on disk. Used
+  // at scan start so the queue doesn't carry stale notFound entries (or
+  // any other silently-deleted file) across sessions.
+  function removeJobsWithMissingFiles() {
+    const survivors = state.jobs.filter((job) => {
+      try { fs.statSync(job.filePath); return true; }
+      catch (_) { return false; }
+    });
+    if (survivors.length === state.jobs.length) return 0;
+    const removed = state.jobs.length - survivors.length;
+    state.jobs = survivors;
+    if (state.lastFinishedJob && !survivors.some((j) => j.id === state.lastFinishedJob.id)) {
+      state.lastFinishedJob = null;
+    }
+    return removed;
+  }
+
+  // Pre-run validation: mark any runnable job whose file has gone missing
+  // as fileNotFound-failed. Called by the run:cli IPC handler before
+  // startNextJob so the user sees a clear per-item reason instead of a
+  // cryptic Python error mid-transcription.
+  function validateRunnableFiles() {
+    let markedMissing = 0;
+    for (const job of state.jobs) {
+      if (job.status !== 'pending' && job.status !== 'failed') continue;
+      if (job.stageMessageKey === 'events:queue.fileNotFound') continue;
+      try { fs.statSync(job.filePath); }
+      catch (_) {
+        markJobAsFileNotFound(job);
+        markedMissing += 1;
+      }
+    }
+    if (markedMissing > 0) {
+      setNextCurrentJob();
+      syncActiveConfig();
+      emitState();
+    }
+    return { markedMissing };
   }
 
   function getCurrentJob() {
@@ -417,6 +478,11 @@ function createQueueManager({
     // from any previous scan or manual add, and auto-drop finished
     // (done/skipped) items so the queue doesn't accumulate indefinitely.
     dropFinishedJobsQuiet();
+
+    // Also drop any job whose underlying file has vanished since last
+    // session — otherwise prior fileNotFound failures accumulate in the
+    // queue forever.
+    removeJobsWithMissingFiles();
 
     const preserved = state.jobs.slice();
     const hadActiveJob = preserved.some((job) => job.status === 'running' || job.status === 'paused');
@@ -638,29 +704,51 @@ function createQueueManager({
       return null;
     }
 
-    const job = getRunnableJob();
-    if (!job) return null;
+    // Skip over any jobs whose file vanished since they were queued
+    // (deleted between scan and run, or between jobs mid-batch). Mark
+    // them as fileNotFound-failed so the queue UI surfaces the reason,
+    // and loop until we find a runnable one with a file actually on
+    // disk. Bounded by state.jobs.length so a pathological scenario
+    // still terminates.
+    let attempts = 0;
+    const maxAttempts = state.jobs.length + 1;
+    while (attempts < maxAttempts) {
+      attempts += 1;
+      const job = getRunnableJob();
+      if (!job) return null;
 
-    state.currentJobId = job.id;
-    state.stage = 'running';
-    state.lastFinishedJob = null;
-    job.status = 'running';
-    job.stage = 'preparing';
-    job.progress = 5;
-    job.error = null;
-    job.stageMessage = 'Queued job is preparing to start';
-    job.stageMessageKey = 'events:queue.queuedPreparing';
-    job.stageMessageParams = null;
-    job.startedAt = new Date().toISOString();
-    job.finishedAt = null;
-    job.elapsedSeconds = 0;
-    job.etaSeconds = null;
-    job.progressSource = null;
-    state.lastRunnerEvent = null;
+      try { fs.statSync(job.filePath); }
+      catch (_) {
+        markJobAsFileNotFound(job);
+        if (state.currentJobId === job.id) state.currentJobId = null;
+        setNextCurrentJob();
+        syncActiveConfig();
+        emitState();
+        continue;
+      }
 
-    syncActiveConfig();
-    emitState();
-    return cloneJson(job);
+      state.currentJobId = job.id;
+      state.stage = 'running';
+      state.lastFinishedJob = null;
+      job.status = 'running';
+      job.stage = 'preparing';
+      job.progress = 5;
+      job.error = null;
+      job.stageMessage = 'Queued job is preparing to start';
+      job.stageMessageKey = 'events:queue.queuedPreparing';
+      job.stageMessageParams = null;
+      job.startedAt = new Date().toISOString();
+      job.finishedAt = null;
+      job.elapsedSeconds = 0;
+      job.etaSeconds = null;
+      job.progressSource = null;
+      state.lastRunnerEvent = null;
+
+      syncActiveConfig();
+      emitState();
+      return cloneJson(job);
+    }
+    return null;
   }
 
   function updateRunningJobStage(stage, progress = null, stageMessage = '', progressSource = 'heuristic') {
@@ -1099,6 +1187,7 @@ function createQueueManager({
     skipCurrentJob,
     startNextJob,
     stopCurrentJob,
+    validateRunnableFiles,
   };
 }
 

@@ -498,6 +498,14 @@ function registerHandlers(
       return;
     }
 
+    // Validate each runnable job's file exists before we hand off to
+    // Python — deleted files should show a clear "檔案不存在" in the
+    // queue and console instead of blowing up mid-transcription.
+    const { markedMissing } = queueManager.validateRunnableFiles();
+    if (markedMissing > 0) {
+      sendLog(`[WhisperFlow] ${t('events:log.skippedMissingFiles', { count: markedMissing })}\n`);
+    }
+
     const job = queueManager.startNextJob();
     if (!job) {
       sendLog(`[WhisperFlow] ${t('events:log.noQueuedFiles')}\n`);
