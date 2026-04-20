@@ -1197,6 +1197,27 @@
         <span class="subtitle-editor-hint" data-i18n="transcript:editor.hints.textOnly">Only text is editable; timestamps stay locked.</span>
         <div class="subtitle-editor-toolbar-right">
           <span class="subtitle-editor-dirty-flag" id="subtitle-editor-dirty" hidden></span>
+          <div class="subtitle-editor-undo-group" role="group"
+               data-i18n-attr="aria-label=transcript:editor.history.group">
+            <button class="subtitle-editor-undo-btn" type="button" id="btn-subtitle-editor-undo"
+                    data-i18n-attr="title=transcript:editor.history.undo" title="Undo (Cmd/Ctrl+Z)"
+                    aria-disabled="true" tabindex="-1">
+              <!-- Soft curved left-arrow loop — friendly, cream-palette friendly.
+                   The little dot is the "pen tip" that marks the rewind action. -->
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M9 14 4 9l5-5"/>
+                <path d="M4 9h8a7 7 0 0 1 0 14h-2"/>
+              </svg>
+            </button>
+            <button class="subtitle-editor-undo-btn" type="button" id="btn-subtitle-editor-redo"
+                    data-i18n-attr="title=transcript:editor.history.redo" title="Redo (Cmd+Shift+Z / Ctrl+Y)"
+                    aria-disabled="true" tabindex="-1">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m15 14 5-5-5-5"/>
+                <path d="M20 9h-8a7 7 0 0 0 0 14h2"/>
+              </svg>
+            </button>
+          </div>
           <button class="subtitle-editor-find-toggle" type="button" id="btn-subtitle-editor-find-toggle"
                   data-i18n-attr="title=transcript:editor.find.toggle" title="Find and replace">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1257,7 +1278,8 @@
         <button class="btn-secondary" type="button" id="btn-subtitle-editor-cancel"
                 data-i18n="transcript:editor.actions.close">Close</button>
         <button class="btn-primary" type="button" id="btn-subtitle-editor-save"
-                data-i18n="transcript:editor.actions.save" disabled>Save</button>
+                data-i18n="transcript:editor.actions.save"
+                aria-disabled="true" tabindex="-1">Save</button>
       </div>
     </div>
   </div>

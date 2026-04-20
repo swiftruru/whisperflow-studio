@@ -54,6 +54,22 @@
 
   --easing: cubic-bezier(0.25, 0.46, 0.45, 0.94);
 
+  /* Themed "not-allowed" cursor — a hand-rolled 🚫 that matches the
+     cream-cocoa palette instead of falling back to the OS native
+     glyph.  Uses image-set() so Chromium picks the DPR-appropriate
+     rasterization: 1x on standard displays, 2x / 3x on Retina — each
+     PNG is rendered natively from the source SVG (not bitmap-scaled)
+     so edges stay crisp at every pixel density.  Hotspot coordinates
+     are in CSS pixels, not device pixels, so 12 12 is correct for
+     every variant. */
+  /* Disabled-button cursor: plain arrow.  We experimented with a
+     themed 🚫 glyph but Chromium/macOS cursor rendering couldn't
+     produce a result crisp enough to match the rest of the app, and
+     the native `not-allowed` glyph clashes with the cream palette —
+     so the lesser evil is simply not changing cursor on disabled
+     state.  Button opacity (0.35-0.55) still signals unavailability. */
+  --cursor-disabled: default;
+
   color-scheme: light;
 }
 
@@ -146,6 +162,13 @@ html:not([data-theme="light"]) {
   --shadow-md:  0 8px 32px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.28);
   --shadow-glow: 0 0 0 1px color-mix(in srgb, var(--amber) 35%, transparent),
                  0 4px 20px rgba(232,184,48,0.28);
+
+  /* Dark-theme variant of the themed not-allowed cursor: softer pastel
+     red (the dark-theme --red) on a warm-cocoa fill that matches the
+     surrounding card background so the icon reads as "part of the
+     app" rather than a pasted-in sticker.  Same 1x/2x/3x image-set as
+     the light theme so HiDPI stays crisp. */
+  --cursor-disabled: default;
 
   color-scheme: dark;
 }
@@ -404,7 +427,7 @@ html:not([data-platform="darwin"]) .titlebar-logo {
 
 .btn-language-toggle:disabled {
   opacity: 0.6;
-  cursor: default;
+  cursor: var(--cursor-disabled);
 }
 
 /* Status */
@@ -531,7 +554,7 @@ html:not([data-platform="darwin"]) .titlebar-logo {
 
 .btn-link:disabled {
   opacity: 0.45;
-  cursor: default;
+  cursor: var(--cursor-disabled);
 }
 
 .btn-link--danger:hover:not(:disabled) {
@@ -1314,7 +1337,7 @@ html:not([data-platform="darwin"]) .titlebar-logo {
 
 .queue-item-action-btn:disabled {
   opacity: 0.35;
-  cursor: default;
+  cursor: var(--cursor-disabled);
 }
 
 .queue-item-action-danger:hover:not(:disabled) {
@@ -1569,14 +1592,14 @@ html:not([data-theme="light"]) .btn-primary {
   color: var(--amber);
 }
 
-html:not([data-theme="light"]) .btn-primary:hover:not(:disabled) {
+html:not([data-theme="light"]) .btn-primary:hover:not(:disabled):not([aria-disabled="true"]) {
   background: color-mix(in srgb, var(--amber) 14%, var(--surface1));
   border-color: color-mix(in srgb, var(--amber) 55%, transparent);
   color: #ffd882;
   box-shadow: 0 4px 18px rgba(240,185,76,0.18);
 }
 
-.btn-primary:hover:not(:disabled) {
+.btn-primary:hover:not(:disabled):not([aria-disabled="true"]) {
   background: rgba(250,235,140,0.30);
   border-color: rgba(210,165,30,0.65);
   color: #5a4200;
@@ -1584,8 +1607,9 @@ html:not([data-theme="light"]) .btn-primary:hover:not(:disabled) {
   box-shadow: 0 3px 14px rgba(245,212,90,0.25);
 }
 
-.btn-primary:active:not(:disabled) { transform: scale(0.98); }
-.btn-primary:disabled { opacity: 0.35; cursor: default; }
+.btn-primary:active:not(:disabled):not([aria-disabled="true"]) { transform: scale(0.98); }
+.btn-primary:disabled,
+.btn-primary[aria-disabled="true"] { opacity: 0.35; cursor: var(--cursor-disabled); }
 
 /* ── Auto-loop: pill toggle ──────────────────────────────────────────────────── */
 .auto-loop-toggle {
@@ -2189,7 +2213,24 @@ input[type="checkbox"]:focus-visible {
 
 input[type="checkbox"]:disabled {
   opacity: 0.5;
-  cursor: not-allowed;
+  cursor: var(--cursor-disabled);
+}
+
+/* Every disabled button app-wide shows the themed 🚫 cursor.  Form
+   inputs (text / select / textarea) are intentionally left to use the
+   OS cursor so keyboard focus behaviour isn't disrupted; only click
+   affordances (<button>) pick up the themed disabled glyph. */
+button:disabled,
+button[disabled] {
+  cursor: var(--cursor-disabled);
+}
+
+/* aria-disabled buttons — used where the themed cursor MUST render
+   (macOS Chromium silently overrides `cursor: url(...)` on natively-
+   disabled buttons with the OS glyph, so the subtitle editor uses an
+   aria-disabled pattern instead of the `disabled` attribute). */
+button[aria-disabled="true"] {
+  cursor: var(--cursor-disabled);
 }
 
 select { appearance: auto; cursor: pointer; }
@@ -2241,7 +2282,7 @@ select { appearance: auto; cursor: pointer; }
 
 .btn-field-detect:disabled {
   opacity: 0.6;
-  cursor: default;
+  cursor: var(--cursor-disabled);
 }
 
 .btn-inline-action {
@@ -2930,13 +2971,14 @@ kbd {
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
-.btn-secondary:hover:not(:disabled) {
+.btn-secondary:hover:not(:disabled):not([aria-disabled="true"]) {
   border-color: color-mix(in srgb, var(--yellow) 40%, transparent);
   color: var(--amber);
   background: color-mix(in srgb, var(--yellow) 6%, var(--surface1));
 }
 
-.btn-secondary:disabled { opacity: 0.55; cursor: default; }
+.btn-secondary:disabled,
+.btn-secondary[aria-disabled="true"] { opacity: 0.55; cursor: var(--cursor-disabled); }
 
 /* ── Download Panel (inside Models tab) ─────────────────────────────────────── */
 
@@ -3156,7 +3198,7 @@ kbd {
 
 .btn-header-action:disabled {
   opacity: 0.55;
-  cursor: default;
+  cursor: var(--cursor-disabled);
 }
 
 /* ── Storage summary card ─────────────────────────────────────── */
@@ -3853,7 +3895,7 @@ kbd {
 
 .btn-help[disabled] {
   opacity: 0.45;
-  cursor: default;
+  cursor: var(--cursor-disabled);
 }
 
 /* ── Help Panel (right slideout) ───────────────────────────────────────────── */
@@ -4351,7 +4393,7 @@ kbd {
 
 .onboarding-btn:disabled {
   opacity: 0.4;
-  cursor: default;
+  cursor: var(--cursor-disabled);
 }
 
 .onboarding-btn--primary {
@@ -5193,6 +5235,52 @@ html[data-high-contrast="true"] select {
   border-color: color-mix(in srgb, var(--yellow) 40%, transparent);
 }
 
+/* Undo / Redo button group — segmented pair in the same visual family
+   as the Find/Replace button so the toolbar reads as a coherent row. */
+.subtitle-editor-undo-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--surface2);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: transparent;
+}
+
+.subtitle-editor-undo-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--subtext0);
+  cursor: pointer;
+  transition: background .12s, color .12s, transform .08s;
+}
+
+.subtitle-editor-undo-btn + .subtitle-editor-undo-btn {
+  border-left: 1px solid var(--surface2);
+}
+
+.subtitle-editor-undo-btn:hover:not([aria-disabled="true"]) {
+  background: color-mix(in srgb, var(--yellow) 14%, transparent);
+  color: var(--text);
+}
+
+.subtitle-editor-undo-btn:active:not([aria-disabled="true"]) {
+  transform: scale(0.94);
+  background: color-mix(in srgb, var(--yellow) 22%, transparent);
+}
+
+.subtitle-editor-undo-btn[aria-disabled="true"] {
+  opacity: 0.35;
+  cursor: var(--cursor-disabled);
+}
+
 .subtitle-editor-findbar {
   display: flex;
   flex-direction: column;
@@ -5250,15 +5338,15 @@ html[data-high-contrast="true"] select {
   transition: background .12s, color .12s, border-color .12s;
 }
 
-.subtitle-editor-find-nav:hover:not(:disabled) {
+.subtitle-editor-find-nav:hover:not([aria-disabled="true"]) {
   background: var(--surface1);
   color: var(--text);
   border-color: color-mix(in srgb, var(--yellow) 40%, transparent);
 }
 
-.subtitle-editor-find-nav:disabled {
+.subtitle-editor-find-nav[aria-disabled="true"] {
   opacity: 0.4;
-  cursor: not-allowed;
+  cursor: var(--cursor-disabled);
 }
 
 .subtitle-editor-find-opt {
@@ -5279,9 +5367,9 @@ html[data-high-contrast="true"] select {
   font-size: 12px;
 }
 
-.subtitle-editor-find-action:disabled {
+.subtitle-editor-find-action[aria-disabled="true"] {
   opacity: 0.45;
-  cursor: not-allowed;
+  cursor: var(--cursor-disabled);
 }
 
 .subtitle-editor-body {

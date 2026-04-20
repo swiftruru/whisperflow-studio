@@ -36,6 +36,11 @@
       "textOnly": "僅能編輯文字；時間軸由 Whisper 決定，為避免誤改已鎖定。",
       "unsaved": "有未儲存的變更"
     },
+    "history": {
+      "group": "復原／重做",
+      "undo": "復原（⌘Z / Ctrl+Z）",
+      "redo": "重做（⌘⇧Z / Ctrl+Y）"
+    },
     "find": {
       "toggle": "搜尋／取代",
       "findPlaceholder": "搜尋文字…",

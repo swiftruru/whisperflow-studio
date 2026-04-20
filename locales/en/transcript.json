@@ -36,6 +36,11 @@
       "textOnly": "Only text is editable; timestamps stay locked to Whisper's output.",
       "unsaved": "Unsaved changes"
     },
+    "history": {
+      "group": "Undo / Redo",
+      "undo": "Undo (⌘Z / Ctrl+Z)",
+      "redo": "Redo (⌘⇧Z / Ctrl+Y)"
+    },
     "find": {
       "toggle": "Find / Replace",
       "findPlaceholder": "Find in subtitles…",

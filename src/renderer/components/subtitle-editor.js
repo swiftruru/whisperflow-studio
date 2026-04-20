@@ -29,7 +29,47 @@ let state = {
   draft: [],
   dirty: false,
   saving: false,
+  // Undo / redo history.  Each entry is a plain array of segment
+  // `text` strings — timestamps are not user-editable, so a text-only
+  // snapshot is enough to round-trip.  `historyIndex` is the currently
+  // displayed snapshot; `savedIndex` tracks the one that matches disk
+  // (so dirty = historyIndex !== savedIndex, and saving a file doesn't
+  // erase history — the user can keep undoing back beyond the save).
+  history: [],
+  historyIndex: -1,
+  savedIndex: -1,
 };
+
+// Debounced history commit timer for textarea typing.
+let historyDebounce = null;
+const HISTORY_COMMIT_DELAY_MS = 500;
+const HISTORY_MAX = 200;
+
+// Use `aria-disabled` instead of the native `disabled` attribute on
+// all editor buttons.  Background: macOS Chromium/Electron maps the
+// HTML `disabled` property onto NSControl.isEnabled=NO, which forces
+// the system "not-allowed" cursor regardless of our `cursor: url(...)`
+// CSS (it's a platform-level override we can't defeat from userland
+// stylesheets).  Using aria-disabled keeps the native state enabled
+// so our themed cursor is respected, while still communicating the
+// disabled state to assistive tech and styling it via CSS attribute
+// selectors.  Click handlers have to manually bail when aria-disabled
+// is true — we wrap that in setEnabled() / isEnabled() helpers below.
+function setEnabled(el, enabled) {
+  if (!el) return;
+  if (enabled) {
+    el.removeAttribute('aria-disabled');
+    el.removeAttribute('tabindex');
+  } else {
+    el.setAttribute('aria-disabled', 'true');
+    // Keep disabled buttons out of the keyboard Tab cycle so Tab
+    // still skips them the way it would with native :disabled.
+    el.setAttribute('tabindex', '-1');
+  }
+}
+function isEnabled(el) {
+  return !!el && el.getAttribute('aria-disabled') !== 'true';
+}
 
 const modalEl       = () => document.getElementById('subtitle-editor-modal');
 const tbodyEl       = () => document.getElementById('subtitle-editor-tbody');
@@ -52,6 +92,10 @@ const findNextBtn   = () => document.getElementById('btn-subtitle-editor-find-ne
 const findCaseEl    = () => document.getElementById('subtitle-editor-find-case');
 const replaceOneBtn = () => document.getElementById('btn-subtitle-editor-replace-one');
 const replaceAllBtn = () => document.getElementById('btn-subtitle-editor-replace-all');
+
+// ── Undo / Redo ────────────────────────────────────────────────────
+const undoBtn       = () => document.getElementById('btn-subtitle-editor-undo');
+const redoBtn       = () => document.getElementById('btn-subtitle-editor-redo');
 
 let findState = { matches: [], cursor: -1 };
 
@@ -80,6 +124,101 @@ function segmentsEqual(a, b) {
     if ((a[i]?.text ?? '') !== (b[i]?.text ?? '')) return false;
   }
   return true;
+}
+
+// ── Undo / Redo history ─────────────────────────────────────────
+function currentTextSnapshot() {
+  return state.draft.map((s) => s.text || '');
+}
+
+function snapshotsEqual(a, b) {
+  if (!a || !b || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+function commitHistoryNow() {
+  if (historyDebounce) { clearTimeout(historyDebounce); historyDebounce = null; }
+  const snap = currentTextSnapshot();
+  const top = state.history[state.historyIndex];
+  if (snapshotsEqual(top, snap)) return;
+  // Dropping any redo tail — once the user branches, the old future is gone.
+  state.history = state.history.slice(0, state.historyIndex + 1);
+  state.history.push(snap);
+  if (state.history.length > HISTORY_MAX) {
+    const overflow = state.history.length - HISTORY_MAX;
+    state.history.splice(0, overflow);
+    state.savedIndex = Math.max(-1, state.savedIndex - overflow);
+  }
+  state.historyIndex = state.history.length - 1;
+  updateUndoRedoButtons();
+}
+
+function scheduleHistoryCommit() {
+  if (historyDebounce) clearTimeout(historyDebounce);
+  historyDebounce = setTimeout(() => {
+    historyDebounce = null;
+    commitHistoryNow();
+    syncDirtyFromHistory();
+  }, HISTORY_COMMIT_DELAY_MS);
+}
+
+function resetHistory() {
+  if (historyDebounce) { clearTimeout(historyDebounce); historyDebounce = null; }
+  state.history = [currentTextSnapshot()];
+  state.historyIndex = 0;
+  state.savedIndex = 0;
+  updateUndoRedoButtons();
+}
+
+function applySnapshot(snap) {
+  snap.forEach((text, i) => {
+    if (state.draft[i]) state.draft[i].text = text;
+  });
+  renderRows();
+  syncDirtyFromHistory();
+  updateUndoRedoButtons();
+  if (findbarEl() && !findbarEl().hidden) computeMatches();
+}
+
+function undo() {
+  commitHistoryNow();
+  if (state.historyIndex <= 0) return;
+  state.historyIndex -= 1;
+  applySnapshot(state.history[state.historyIndex]);
+}
+
+function redo() {
+  commitHistoryNow();
+  if (state.historyIndex >= state.history.length - 1) return;
+  state.historyIndex += 1;
+  applySnapshot(state.history[state.historyIndex]);
+}
+
+function updateUndoRedoButtons() {
+  setEnabled(undoBtn(), !state.saving && state.historyIndex > 0);
+  setEnabled(redoBtn(), !state.saving && state.historyIndex < state.history.length - 1);
+}
+
+// Dirty flag is derived from history after an undo/redo or commit:
+// draft matches the saved snapshot → clean.  Otherwise → dirty.
+function syncDirtyFromHistory() {
+  const saved = state.history[state.savedIndex];
+  const curr  = currentTextSnapshot();
+  const clean = snapshotsEqual(saved, curr);
+  if (clean) {
+    state.dirty = false;
+    const flag = dirtyFlagEl();
+    if (flag) flag.hidden = true;
+  } else {
+    state.dirty = true;
+    const flag = dirtyFlagEl();
+    if (flag) {
+      flag.textContent = t('transcript:editor.hints.unsaved');
+      flag.hidden = false;
+    }
+  }
+  updateButtons();
 }
 
 /**
@@ -111,7 +250,7 @@ function clearDirty() {
 function updateButtons() {
   const btn = saveBtn();
   if (btn) {
-    btn.disabled = state.saving || !state.dirty;
+    setEnabled(btn, !state.saving && state.dirty);
     btn.textContent = state.saving
       ? t('transcript:editor.actions.saving')
       : t('transcript:editor.actions.save');
@@ -119,8 +258,9 @@ function updateButtons() {
   const revert = revertBtn();
   if (revert) {
     const canRevert = !state.saving && !segmentsEqual(state.draft, state.original);
-    revert.disabled = !canRevert;
+    setEnabled(revert, canRevert);
   }
+  updateUndoRedoButtons();
 }
 
 // Back-compat alias — a few call sites still read this name.
@@ -177,7 +317,15 @@ function renderRows() {
       state.draft[idx].text = textArea.value;
       autosizeTextarea(textArea);
       markDirty();
+      scheduleHistoryCommit();
       if (findbarEl() && !findbarEl().hidden) computeMatches();
+    });
+    // When the user tabs or clicks away from a textarea, flush any
+    // pending typing into the history right away.  Otherwise a blur
+    // followed by an immediate Cmd+Z would undo past the in-progress
+    // edit instead of the one just finished.
+    textArea.addEventListener('blur', () => {
+      if (historyDebounce) { commitHistoryNow(); syncDirtyFromHistory(); }
     });
     textTd.appendChild(textArea);
     tr.appendChild(textTd);
@@ -256,7 +404,11 @@ async function handleSave() {
     // Intentionally do NOT sync state.original here: revert should
     // keep undoing back to the text that was on disk when the user
     // opened this editor session, not to the most recent save.
-    clearDirty();
+    // Make sure any in-flight typing is in history before we mark
+    // this index as the saved one, otherwise dirty would stay true.
+    commitHistoryNow();
+    state.savedIndex = state.historyIndex;
+    syncDirtyFromHistory();
     const writtenExts = (result.written || [])
       .map((f) => (f.split('.').pop() || '').toUpperCase())
       .filter(Boolean);
@@ -288,15 +440,11 @@ async function handleRevert() {
   });
   if (!ok) return;
   state.draft = state.original.map((s) => ({ ...s }));
-  // Draft now matches the on-open snapshot.  If the user had saved
-  // mid-session, disk still reflects those saved edits — so they
-  // likely want to press Save again to write the reverted content
-  // back.  We flag dirty=true in that case.
-  state.dirty = true;
+  // Push the reverted state onto history so Cmd+Z can bring back the
+  // pre-revert edits if the user changes their mind.
+  commitHistoryNow();
+  syncDirtyFromHistory();
   renderRows();
-  updateButtons();
-  const flag = dirtyFlagEl();
-  if (flag) { flag.textContent = t('transcript:editor.hints.unsaved'); flag.hidden = false; }
   showToast(t('transcript:editor.toast.reverted'), 'info', 1500);
 }
 
@@ -313,13 +461,16 @@ async function handleClose() {
   }
   const m = modalEl();
   if (m) m.hidden = true;
+  if (historyDebounce) { clearTimeout(historyDebounce); historyDebounce = null; }
   state = {
     mediaPath: null, outputDir: null, sourceFormat: null,
     original: [], draft: [], dirty: false, saving: false,
+    history: [], historyIndex: -1, savedIndex: -1,
   };
   const tbody = tbodyEl();
   if (tbody) tbody.innerHTML = '';
   clearDirty();
+  updateUndoRedoButtons();
   closeFindBar();
 }
 
@@ -361,10 +512,10 @@ function updateFindUi() {
     count.textContent = `${i} / ${n}`;
   }
   const hasMatch = findState.matches.length > 0 && findState.cursor >= 0;
-  findPrevBtn && (findPrevBtn().disabled = !hasMatch);
-  findNextBtn && (findNextBtn().disabled = !hasMatch);
-  replaceOneBtn && (replaceOneBtn().disabled = !hasMatch);
-  replaceAllBtn && (replaceAllBtn().disabled = findState.matches.length === 0);
+  setEnabled(findPrevBtn(), hasMatch);
+  setEnabled(findNextBtn(), hasMatch);
+  setEnabled(replaceOneBtn(), hasMatch);
+  setEnabled(replaceAllBtn(), findState.matches.length > 0);
 }
 
 function focusCurrentMatch() {
@@ -405,6 +556,7 @@ function replaceCurrent() {
     ta.style.height = `${ta.scrollHeight}px`;
   }
   markDirty();
+  commitHistoryNow();
   // After a replace, matches may have shifted — recompute, keeping
   // cursor on the same logical position (which is now the next match).
   computeMatches();
@@ -440,6 +592,7 @@ function replaceAll() {
   }
   if (count > 0) {
     markDirty();
+    commitHistoryNow();
     renderRows();
     showToast(t('transcript:editor.find.replacedCount', { count }), 'success', 2000);
   } else {
@@ -476,18 +629,28 @@ function initSubtitleEditor() {
   if (!modalEl()) return;
   initialized = true;
 
-  saveBtn()?.addEventListener('click', handleSave);
-  revertBtn()?.addEventListener('click', handleRevert);
+  // Wrap every editor click handler in an aria-disabled guard so the
+  // "disabled" state is honoured even though we're no longer using
+  // the native `disabled` attribute (see setEnabled() above).
+  const guarded = (fn) => (event) => {
+    if (!isEnabled(event.currentTarget)) { event.preventDefault(); return; }
+    fn(event);
+  };
+
+  saveBtn()?.addEventListener('click', guarded(handleSave));
+  revertBtn()?.addEventListener('click', guarded(handleRevert));
   cancelBtn()?.addEventListener('click', handleClose);
   closeBtn()?.addEventListener('click', handleClose);
 
+  undoBtn()?.addEventListener('click', guarded(undo));
+  redoBtn()?.addEventListener('click', guarded(redo));
   findToggleBtn()?.addEventListener('click', toggleFindBar);
   findInputEl()?.addEventListener('input', computeMatches);
   findCaseEl()?.addEventListener('change', computeMatches);
-  findPrevBtn()?.addEventListener('click', () => stepMatch(-1));
-  findNextBtn()?.addEventListener('click', () => stepMatch(1));
-  replaceOneBtn()?.addEventListener('click', replaceCurrent);
-  replaceAllBtn()?.addEventListener('click', replaceAll);
+  findPrevBtn()?.addEventListener('click', guarded(() => stepMatch(-1)));
+  findNextBtn()?.addEventListener('click', guarded(() => stepMatch(1)));
+  replaceOneBtn()?.addEventListener('click', guarded(replaceCurrent));
+  replaceAllBtn()?.addEventListener('click', guarded(replaceAll));
 
   // Enter in find = next; Shift+Enter = prev.  Enter in replace =
   // replaceCurrent so users can hammer through matches one at a time.
@@ -534,7 +697,22 @@ function initSubtitleEditor() {
     // cancel an in-progress composition.  Swallowing that for a
     // modal close would lose the user's typed context mid-word.
     if (event.isComposing || event.keyCode === 229) return;
-    if ((event.metaKey || event.ctrlKey) && event.key === 'f') {
+    const mod = event.metaKey || event.ctrlKey;
+    // Undo / Redo — handled globally so they work regardless of which
+    // textarea has focus, and so they override the browser's per-
+    // textarea native undo stack (which would only undo within one
+    // segment at a time, not across them).
+    if (mod && !event.shiftKey && (event.key === 'z' || event.key === 'Z')) {
+      event.preventDefault();
+      undo();
+      return;
+    }
+    if (mod && ((event.shiftKey && (event.key === 'z' || event.key === 'Z')) || event.key === 'y' || event.key === 'Y')) {
+      event.preventDefault();
+      redo();
+      return;
+    }
+    if (mod && event.key === 'f') {
       event.preventDefault();
       openFindBar();
       return;
@@ -547,7 +725,7 @@ function initSubtitleEditor() {
       if (bar && !bar.hidden) { closeFindBar(); event.preventDefault(); return; }
       event.preventDefault();
       handleClose();
-    } else if ((event.metaKey || event.ctrlKey) && event.key === 's') {
+    } else if (mod && event.key === 's') {
       event.preventDefault();
       handleSave();
     }
@@ -591,11 +769,13 @@ async function openSubtitleEditor({ mediaPath, outputDir }) {
     draft:    segs.map((s) => ({ ...s })),
     dirty: false,
     saving: false,
+    history: [], historyIndex: -1, savedIndex: -1,
   };
 
   filenameEl().textContent = basename(mediaPath);
   renderMeta(await readEnabledFormats());
   renderRows();
+  resetHistory();
   clearDirty();
   m.hidden = false;
 }
