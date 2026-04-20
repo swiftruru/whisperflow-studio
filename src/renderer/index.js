@@ -241,13 +241,15 @@ function initDragDrop() {
 
     if (filePaths.length === 0) return;
 
+    // Dropping a file onto the media-folder card is an explicit intent
+    // to point at that folder, independent of whether the file ends up
+    // being added to the queue (it may already be queued or already
+    // have subtitles). Update the media-folder UI first, then queue.
+    const newRoot = filePaths[0].replace(/[\\/][^\\/]+$/, '');
+    if (newRoot) await applyDirectory(newRoot);
+
     const result = await window.electronAPI.addQueueFiles(filePaths);
     if (result.added > 0) {
-      // Sync media-folder UI with where the dropped files live — main-side
-      // addFiles() has already persisted media_root_path via syncActiveConfig;
-      // we still need to refresh the Settings form input and preflight.
-      const newRoot = filePaths[0].replace(/[\\/][^\\/]+$/, '');
-      if (newRoot) await applyDirectory(newRoot);
       showToast(t('queue:toast.filesAdded', { count: result.added }), 'success');
     } else {
       showToast(t(pickSkippedToastKey(result.skipped)), 'info');
@@ -277,10 +279,10 @@ function initFileAssociationBridge() {
   window.electronAPI.onFileAssociationOpen(async (paths) => {
     if (!Array.isArray(paths) || paths.length === 0) return;
     try {
+      const newRoot = paths[0].replace(/[\\/][^\\/]+$/, '');
+      if (newRoot) await applyDirectory(newRoot);
       const result = await window.electronAPI.addQueueFiles(paths);
       if (result?.added > 0) {
-        const newRoot = paths[0].replace(/[\\/][^\\/]+$/, '');
-        if (newRoot) await applyDirectory(newRoot);
         showToast(t('queue:toast.filesAdded', { count: result.added }), 'success');
       } else if (result) {
         showToast(t(pickSkippedToastKey(result.skipped)), 'info');
