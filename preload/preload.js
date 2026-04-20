@@ -115,6 +115,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── History ───────────────────────────────────────────────────────────────
   readHistory:     ()             => ipcRenderer.invoke('history:read'),
   writeHistory:    (entries)      => ipcRenderer.invoke('history:write', entries),
+  pruneStaleHistory: (entries, outputDir) => ipcRenderer.invoke('history:prune-stale', entries, outputDir),
 
   // ── Package Managers (for ffmpeg install button) ────────────────────────
   detectPackageManagers: ()                       => ipcRenderer.invoke('pm:detect'),

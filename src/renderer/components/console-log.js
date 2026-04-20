@@ -13,15 +13,25 @@ const statusDot   = document.getElementById('status-dot');
 let _currentStatusKey = null;
 
 function classifyLine(text) {
+  // Whisper subtitle-timestamp lines — e.g. "[00:00:12.000 -> 00:00:15.000] spoken text".
+  // The content after the timestamp is transcribed user speech, so
+  // spoken words like "error" / "失敗" must NOT trigger the error
+  // colour. Short-circuit these to neutral before any keyword match.
+  if (/^\s*\[\d{2}:\d{2}[:.]\d+\s*->\s*\d{2}:\d{2}[:.]\d+\]/.test(text)) return '';
+
+  // ✔ / ✓ prefix means "this is a positive summary line". Must be
+  // checked before the error keyword pass because success summaries
+  // legitimately contain "失敗" / "failed" with a zero count
+  // ("✔ 批次完成：1 完成、0 失敗、0 略過").
+  if (/^\s*[✓✔]/.test(text)) return 'ok';
+
   const lower = text.toLowerCase();
   if (/error|traceback|exception|失敗|錯誤/.test(lower)) return 'error';
   if (/warning|warn|警告/.test(lower))          return 'warn';
   // Match "done / success / complete" + the two check-mark glyphs we
-  // emit (✓ U+2713, ✔ U+2714 — the Python backend uses the heavier
-  // ✔ for its "Transcription completed" line, which used to fall
-  // through to the neutral colour because only ✓ was in this regex).
-  // Chinese keywords cover the localized completion + subtitle-
-  // generated messages so green highlighting works in both locales.
+  // emit (✓ U+2713, ✔ U+2714). Chinese keywords cover the localized
+  // completion + subtitle-generated messages so green highlighting
+  // works in both locales.
   if (/done|success|✓|✔|complete|subtitles? (generated|created)|完成|成功|已產生|已停止|已跳過/.test(lower)) return 'ok';
   // Both main-process (`[WhisperFlow]`) and Python backend (`[Python]`)
   // app messages classify as info unless a stronger keyword (error /

@@ -60,6 +60,9 @@
   "history": {
     "title": "最近轉錄",
     "clear": "清除",
+    "refresh": "重整",
+    "prunedToast": "已清除 {{count}} 筆失效紀錄",
+    "allValidToast": "所有紀錄都有效",
     "unknownFile": "未知檔案",
     "justNow": "剛剛",
     "minutesAgo": "{{count}} 分鐘前",

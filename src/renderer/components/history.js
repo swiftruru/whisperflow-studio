@@ -3,8 +3,30 @@
 import { t } from '../lib/i18n.js';
 import { openTranscriptPreview } from './transcript-preview.js';
 import { openSubtitleEditor } from './subtitle-editor.js';
+import { showToast } from './toast.js';
 
 const HISTORY_MAX = 10;
+
+// Shared prune helper: asks the main process to filter out entries
+// whose media file AND subtitle output are both gone. Persists the
+// pruned list when anything was removed, so the next `readHistory()`
+// reflects the cleanup. Returns { entries, removed } for callers that
+// want to show feedback (manual refresh) or silently apply it (boot /
+// auto on new entry).
+async function pruneStaleEntries(entries) {
+  if (!entries || entries.length === 0) return { entries: entries || [], removed: 0 };
+  let outputDir = '';
+  try {
+    const cfg = await window.electronAPI.readConfig();
+    outputDir = cfg?.SETTING?.output_dir || '';
+  } catch (_) { /* best-effort */ }
+  const kept = await window.electronAPI.pruneStaleHistory(entries, outputDir);
+  const removed = entries.length - kept.length;
+  if (removed > 0) {
+    await window.electronAPI.writeHistory(kept);
+  }
+  return { entries: kept, removed };
+}
 
 /**
  * Format "time ago" using i18n keys.  We deliberately don't use
@@ -30,15 +52,23 @@ export async function addHistoryEntry({ fileName, filePath, success }) {
   entries.unshift({ fileName, filePath, success, timestamp: new Date().toISOString() });
   if (entries.length > HISTORY_MAX) entries.length = HISTORY_MAX;
   await window.electronAPI.writeHistory(entries);
-  _cachedEntries = entries;
-  renderHistory(entries);
+  // Also sweep stale entries on every new addition — the new row
+  // replaces the oldest when at cap, but if some middle rows have
+  // decayed (files deleted) we want them gone too.
+  const { entries: pruned } = await pruneStaleEntries(entries);
+  _cachedEntries = pruned;
+  renderHistory(pruned);
 }
 
 let _cachedEntries = [];
 
 export async function initHistory() {
-  _cachedEntries = await window.electronAPI.readHistory().catch(() => []);
-  renderHistory(_cachedEntries);
+  const raw = await window.electronAPI.readHistory().catch(() => []);
+  // Prune once at boot so the user never sees a row whose files are
+  // gone — mirrors the recent-directories dropdown's startup prune.
+  const { entries } = await pruneStaleEntries(raw);
+  _cachedEntries = entries;
+  renderHistory(entries);
 
   const clearBtn = document.getElementById('btn-clear-history');
   if (clearBtn) {
@@ -46,6 +76,20 @@ export async function initHistory() {
       await window.electronAPI.writeHistory([]);
       _cachedEntries = [];
       renderHistory([]);
+    });
+  }
+
+  const refreshBtn = document.getElementById('btn-refresh-history');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', async () => {
+      const { entries: kept, removed } = await pruneStaleEntries(_cachedEntries);
+      _cachedEntries = kept;
+      renderHistory(kept);
+      if (removed > 0) {
+        showToast(t('progress:history.prunedToast', { count: removed }), 'success');
+      } else {
+        showToast(t('progress:history.allValidToast'), 'info');
+      }
     });
   }
 

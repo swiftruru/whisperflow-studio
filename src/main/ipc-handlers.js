@@ -748,6 +748,27 @@ function registerHandlers(
     return hasTranscriptForMedia(mediaPath, outputDir);
   });
 
+  // Filter history entries down to those that still have at least one
+  // of {media file, transcript output} on disk. Conservative: keeps a
+  // row as long as either side exists, so a user who only deletes the
+  // .srt but keeps the source video doesn't lose the history record
+  // (they can still open the folder). Used by the renderer on startup,
+  // after each new entry, and via a manual "refresh" button.
+  ipcMain.handle('history:prune-stale', (_event, entries, outputDir) => {
+    if (!Array.isArray(entries)) return entries || [];
+    return entries.filter((entry) => {
+      if (!entry?.filePath) return true; // can't check — keep
+      let mediaExists = false;
+      try { mediaExists = fs.statSync(entry.filePath).isFile(); }
+      catch (_) { mediaExists = false; }
+      // Failed rows never had a transcript to miss; skip that check.
+      const subtitleExists = entry.success
+        ? hasTranscriptForMedia(entry.filePath, outputDir)
+        : false;
+      return mediaExists || subtitleExists;
+    });
+  });
+
   // ── Transcript preview (Main tab → post-run) ───────────────────
   // Returns a structured result (never throws through the IPC bridge) so
   // the renderer can tell "file was deleted" / "parse failed" / "real

@@ -60,6 +60,9 @@
   "history": {
     "title": "Recent Transcripts",
     "clear": "Clear",
+    "refresh": "Refresh",
+    "prunedToast": "Removed {{count}} stale entry(ies)",
+    "allValidToast": "All entries valid",
     "unknownFile": "Unknown file",
     "justNow": "just now",
     "minutesAgo": "{{count}} min ago",

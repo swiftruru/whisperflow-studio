@@ -1731,6 +1731,11 @@ html:not([data-theme="light"]) .btn-primary:hover:not(:disabled):not([aria-disab
   color: var(--subtext0);
 }
 
+.history-header-actions {
+  display: flex;
+  gap: 4px;
+}
+
 .history-clear-btn {
   all: unset;
   cursor: pointer;
@@ -1744,6 +1749,11 @@ html:not([data-theme="light"]) .btn-primary:hover:not(:disabled):not([aria-disab
 .history-clear-btn:hover {
   color: var(--red);
   background: color-mix(in srgb, var(--red) 8%, transparent);
+}
+
+#btn-refresh-history:hover {
+  color: var(--amber);
+  background: color-mix(in srgb, var(--yellow) 10%, transparent);
 }
 
 .history-list {
