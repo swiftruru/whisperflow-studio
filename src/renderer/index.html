@@ -185,28 +185,6 @@
           </div>
         </div>
 
-        <!-- Found file card (hidden until scan runs) -->
-        <div class="card found-card" id="found-card" hidden>
-          <div class="card-label">
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M9.293 0H4a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4.707A1 1 0 0013.707 4L10 .293A1 1 0 009.293 0zM9.5 3.5v-2l3 3h-2a1 1 0 01-1-1z"/>
-            </svg>
-            <span data-i18n="queue:nextCard.label">Next to Transcribe</span>
-            <span class="missing-count-badge" id="missing-count-badge" hidden></span>
-          </div>
-          <div class="found-filename" id="found-filename"></div>
-          <div class="found-filepath" id="found-filepath"></div>
-          <button class="btn-reveal" id="btn-reveal-in-finder">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="12" height="12">
-              <path d="M3 7c0-1.1.9-2 2-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
-              <line x1="12" y1="11" x2="12" y2="16"/>
-              <line x1="9.5" y1="13.5" x2="12" y2="11"/>
-              <line x1="14.5" y1="13.5" x2="12" y2="11"/>
-            </svg>
-            <span data-i18n="queue:nextCard.revealInFinder">在 Finder 中顯示</span>
-          </button>
-        </div>
-
         <div class="card progress-card" id="progress-card" data-onboard-target="step5" hidden>
           <div class="card-label">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
@@ -214,6 +192,14 @@
             </svg>
             <span data-i18n="progress:batchCard.label">Batch Progress</span>
             <span class="queue-stage-chip" id="queue-stage-chip" data-i18n="common:status.idle">Idle</span>
+            <button class="btn-reveal btn-progress-reveal" id="btn-progress-reveal" type="button" data-i18n-attr="title=queue:nextCard.revealInFinder; aria-label=queue:nextCard.revealInFinder" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="12" height="12">
+                <path d="M3 7c0-1.1.9-2 2-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+                <line x1="12" y1="11" x2="12" y2="16"/>
+                <line x1="9.5" y1="13.5" x2="12" y2="11"/>
+                <line x1="14.5" y1="13.5" x2="12" y2="11"/>
+              </svg>
+            </button>
           </div>
           <div class="queue-progress-headline" id="queue-progress-headline"></div>
           <div class="queue-progress-stats" id="queue-progress-stats"></div>
@@ -222,10 +208,6 @@
           <div class="queue-progress-message" id="queue-progress-message" hidden></div>
           <div class="queue-progress-bar" id="queue-progress-bar" aria-hidden="true">
             <span class="queue-progress-bar-fill" id="queue-progress-bar-fill"></span>
-          </div>
-          <div class="queue-actions" id="queue-actions">
-            <button class="btn-secondary btn-queue-action" id="btn-queue-retry-failed" hidden data-i18n="queue:panel.retryFailed">Retry Failed</button>
-            <button class="btn-secondary btn-queue-action" id="btn-queue-clear-finished" hidden data-i18n="queue:panel.clearFinished">Clear Finished</button>
           </div>
         </div>
 
@@ -236,6 +218,10 @@
             </svg>
             <span data-i18n="queue:panel.label">Queue</span>
             <span class="queue-total-badge" id="queue-total-badge"></span>
+            <div class="queue-header-actions" id="queue-header-actions">
+              <button class="btn-secondary btn-queue-action" id="btn-queue-retry-failed" hidden data-i18n="queue:panel.retryFailed">Retry Failed</button>
+              <button class="btn-secondary btn-queue-action" id="btn-queue-clear-finished" hidden data-i18n="queue:panel.clearFinished">Clear Finished</button>
+            </div>
           </div>
           <div class="queue-toolbar">
             <input

@@ -111,12 +111,6 @@ async function refreshDirDisplay() {
   const config = await window.electronAPI.readConfig().catch(() => null);
   const rootPath = config?.SETTING?.media_root_path || '';
   updateDirDisplay(rootPath);
-  refreshFoundFileDisplay();
-}
-
-function refreshFoundFileDisplay() {
-  const card  = document.getElementById('found-card');
-  card.hidden = true;
 }
 
 // ── Recent directories ────────────────────────────────────────────────────────

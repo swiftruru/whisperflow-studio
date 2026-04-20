@@ -257,16 +257,41 @@ async function triggerRun() {
     return false;
   }
 
-  // Guard: if the queue has no pending jobs (e.g. user clicked Run
-  // without scanning first, or the previous batch drained the queue),
-  // bail out here.  Otherwise main would still send run:done(0) and
-  // the renderer's CLI branch would show a stale "轉錄完成" toast +
-  // re-log the previous batch summary, because lastFinishedJob /
-  // stats still reference the prior batch.
-  if (getQueueState().stats.pending === 0) {
+  // Guard: bail only when there's nothing the main process could actually
+  // run. `getRunnableJob()` in queue-manager picks up both `pending` and
+  // `failed` jobs (so the user can hit Run to retry after a stop), so
+  // the renderer-side guard must match — otherwise a queue of only
+  // failed jobs gets a misleading "nothing to transcribe" toast even
+  // though the backend would gladly restart them.
+  const qsBeforeRun = getQueueState();
+  const runnableStats = qsBeforeRun.stats;
+  if (runnableStats.pending === 0 && runnableStats.failed === 0) {
     showToast(t('controls:toast.runNoQueued'), 'info');
     syncActionState();
     return false;
+  }
+
+  // If the only runnable jobs left are ones the user deliberately stopped
+  // with "Stop Batch", ask before replaying them. Silent auto-retry here
+  // would ignore the user's earlier intent signal. We detect these by
+  // `stageMessageKey === 'events:queue.stoppedByUser'` (set in
+  // queue-manager's stop handler).
+  if (runnableStats.pending === 0 && runnableStats.failed > 0) {
+    const failedJobs = qsBeforeRun.jobs.filter((job) => job.status === 'failed');
+    const allUserStopped = failedJobs.length > 0
+      && failedJobs.every((job) => job.stageMessageKey === 'events:queue.stoppedByUser');
+    if (allUserStopped) {
+      const confirmed = await confirmDialog({
+        title: t('dialogs:resumeStopped.title'),
+        message: t('dialogs:resumeStopped.message', { count: failedJobs.length }),
+        confirmText: t('dialogs:resumeStopped.confirmLabel'),
+        cancelText: t('dialogs:resumeStopped.cancelLabel'),
+      });
+      if (!confirmed) {
+        syncActionState();
+        return false;
+      }
+    }
   }
 
   lastAction = 'cli';
@@ -368,11 +393,6 @@ async function confirmAndStopBatch() {
 
 btnStop.addEventListener('click', () => {
   confirmAndStopBatch();
-});
-
-document.getElementById('btn-reveal-in-finder').addEventListener('click', () => {
-  const filePath = document.getElementById('found-filepath').textContent.trim();
-  if (filePath) window.electronAPI.showInFolder(filePath);
 });
 
 subscribePreflight(() => {

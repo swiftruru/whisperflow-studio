@@ -534,9 +534,13 @@ function createQueueManager({
       },
     };
 
-    if (!state.currentJobId || !mergedJobs.some((job) => job.id === state.currentJobId)) {
-      setNextCurrentJob();
-    }
+    // Always re-pick after an append-mode scan: if the previous
+    // currentJobId still points at a failed/skipped job and the scan
+    // just added fresh pending work, the new pending entry should take
+    // priority (setNextCurrentJob prefers pending > failed). Leaving
+    // currentJobId stale meant the next Run would pick the old failed
+    // file instead of the newly scanned one.
+    setNextCurrentJob();
 
     syncActiveConfig();
     emitState();

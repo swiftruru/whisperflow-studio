@@ -66,6 +66,12 @@
     "confirmLabel": "Skip file",
     "cancelLabel": "Keep transcribing"
   },
+  "resumeStopped": {
+    "title": "Restart the stopped items?",
+    "message": "The {{count}} remaining item(s) in the queue were left over from a previous Stop Batch. Re-run them now?",
+    "confirmLabel": "Re-run",
+    "cancelLabel": "Not now"
+  },
   "profile": {
     "namePlaceholder": "e.g. JP, EN-interview, meeting…",
     "nameHint": "No whitespace or / \\ : * ? \" < > | — max 40 chars.",

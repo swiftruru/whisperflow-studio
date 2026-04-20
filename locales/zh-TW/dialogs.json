@@ -66,6 +66,12 @@
     "confirmLabel": "跳過此檔",
     "cancelLabel": "繼續轉錄"
   },
+  "resumeStopped": {
+    "title": "重新轉錄已停止的項目？",
+    "message": "佇列中剩餘的 {{count}} 個項目是之前主動「停止批次」留下的。要重新跑一次嗎？",
+    "confirmLabel": "重新轉錄",
+    "cancelLabel": "先不要"
+  },
   "profile": {
     "namePlaceholder": "例如：JP、英文訪談、會議…",
     "nameHint": "不可包含空白或 / \\ : * ? \" < > |，長度上限 40 字。",

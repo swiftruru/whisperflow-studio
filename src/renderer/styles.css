@@ -771,19 +771,10 @@ html:not([data-platform="darwin"]) .titlebar-logo {
 
 .dir-card.drag-over .card-label { color: var(--amber); }
 
-/* Found file card */
-.found-card {
-  border-color: color-mix(in srgb, var(--green) 30%, transparent);
-  background: color-mix(in srgb, var(--green) 4%, var(--surface0));
-}
-
 @keyframes cardFadeIn {
   from { opacity: 0; transform: translateY(-6px) scale(0.99); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
-
-.found-card.animate-in { animation: cardFadeIn 0.25s var(--easing) both; }
-.found-card .card-label { color: var(--green); }
 
 /* Preflight panel */
 .preflight-panel {
@@ -919,46 +910,18 @@ html:not([data-platform="darwin"]) .titlebar-logo {
   justify-content: flex-end;
 }
 
-.missing-count-badge {
-  margin-left: auto;
-  padding: 1px 7px;
-  border-radius: 20px;
-  font-size: 10px;
-  font-weight: 700;
-  background: color-mix(in srgb, var(--green) 18%, transparent);
-  color: var(--green);
-  border: 1px solid color-mix(in srgb, var(--green) 30%, transparent);
-  white-space: nowrap;
-}
-
-.found-filename {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text);
-  word-break: break-all;
-}
-
-.found-filepath {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--overlay1);
-  word-break: break-all;
-}
-
 .btn-reveal {
-  align-self: flex-start;
-  display: flex;
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
   border-radius: 99px;
   border: 1px solid color-mix(in srgb, var(--green) 35%, transparent);
   background: color-mix(in srgb, var(--green) 6%, var(--surface0));
   color: var(--green);
-  font-size: 11px;
-  font-family: var(--font-ui);
-  cursor: pointer;
   transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 
@@ -966,6 +929,12 @@ html:not([data-platform="darwin"]) .titlebar-logo {
   background: color-mix(in srgb, var(--green) 12%, var(--surface0));
   border-color: color-mix(in srgb, var(--green) 60%, transparent);
   box-shadow: 0 0 10px color-mix(in srgb, var(--green) 18%, transparent);
+}
+
+/* Queue card header: cluster retry/clear actions after the badge */
+.queue-header-actions {
+  display: flex;
+  gap: 6px;
 }
 
 .progress-card {
@@ -1076,15 +1045,14 @@ html:not([data-platform="darwin"]) .titlebar-logo {
   transition: width 0.18s ease;
 }
 
-.queue-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
 .btn-queue-action {
-  padding: 5px 10px;
+  height: 22px;
+  min-width: 0;
+  padding: 0 10px;
   font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  gap: 4px;
 }
 
 .queue-card {

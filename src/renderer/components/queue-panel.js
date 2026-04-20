@@ -23,11 +23,6 @@ function localizeStageMessage(job) {
   return job.stageMessage || '';
 }
 
-const foundCard = document.getElementById('found-card');
-const foundFilename = document.getElementById('found-filename');
-const foundFilepath = document.getElementById('found-filepath');
-const missingCountBadge = document.getElementById('missing-count-badge');
-
 const progressCard = document.getElementById('progress-card');
 const progressHeadline = document.getElementById('queue-progress-headline');
 const progressStats = document.getElementById('queue-progress-stats');
@@ -36,6 +31,7 @@ const progressTiming = document.getElementById('queue-progress-timing');
 const progressMessage = document.getElementById('queue-progress-message');
 const progressStage = document.getElementById('queue-stage-chip');
 const progressBarFill = document.getElementById('queue-progress-bar-fill');
+const progressRevealButton = document.getElementById('btn-progress-reveal');
 
 const retryFailedButton = document.getElementById('btn-queue-retry-failed');
 const clearFinishedButton = document.getElementById('btn-queue-clear-finished');
@@ -239,56 +235,26 @@ function renderQueueViewState(viewState = latestViewState) {
   });
 }
 
-function renderFoundCard(state) {
-  const currentJob = state.currentJob;
-  const remaining = state.stats.pending + state.stats.running + state.stats.paused + state.stats.failed;
-
-  if (!currentJob) {
-    foundCard.hidden = true;
-    return;
-  }
-
-  foundFilename.textContent = currentJob.fileName;
-  foundFilepath.textContent = currentJob.filePath;
-  missingCountBadge.textContent = t('queue:nextCard.remainingBadge', { count: remaining });
-  missingCountBadge.hidden = false;
-  foundCard.hidden = false;
-}
-
+// Progress card is only meaningful while a transcription is actively in
+// flight (or just paused). Outside of that window the queue card alone
+// conveys the relevant state, so we hide the card to avoid redundant
+// chrome. The scan-result summaries that used to live here ("all have
+// subtitles" / "no missing subtitles") are surfaced through the console
+// log's `scanAppendSummary` message (see queue-manager v1.15.5).
 function renderProgress(state) {
-  const hasBatchResults = state.stats.total > 0 || state.scanSummary.scannedFiles > 0;
-  const processedCount = state.stats.done + state.stats.skipped;
-  if (!hasBatchResults) {
+  const isActive = state.stage === 'running' || state.stage === 'paused';
+  if (!isActive) {
     progressCard.hidden = true;
+    if (progressRevealButton) progressRevealButton.hidden = true;
     return;
   }
 
   progressCard.hidden = false;
   progressStage.textContent = stageLabel(state.stage);
   progressStage.dataset.stage = state.stage;
-  // Show per-file progress while a job is active (cleaner 0→100% animation
-  // for each file), fall back to batch progress only when the queue is
-  // idle or paused.  The batch state is already conveyed via the stats
-  // line ("Pending X · Running Y · Done Z") so we don't lose information.
   progressBarFill.style.width = `${getDisplayProgressPercent(state).toFixed(1)}%`;
 
-  if (state.stats.total === 0) {
-    const filtered = state.scanSummary.filteredBySubtitle || 0;
-    progressHeadline.textContent = filtered > 0
-      ? t('progress:batchCard.allHaveSubtitles', { count: filtered })
-      : t('progress:batchCard.noMissing');
-    progressStats.textContent = t('progress:batchCard.scanSummary', {
-      files: state.scanSummary.scannedFiles,
-      dirs: state.scanSummary.scannedDirectories,
-    });
-    progressCurrent.textContent = t('queue:panel.emptyPending');
-    progressTiming.hidden = true;
-    progressTiming.textContent = '';
-    progressMessage.hidden = true;
-    progressMessage.textContent = '';
-    return;
-  }
-
+  const processedCount = state.stats.done + state.stats.skipped;
   const fileIndex = Math.min(processedCount + 1, state.stats.total);
 
   if (state.currentJob) {
@@ -300,14 +266,6 @@ function renderProgress(state) {
       index: fileIndex,
       total: state.stats.total,
       fileName: state.currentJob.fileName,
-    });
-  } else if (processedCount === state.stats.total) {
-    const batchTime = state.batchElapsedSeconds != null ? formatDuration(state.batchElapsedSeconds) : null;
-    progressHeadline.textContent = t('progress:batchCard.allProcessed', {
-      done: state.stats.done,
-      failed: state.stats.failed,
-      skipped: state.stats.skipped,
-      elapsed: batchTime || '--:--',
     });
   } else {
     progressHeadline.textContent = t('progress:batchCard.queueReady');
@@ -336,7 +294,7 @@ function renderProgress(state) {
   progressTiming.hidden = !timingText;
   progressTiming.textContent = timingText;
 
-  // Only show the stage message for the CURRENTLY running job.  Falling
+  // Only show the stage message for the CURRENTLY running job. Falling
   // back to `lastRunnerEvent.message` after a job finishes would carry
   // "Subtitle files generated" (from the just-finished file) onto the
   // display of the next pending file — misleading.
@@ -345,6 +303,10 @@ function renderProgress(state) {
     : '';
   progressMessage.hidden = !stageMessage;
   progressMessage.textContent = stageMessage;
+
+  if (progressRevealButton) {
+    progressRevealButton.hidden = !state.currentJob;
+  }
 }
 
 // Decides what percentage to show in the progress bar.  While a job is
@@ -547,7 +509,6 @@ function renderQueueList(state, viewState) {
 function renderQueueState(state = latestQueueState, viewState = latestViewState) {
   latestQueueState = state;
   latestViewState = viewState;
-  renderFoundCard(state);
   renderProgress(state);
   renderActions(state);
   renderQueueViewState(viewState);
@@ -645,6 +606,11 @@ function bindActions() {
 
   clearFinishedButton?.addEventListener('click', () => {
     handleClearFinished();
+  });
+
+  progressRevealButton?.addEventListener('click', () => {
+    const job = latestQueueState?.currentJob;
+    if (job?.filePath) window.electronAPI.showInFolder(job.filePath);
   });
 
   queueSearchInput?.addEventListener('input', (event) => {
