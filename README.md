@@ -6,6 +6,11 @@
   directive above silences MD033 (no-inline-html) for this README only.
 -->
 
+<p align="center">
+  <strong>English</strong> ·
+  <a href="README.zh-TW.md">繁體中文</a>
+</p>
+
 <h1 align="center">🎙️ WhisperFlow Studio</h1>
 
 <p align="center">
