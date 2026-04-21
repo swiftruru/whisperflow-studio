@@ -8,10 +8,8 @@
 
 from __future__ import annotations
 
-import ctypes
 import logging
-import sys
-from typing import Any, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 from faster_whisper import WhisperModel
 
@@ -20,56 +18,10 @@ from ..progress import ProgressListener
 from ..prompts.base import PromptStrategy
 from ..subtitles.writers import format_timestamp
 from .cache import ModelCache
+from .device_probe import resolve_device_and_compute_type
 from .whisper_container import TranscribeResult, WhisperCallback, WhisperContainer
 
 _log = logging.getLogger(__name__)
-
-
-_CUDA_RUNTIME_LIBS = {
-    "win32": ["cublas64_12.dll", "cudnn_ops64_9.dll"],
-    "linux": ["libcublas.so.12"],
-}
-
-
-def _probe_cuda_runtime() -> bool:
-    """Return True iff the CUDA runtime DLLs faster-whisper needs can be loaded.
-
-    faster-whisper's own ``device="auto"`` only checks whether ctranslate2 was
-    built with CUDA support, not whether the runtime DLLs are actually present
-    on the host. On Windows boxes without an NVIDIA stack that lights up a
-    crash at first transcribe. Probing here lets us fall back to CPU instead.
-    """
-    libs = _CUDA_RUNTIME_LIBS.get(sys.platform, [])
-    if not libs:
-        return False
-    for name in libs:
-        try:
-            ctypes.CDLL(name)
-        except OSError:
-            return False
-    return True
-
-
-def _resolve_device_and_compute_type(
-    device: str, compute_type: str
-) -> Tuple[str, str, Optional[str]]:
-    """Resolve ``device="auto"`` against the actual CUDA runtime availability.
-
-    Returns ``(device, compute_type, warning_or_None)``. When falling back to
-    CPU, coerces ``float16``/``int8_float16``/``auto`` compute types to
-    ``int8`` since CPU cannot run fp16.
-    """
-    if device != "auto":
-        return device, compute_type, None
-    if _probe_cuda_runtime():
-        return "cuda", compute_type, None
-    new_ct = compute_type
-    if compute_type in ("auto", "float16", "int8_float16"):
-        new_ct = "int8"
-    msg = "未偵測到可用的 CUDA runtime（cublas/cudnn DLL 缺失），自動改用 CPU 執行"
-    if new_ct != compute_type:
-        msg += f"；compute_type 由 {compute_type} 改為 {new_ct}"
-    return "cpu", new_ct, msg
 
 
 class FasterWhisperBackend(WhisperContainer):
@@ -103,7 +55,7 @@ class FasterWhisperBackend(WhisperContainer):
         download_model(self.model_name, output_dir=self.model_dir)
 
     def _build_model(self) -> WhisperModel:
-        resolved_device, resolved_compute_type, warning = _resolve_device_and_compute_type(
+        resolved_device, resolved_compute_type, warning = resolve_device_and_compute_type(
             self.device or "auto",
             self.compute_type,
         )
