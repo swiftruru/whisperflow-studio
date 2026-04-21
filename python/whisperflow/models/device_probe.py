@@ -51,7 +51,10 @@ def resolve_device_and_compute_type(
     new_ct = compute_type
     if compute_type in ("auto", "float16", "int8_float16"):
         new_ct = "int8"
-    msg = "未偵測到可用的 CUDA runtime（cublas/cudnn DLL 缺失），自動改用 CPU 執行"
-    if new_ct != compute_type:
-        msg += f"；compute_type 由 {compute_type} 改為 {new_ct}"
+    # Stable English format so python-runner.js can regex-match and
+    # translate+prefix+classify in the user's UI language.
+    msg = (
+        f"CUDA runtime unavailable, falling back to device=cpu, "
+        f"compute_type={new_ct} (was compute_type={compute_type})"
+    )
     return "cpu", new_ct, msg

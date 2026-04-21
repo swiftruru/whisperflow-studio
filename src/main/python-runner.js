@@ -21,6 +21,13 @@ const LOG_REWRITE_PATTERNS = [
     translate: (match) => t('events:log.transcriptionCompleted', { seconds: match[1] }),
   },
   {
+    regex: /^CUDA runtime unavailable, falling back to device=cpu, compute_type=(.+?) \(was compute_type=(.+?)\)$/,
+    translate: (match) => t('events:log.cudaFallbackToCpu', {
+      newComputeType: match[1],
+      oldComputeType: match[2],
+    }),
+  },
+  {
     regex: /^loading faster-whisper model (.+?) \(device=(.+?), compute_type=(.+?)\)$/,
     translate: (match) => t('events:log.loadingWhisperModel', {
       model: match[1],

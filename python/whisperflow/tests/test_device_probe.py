@@ -24,7 +24,9 @@ def test_auto_without_cuda_coerces_auto_compute_type(monkeypatch):
     assert device == "cpu"
     assert ct == "int8"
     assert warning is not None
-    assert "CPU" in warning
+    assert "device=cpu" in warning
+    assert "compute_type=int8" in warning
+    assert "was compute_type=auto" in warning
 
 
 def test_auto_without_cuda_coerces_float16(monkeypatch):
@@ -32,7 +34,7 @@ def test_auto_without_cuda_coerces_float16(monkeypatch):
     device, ct, warning = dp.resolve_device_and_compute_type("auto", "float16")
     assert (device, ct) == ("cpu", "int8")
     assert warning is not None
-    assert "float16" in warning
+    assert "was compute_type=float16" in warning
 
 
 def test_auto_without_cuda_keeps_cpu_compatible_compute_type(monkeypatch):
@@ -40,4 +42,4 @@ def test_auto_without_cuda_keeps_cpu_compatible_compute_type(monkeypatch):
     device, ct, warning = dp.resolve_device_and_compute_type("auto", "int8")
     assert (device, ct) == ("cpu", "int8")
     assert warning is not None
-    assert "int8" not in warning.split("；")[0]
+    assert "compute_type=int8 (was compute_type=int8)" in warning

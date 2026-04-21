@@ -45,6 +45,7 @@
     "venvUpgradingPip": "Upgrading pip…",
     "venvInstallingDeps": "Installing dependencies from {{path}}…",
     "loadingWhisperModel": "Loading faster-whisper model {{model}} (device={{device}}, compute_type={{compute_type}})",
+    "cudaFallbackToCpu": "Warning: CUDA runtime not detected (cublas/cudnn DLL missing); falling back to CPU (compute_type: {{oldComputeType}} → {{newComputeType}})",
     "sileroImportedFromCache": "silero-vad imported from system torch hub cache",
     "sileroModelLoaded": "silero VAD model loaded",
     "sileroModelLoadedFromCache": "silero VAD model loaded from cache",

@@ -45,6 +45,7 @@
     "venvUpgradingPip": "升級 pip 中…",
     "venvInstallingDeps": "從 {{path}} 安裝相依套件中…",
     "loadingWhisperModel": "載入 faster-whisper 模型 {{model}}（裝置={{device}}，精度={{compute_type}}）",
+    "cudaFallbackToCpu": "警告：未偵測到可用的 CUDA runtime（cublas/cudnn DLL 缺失），自動改用 CPU 執行（compute_type：{{oldComputeType}} → {{newComputeType}}）",
     "sileroImportedFromCache": "已從系統 torch hub 快取匯入 silero-vad",
     "sileroModelLoaded": "已載入 silero VAD 模型",
     "sileroModelLoadedFromCache": "已從快取載入 silero VAD 模型",
