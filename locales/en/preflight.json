@@ -18,7 +18,8 @@
     "browseMediaRoot": "Choose folder",
     "initializeVenv": "Create environment now",
     "initializingVenv": "Creating…",
-    "installFfmpeg": "Install ffmpeg"
+    "installFfmpeg": "Install ffmpeg",
+    "downloadVcRedist": "Download VC++ Redistributable"
   },
   "venvBootstrap": {
     "starting": "Starting Python subprocess…",
@@ -57,6 +58,12 @@
       "okMessage": "Audio decoding tools are available.",
       "missingTitle": "{{tools}} not found",
       "missingMessage": "WhisperFlow Studio needs ffmpeg to decode audio. Click the button below to detect and install automatically."
+    },
+    "vcRedist": {
+      "okTitle": "Visual C++ Runtime ready",
+      "okMessage": "Microsoft Visual C++ 2015-2022 Redistributable (x64) is installed.",
+      "missingTitle": "Visual C++ Runtime missing",
+      "missingMessage": "WhisperFlow's audio decoding stack (PyAV) requires Microsoft Visual C++ 2015-2022 Redistributable (x64). Missing DLLs: {{dlls}}. Click the button below to download the official installer, then restart WhisperFlow Studio."
     },
     "bundledPython": {
       "okTitle": "Python environment ready",

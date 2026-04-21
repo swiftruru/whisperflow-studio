@@ -105,6 +105,15 @@ async function handleCheckAction(action) {
     await openInstallFfmpegDialog(action.packageName || 'ffmpeg');
     return;
   }
+
+  if (action.type === 'download-vcredist') {
+    try {
+      await window.electronAPI.openExternal(action.url);
+    } catch (err) {
+      showToast(t('about:toast.openLinkFailed', { error: err?.message || String(err) }), 'error', 4000);
+    }
+    return;
+  }
 }
 
 async function runVenvInitializeFromButton(button, bodyEl) {
@@ -150,6 +159,8 @@ function createActionButton(check, rowEl) {
     button.textContent = t('preflight:actionButtons.initializeVenv');
   } else if (check.action.type === 'install-ffmpeg') {
     button.textContent = t('preflight:actionButtons.installFfmpeg');
+  } else if (check.action.type === 'download-vcredist') {
+    button.textContent = t('preflight:actionButtons.downloadVcRedist');
   } else {
     return null;
   }

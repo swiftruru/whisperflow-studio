@@ -86,6 +86,48 @@ function validateFfmpeg() {
   });
 }
 
+/**
+ * Detect whether Microsoft Visual C++ 2015-2022 Redistributable (x64) is
+ * installed on Windows. faster-whisper imports PyAV transitively, whose
+ * native extensions link against MSVC runtime DLLs. A clean Windows image
+ * may ship vcruntime140.dll but often lacks vcruntime140_1.dll (VS 2017+),
+ * which surfaces as ``ImportError: DLL load failed while importing packet``
+ * during model list or backend load.
+ *
+ * Returns ``null`` on non-Windows platforms so this check silently drops
+ * out of the preflight on macOS/Linux.
+ */
+function validateVCRedist() {
+  if (process.platform !== 'win32') return null;
+
+  const systemRoot = process.env.SystemRoot || 'C:\\Windows';
+  const system32 = path.join(systemRoot, 'System32');
+  const required = ['vcruntime140.dll', 'vcruntime140_1.dll', 'msvcp140.dll'];
+  const missing = required.filter((dll) => !isExistingFile(path.join(system32, dll)));
+
+  if (missing.length === 0) {
+    return createPreflightCheck({
+      key: 'vc_redist',
+      status: 'ok',
+      titleKey: 'preflight:checks.vcRedist.okTitle',
+      messageKey: 'preflight:checks.vcRedist.okMessage',
+    });
+  }
+
+  return createPreflightCheck({
+    key: 'vc_redist',
+    code: ERROR_CODES.VC_REDIST_NOT_FOUND,
+    status: 'error',
+    titleKey: 'preflight:checks.vcRedist.missingTitle',
+    messageKey: 'preflight:checks.vcRedist.missingMessage',
+    messageParams: { dlls: missing.join(', ') },
+    action: {
+      type: 'download-vcredist',
+      url: 'https://aka.ms/vs/17/release/vc_redist.x64.exe',
+    },
+  });
+}
+
 function findExecutableOnPath(name) {
   // On Windows, delegate to `where.exe` first.  winget installs
   // ffmpeg / ffprobe as App Execution Aliases in
@@ -359,6 +401,8 @@ function runPreflight({
   checks.push(validateWhisperflowPackage(paths.pythonDir));
   checks.push(validateBundledVenv({ venvRoot, configMetadataPath, userSettings: appSettings }));
   checks.push(validateFfmpeg());
+  const vcCheck = validateVCRedist();
+  if (vcCheck) checks.push(vcCheck);
   checks.push(validateMediaRootPath(config?.SETTING?.media_root_path));
   checks.push(validateScriptPath('scan_script', paths.scanScriptPath));
   checks.push(validateScriptPath('cli_script', paths.cliScriptPath));

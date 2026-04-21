@@ -18,7 +18,8 @@
     "browseMediaRoot": "選擇資料夾",
     "initializeVenv": "立即建立環境",
     "initializingVenv": "建立中…",
-    "installFfmpeg": "安裝 ffmpeg"
+    "installFfmpeg": "安裝 ffmpeg",
+    "downloadVcRedist": "下載 VC++ Redistributable"
   },
   "venvBootstrap": {
     "starting": "正在啟動 Python 子程序…",
@@ -57,6 +58,12 @@
       "okMessage": "音訊解碼工具可正常使用。",
       "missingTitle": "找不到 {{tools}}",
       "missingMessage": "WhisperFlow Studio 需要 ffmpeg 解碼音訊檔。點擊下方按鈕自動偵測並安裝。"
+    },
+    "vcRedist": {
+      "okTitle": "Visual C++ Runtime 已就緒",
+      "okMessage": "偵測到 Microsoft Visual C++ 2015-2022 Redistributable (x64)。",
+      "missingTitle": "缺少 Visual C++ Runtime",
+      "missingMessage": "WhisperFlow 所用的音訊解碼套件 (PyAV) 需要 Microsoft Visual C++ 2015-2022 Redistributable (x64)。缺失的 DLL：{{dlls}}。點擊下方按鈕下載官方安裝程式，安裝完成後請重新啟動 WhisperFlow Studio。"
     },
     "bundledPython": {
       "okTitle": "Python 環境已就緒",
