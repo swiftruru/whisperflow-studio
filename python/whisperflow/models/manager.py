@@ -29,7 +29,8 @@ _APP_DIR_NAME = "WhisperFlow Studio"
 # for it to count as installed.  Whisper weights are either ``model.bin``
 # (CTranslate2) or ``model.safetensors`` (newer faster-whisper repos), so
 # weights are checked separately below.
-_REQUIRED_METADATA_FILES = ("config.json", "tokenizer.json", "vocabulary.txt")
+_REQUIRED_METADATA_FILES = ("config.json", "tokenizer.json")
+_VOCAB_CANDIDATES = ("vocabulary.txt", "vocabulary.json")
 _WEIGHT_CANDIDATES = ("model.bin", "model.safetensors")
 
 # Passed to consumers that want to report download progress.
@@ -534,7 +535,7 @@ def _missing_model_files(model_dir: Path) -> list[str]:
     Only checks the flat layout — see :func:`_is_complete_model_dir`.
     """
     if not model_dir.is_dir():
-        return list(_REQUIRED_METADATA_FILES) + ["model.bin"]
+        return list(_REQUIRED_METADATA_FILES) + ["vocabulary", "model.bin"]
 
     return _missing_files_in_flat_dir(model_dir)
 
@@ -544,6 +545,9 @@ def _missing_files_in_flat_dir(directory: Path) -> list[str]:
     for required in _REQUIRED_METADATA_FILES:
         if not _file_present_and_complete(directory / required):
             missing.append(required)
+
+    if not any(_file_present_and_complete(directory / v) for v in _VOCAB_CANDIDATES):
+        missing.append("vocabulary.txt|vocabulary.json")
 
     if not any(_file_present_and_complete(directory / w) for w in _WEIGHT_CANDIDATES):
         missing.append("model.bin")

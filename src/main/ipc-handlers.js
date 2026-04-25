@@ -436,9 +436,14 @@ function registerHandlers(
           // for the required files — doesn't import Python, just
           // reads the filesystem.
           const modelsDir = config?.SETTING?.models_dir?.trim();
-          const _REQUIRED_METADATA = ['config.json', 'tokenizer.json', 'vocabulary.txt'];
+          const _REQUIRED_METADATA = ['config.json', 'tokenizer.json'];
+          const _VOCAB_CANDIDATES = ['vocabulary.txt', 'vocabulary.json'];
           const _WEIGHT_CANDIDATES = ['model.bin', 'model.safetensors'];
           const fs = require('fs');
+
+          function _filePresent(p) {
+            try { return fs.existsSync(p) && fs.statSync(p).size > 0; } catch (_) { return false; }
+          }
 
           function isModelDownloaded(name) {
             // Map short name to the on-disk directory name that
@@ -449,14 +454,11 @@ function registerHandlers(
             const dir = path.join(base, dirName);
             if (!fs.existsSync(dir)) return false;
             for (const f of _REQUIRED_METADATA) {
-              const p = path.join(dir, f);
-              if (!fs.existsSync(p)) return false;
-              try { if (fs.statSync(p).size === 0) return false; } catch (_) { return false; }
+              if (!_filePresent(path.join(dir, f))) return false;
             }
-            const hasWeight = _WEIGHT_CANDIDATES.some((w) => {
-              const p = path.join(dir, w);
-              try { return fs.existsSync(p) && fs.statSync(p).size > 0; } catch (_) { return false; }
-            });
+            const hasVocab = _VOCAB_CANDIDATES.some((v) => _filePresent(path.join(dir, v)));
+            if (!hasVocab) return false;
+            const hasWeight = _WEIGHT_CANDIDATES.some((w) => _filePresent(path.join(dir, w)));
             return hasWeight;
           }
 

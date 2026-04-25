@@ -937,6 +937,17 @@ html:not([data-platform="darwin"]) .titlebar-logo {
   gap: 6px;
 }
 
+/* Allow the queue header row to wrap when the side column is narrow,
+   and keep CJK label/badge text from breaking per character. */
+.queue-card .card-label {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+
+.queue-card .card-label > span {
+  white-space: nowrap;
+}
+
 .progress-card {
   gap: 8px;
 }

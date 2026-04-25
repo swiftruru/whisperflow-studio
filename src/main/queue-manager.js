@@ -484,6 +484,21 @@ function createQueueManager({
     // queue forever.
     removeJobsWithMissingFiles();
 
+    // When the user scans a different media folder, drop preserved jobs
+    // that don't live under the new root — otherwise stale pending /
+    // failed entries from the previous folder linger in the queue and
+    // surprise the user. Running / paused jobs are kept regardless so
+    // active work isn't ripped out from under itself.
+    const rootPrefix = rootPath.endsWith(path.sep) ? rootPath : rootPath + path.sep;
+    state = {
+      ...state,
+      jobs: state.jobs.filter((job) => {
+        if (job.status === 'running' || job.status === 'paused') return true;
+        const p = job.filePath || '';
+        return p === rootPath || p.startsWith(rootPrefix);
+      }),
+    };
+
     const preserved = state.jobs.slice();
     const hadActiveJob = preserved.some((job) => job.status === 'running' || job.status === 'paused');
 
