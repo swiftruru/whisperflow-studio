@@ -17,7 +17,7 @@ function classifyLine(text) {
   // The content after the timestamp is transcribed user speech, so
   // spoken words like "error" / "失敗" must NOT trigger the error
   // colour. Short-circuit these to neutral before any keyword match.
-  if (/^\s*\[\d{2}:\d{2}[:.]\d+\s*->\s*\d{2}:\d{2}[:.]\d+\]/.test(text)) return '';
+  if (/^\s*\[\d{2}:\d{2}(?::\d{2})?[:.]\d+\s*->\s*\d{2}:\d{2}(?::\d{2})?[:.]\d+\]/.test(text)) return '';
 
   // ✔ / ✓ prefix means "this is a positive summary line". Must be
   // checked before the error keyword pass because success summaries
