@@ -55,6 +55,10 @@
     "title": "Media Directory 不存在",
     "message": "目前設定的媒體資料夾不存在，請重新選擇。"
   },
+  "INPUT_FILE_VANISHED": {
+    "title": "輸入檔案已不存在",
+    "message": "音訊檔案在轉錄期間被移動、改名或刪除：{{path}}"
+  },
   "actions": {
     "openSettings": "前往設定",
     "rerunPreflight": "重新檢查",

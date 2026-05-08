@@ -55,6 +55,10 @@
     "title": "Media Directory missing",
     "message": "The configured media folder does not exist. Please choose another."
   },
+  "INPUT_FILE_VANISHED": {
+    "title": "Input file no longer exists",
+    "message": "The audio file was moved, renamed, or deleted during transcription: {{path}}"
+  },
   "actions": {
     "openSettings": "Open Settings",
     "rerunPreflight": "Re-check",

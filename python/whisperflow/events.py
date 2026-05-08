@@ -107,8 +107,23 @@ class EventEmitter:
     def warning(self, message: str, *, stage: str = "", progress: Optional[float] = None) -> None:
         self.emit("warning", stage=stage, message=message, progress=progress)
 
-    def error(self, message: str, *, stage: str = STAGE_FAILED, extra: Optional[dict[str, Any]] = None) -> None:
-        self.emit("error", stage=stage, message=message, extra=extra)
+    def error(
+        self,
+        message: str,
+        *,
+        stage: str = STAGE_FAILED,
+        message_key: str = "",
+        message_params: Optional[dict[str, Any]] = None,
+        extra: Optional[dict[str, Any]] = None,
+    ) -> None:
+        self.emit(
+            "error",
+            stage=stage,
+            message=message,
+            message_key=message_key,
+            message_params=message_params,
+            extra=extra,
+        )
 
     def completed(
         self,

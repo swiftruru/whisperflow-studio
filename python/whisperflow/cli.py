@@ -24,6 +24,7 @@ from .models.manager import ModelManager, default_models_dir
 from .models.registry import all_models, model_names
 from .prompts.base import InitialPromptMode
 from .transcriber import Transcriber
+from .vad.base import InputFileVanishedError
 
 _log = logging.getLogger(__name__)
 
@@ -124,6 +125,14 @@ def main(argv: Optional[list[str]] = None) -> int:
         outputs = transcriber.run()
     except FileNotFoundError as err:
         emitter.error(str(err), extra={"reason": "missing_input"})
+        return 2
+    except InputFileVanishedError as err:
+        emitter.error(
+            str(err),
+            message_key="errors:INPUT_FILE_VANISHED.message",
+            message_params={"path": err.path},
+            extra={"reason": "input_file_vanished"},
+        )
         return 2
     except Exception as err:  # pragma: no cover - defensive top-level
         _log.exception("transcription failed")

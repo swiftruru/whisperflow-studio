@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import enum
 import logging
+import os
 import time
 from collections import Counter, deque
 from dataclasses import dataclass, field
@@ -21,6 +22,20 @@ from typing import Any, Iterable, Optional
 
 import ffmpeg
 import numpy as np
+
+
+class InputFileVanishedError(RuntimeError):
+    """Raised when the audio file disappears from disk during transcription.
+
+    Distinguishing this from a generic ffmpeg failure lets the UI surface a
+    one-line "file was moved/renamed/deleted: <path>" message instead of a
+    wall of ffmpeg stderr. Carries ``path`` so the renderer can fill in the
+    i18n template.
+    """
+
+    def __init__(self, path: str):
+        super().__init__(f"input file no longer exists: {path}")
+        self.path = path
 
 from ..models.whisper_container import TranscribeResult, WhisperCallback
 from ..progress import NullProgressListener, ProgressListener, SubTaskProgressListener
@@ -405,7 +420,14 @@ class AbstractVadTranscription:
 
 def get_audio_duration(path: str) -> float:
     """Return the media duration in seconds via ``ffprobe``."""
-    return float(ffmpeg.probe(path)["format"]["duration"])
+    if not os.path.exists(path):
+        raise InputFileVanishedError(path)
+    try:
+        return float(ffmpeg.probe(path)["format"]["duration"])
+    except ffmpeg.Error as err:
+        if not os.path.exists(path):
+            raise InputFileVanishedError(path) from err
+        raise
 
 
 def load_audio(
@@ -420,6 +442,9 @@ def load_audio(
     Uses the ``ffmpeg`` CLI (must be on PATH).  ``start_time`` and ``duration``
     are passed through as ffmpeg ``-ss`` and ``-t`` strings.
     """
+    if not os.path.exists(path):
+        raise InputFileVanishedError(path)
+
     input_kwargs: dict[str, Any] = {"threads": 0}
     if start_time is not None:
         input_kwargs["ss"] = start_time
@@ -433,6 +458,8 @@ def load_audio(
             .run(cmd="ffmpeg", capture_stdout=True, capture_stderr=True)
         )
     except ffmpeg.Error as err:
+        if not os.path.exists(path):
+            raise InputFileVanishedError(path) from err
         stderr = err.stderr.decode("utf-8", errors="replace") if err.stderr else str(err)
         raise RuntimeError(f"failed to load audio: {stderr}") from err
 

@@ -555,21 +555,34 @@ function registerHandlers(
             const realMessage = lastStructuredError?.message
               || stderrBuffer.trim()
               || `Process exited with code ${code}`;
-            sendRunError(createAppError({
-              code: ERROR_CODES.TRANSCRIPTION_FAILED,
-              titleKey: 'errors:TRANSCRIPTION_FAILED.title',
-              // Python-side message is already localized via messageKey
-              // when the structured event carries one.  When it doesn't,
-              // `message` holds the raw error text from ffmpeg/torch/etc
-              // — we pass it through verbatim so the user sees the real
-              // cause, not a generic translated banner.
-              message: realMessage,
-              details: lastStructuredError?.meta?.reason
-                ? `${lastStructuredError.meta.reason}: ${realMessage}\n\n${stderrBuffer.trim()}`.trim()
-                : (stderrBuffer.trim() || realMessage),
-              suggestedAction: 'retry-run',
-              source: 'run',
-            }));
+            const reason = lastStructuredError?.meta?.reason;
+            if (reason === 'input_file_vanished') {
+              sendRunError(createAppError({
+                code: ERROR_CODES.INPUT_FILE_VANISHED,
+                titleKey: 'errors:INPUT_FILE_VANISHED.title',
+                messageKey: lastStructuredError.messageKey || 'errors:INPUT_FILE_VANISHED.message',
+                messageParams: lastStructuredError.messageParams || {},
+                message: realMessage,
+                suggestedAction: 'retry-run',
+                source: 'run',
+              }));
+            } else {
+              sendRunError(createAppError({
+                code: ERROR_CODES.TRANSCRIPTION_FAILED,
+                titleKey: 'errors:TRANSCRIPTION_FAILED.title',
+                // Python-side message is already localized via messageKey
+                // when the structured event carries one.  When it doesn't,
+                // `message` holds the raw error text from ffmpeg/torch/etc
+                // — we pass it through verbatim so the user sees the real
+                // cause, not a generic translated banner.
+                message: realMessage,
+                details: reason
+                  ? `${reason}: ${realMessage}\n\n${stderrBuffer.trim()}`.trim()
+                  : (stderrBuffer.trim() || realMessage),
+                suggestedAction: 'retry-run',
+                source: 'run',
+              }));
+            }
           }
         }
         sendDone(code);
