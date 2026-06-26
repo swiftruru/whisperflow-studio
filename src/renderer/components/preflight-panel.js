@@ -267,26 +267,33 @@ function renderChecks() {
  * `drag-over` visual state on the row while dragging.
  */
 function attachDirectoryDropHandlers(row) {
+  // Depth counter rather than e.relatedTarget (null for OS file drags) so the
+  // `.drag-over` class is set once on enter / cleared once on leave instead of
+  // thrashing — and dragover never mutates the DOM. See initDragDrop() notes.
+  let dragDepth = 0;
+
   row.addEventListener('dragover', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    row.classList.add('drag-over');
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
   });
 
   row.addEventListener('dragenter', (e) => {
     e.preventDefault();
+    dragDepth++;
     row.classList.add('drag-over');
   });
 
   row.addEventListener('dragleave', (e) => {
-    if (!row.contains(e.relatedTarget)) {
-      row.classList.remove('drag-over');
-    }
+    e.preventDefault();
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (dragDepth === 0) row.classList.remove('drag-over');
   });
 
   row.addEventListener('drop', async (e) => {
     e.preventDefault();
     e.stopPropagation();
+    dragDepth = 0;
     row.classList.remove('drag-over');
 
     if (!onApplyDirectory) return;

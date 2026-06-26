@@ -250,28 +250,39 @@ function initBrowseDir() {
 function initDragDrop() {
   const dirCard = document.querySelector('.dir-card');
 
-  // Prevent browser from navigating to the file
+  // Track nested dragenter/dragleave with a depth counter instead of
+  // inspecting e.relatedTarget — for OS file drags relatedTarget is almost
+  // always null, which made the old guard remove `.drag-over` on every
+  // internal move and thrash the box-shadow transition each frame (jank).
+  let dragDepth = 0;
+
+  // dragover fires continuously (~60+/s) while hovering. It must only call
+  // preventDefault so the drop is allowed — it must NOT mutate the DOM, or
+  // every frame triggers a style recalc/repaint.
   dirCard.addEventListener('dragover', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    dirCard.classList.add('drag-over');
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
   });
 
   dirCard.addEventListener('dragenter', (e) => {
     e.preventDefault();
+    dragDepth++;
     dirCard.classList.add('drag-over');
   });
 
   dirCard.addEventListener('dragleave', (e) => {
-    // Only remove when leaving the card itself, not a child element
-    if (!dirCard.contains(e.relatedTarget)) {
-      dirCard.classList.remove('drag-over');
-    }
+    e.preventDefault();
+    dragDepth = Math.max(0, dragDepth - 1);
+    // Only drop the highlight once the cursor has truly left the card,
+    // not when moving between its child elements.
+    if (dragDepth === 0) dirCard.classList.remove('drag-over');
   });
 
   dirCard.addEventListener('drop', async (e) => {
     e.preventDefault();
     e.stopPropagation();
+    dragDepth = 0;
     dirCard.classList.remove('drag-over');
 
     const items = e.dataTransfer.items;
