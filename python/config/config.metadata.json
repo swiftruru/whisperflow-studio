@@ -142,7 +142,16 @@
     }
   },
   "media": {
-    "supportedMediaExtensions": [".mp4", ".mov", ".mkv", ".avi", ".ts", ".mjpeg", ".mpeg", ".f4v", ".flv", ".m2t", ".m2ts", ".m2v", ".3gp", ".3g2", ".mp3", ".wav", ".ogg", ".flac", ".m4a", ".m4v", ".aiff"],
+    "supportedMediaExtensions": [
+      ".mp4", ".m4v", ".mov", ".qt", ".mkv", ".webm", ".avi", ".wmv", ".asf",
+      ".flv", ".f4v", ".ts", ".m2t", ".m2ts", ".mts", ".mpeg", ".mpg", ".mpe",
+      ".m1v", ".m2v", ".mjpeg", ".vob", ".ogv", ".3gp", ".3g2", ".3gpp", ".3gp2",
+      ".mxf", ".rm", ".rmvb", ".divx",
+      ".mp3", ".mp2", ".m4a", ".aac", ".wav", ".w64", ".flac", ".ogg", ".oga",
+      ".opus", ".spx", ".weba", ".wma", ".aiff", ".aif", ".aifc", ".ac3", ".eac3",
+      ".dts", ".amr", ".awb", ".au", ".snd", ".caf", ".ape", ".wv", ".tta",
+      ".mpc", ".voc", ".gsm", ".dsf", ".3ga", ".ra"
+    ],
     "subtitleExtensions": [".srt", ".vtt", ".ass", ".ssa"]
   }
 }

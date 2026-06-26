@@ -25,7 +25,7 @@
       },
       "fileTypes": {
         "label": "支援的格式",
-        "body": "影片：<code>mp4 / mkv / mov / avi / m4v / ts</code>；音訊：<code>mp3 / wav / m4a / flac / ogg / aiff</code>。"
+        "body": "影片：<code>mp4 / m4v / mov / mkv / webm / avi / wmv / flv / ts / mts / mpeg / 3gp / vob / mxf / rm</code> 等；音訊：<code>mp3 / m4a / aac / wav / flac / ogg / opus / wma / aiff / ac3 / amr / caf / ape / wv</code> 等。支援絕大多數 ffmpeg 可解碼的格式。"
       },
       "recursive": {
         "label": "遞迴掃描",

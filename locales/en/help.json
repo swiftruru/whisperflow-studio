@@ -25,7 +25,7 @@
       },
       "fileTypes": {
         "label": "Supported formats",
-        "body": "Video: <code>mp4 / mkv / mov / avi / m4v / ts</code>; audio: <code>mp3 / wav / m4a / flac / ogg / aiff</code>."
+        "body": "Video: <code>mp4 / m4v / mov / mkv / webm / avi / wmv / flv / ts / mts / mpeg / 3gp / vob / mxf / rm</code> and more; audio: <code>mp3 / m4a / aac / wav / flac / ogg / opus / wma / aiff / ac3 / amr / caf / ape / wv</code> and more. Most ffmpeg-decodable formats are supported."
       },
       "recursive": {
         "label": "Recursive scan",
