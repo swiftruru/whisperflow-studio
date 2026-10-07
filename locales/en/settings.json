@@ -83,6 +83,10 @@
       "title": "Speaker diarization",
       "description": "Label who is speaking in each segment. Downloads ~34 MB of models on first use."
     },
+    "segmentation": {
+      "title": "Subtitle segmentation",
+      "description": "Re-cut long segments into short cues that follow subtitle norms. Needs word timestamps."
+    },
     "advanced": {
       "title": "Advanced decoder",
       "description": "Fine-tuning for people who know Whisper internals; usually leave as-is."
@@ -157,6 +161,26 @@
       "description": "Advanced; normally leave as-is. Between 0 and 1, default 0.5. Lower values separate voices more eagerly, so automatic detection reports more speakers.",
       "label": "Clustering threshold"
     },
+    "subtitle_segmentation": {
+      "description": "Re-cut every subtitle by word timestamp into short cues: at most two lines, at most seven seconds, within a reading-speed budget, never spanning two speakers. Changes how many cues you get (roughly 1.8x) and, because it turns on word timestamps, shifts segment boundaries slightly even where it does not re-cut. Off by default.",
+      "label": "Re-segment subtitles"
+    },
+    "subtitle_max_lines": {
+      "description": "Lines per cue. The subtitle standard is 2; raising it is rarely a good idea.",
+      "label": "Lines per cue"
+    },
+    "subtitle_max_duration": {
+      "description": "Longest a cue may stay on screen, in seconds (standard: 7).",
+      "label": "Max cue duration (sec)"
+    },
+    "subtitle_min_duration": {
+      "description": "Shortest a cue may stay on screen, in seconds (standard: 0.833, five sixths of a second). A short cue is stretched into the following silence, never over the next cue.",
+      "label": "Min cue duration (sec)"
+    },
+    "subtitle_run_gap": {
+      "description": "Silence that ends a run, in seconds. Content closer together than this is joined before being re-cut, so a sentence Whisper split across two segments can be broken in a sensible place instead.",
+      "label": "Run gap (sec)"
+    },
     "language": {
       "description": "Target language. Leave blank to let Whisper auto-detect; specifying a language usually gives more stable output.",
       "label": "Target language"
@@ -194,7 +218,7 @@
       "label": "Output folder"
     },
     "max_line_width": {
-      "description": "Maximum characters per subtitle line. Longer lines get wrapped. Leave blank to use Whisper's default.",
+      "description": "Characters per subtitle line, in the language's own unit. Leave blank to decide by language: with re-segmentation on that is 42 for Latin scripts and 16 for Chinese/Japanese/Korean; with it off, blank means no wrapping.",
       "label": "Max line width"
     },
     "overwrite_policy": {

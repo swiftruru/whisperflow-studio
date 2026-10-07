@@ -83,6 +83,10 @@
       "title": "講者辨識",
       "description": "標示每段是誰在說話。首次啟用會下載約 34 MB 的模型。"
     },
+    "segmentation": {
+      "title": "字幕切段",
+      "description": "把過長的段落重新切成符合字幕規範的短句。需要逐字時間碼。"
+    },
     "advanced": {
       "title": "進階解碼參數",
       "description": "給熟悉 Whisper 內部參數的使用者微調；一般無需調整。"
@@ -157,6 +161,26 @@
       "label": "分群門檻",
       "description": "進階，一般不需調整。介於 0 到 1，預設 0.5。數值越低越容易把聲音分成不同人，自動判斷出的講者會變多。"
     },
+    "subtitle_segmentation": {
+      "label": "重新切分字幕",
+      "description": "依逐字時間碼把每則字幕重新切成短句：最多兩行、最長 7 秒、不超過閱讀速度、不跨講者。字幕則數會改變（大約 1.8 倍）；而且因為它會開啟逐字時間碼，連沒有被重新切到的地方分段邊界也會略微位移。預設關閉。"
+    },
+    "subtitle_max_lines": {
+      "label": "每則行數",
+      "description": "每則字幕的行數上限。字幕規範是 2，調高通常不是好主意。"
+    },
+    "subtitle_max_duration": {
+      "label": "單則最長秒數",
+      "description": "一則字幕最久停留在畫面上的秒數（規範為 7 秒）。"
+    },
+    "subtitle_min_duration": {
+      "label": "單則最短秒數",
+      "description": "一則字幕最少停留在畫面上的秒數（規範為 0.833 秒，即六分之五秒）。過短的字幕會往後面的空檔延長，但絕不會蓋到下一則。"
+    },
+    "subtitle_run_gap": {
+      "label": "連續段間隔（秒）",
+      "description": "判定為「同一段連續內容」的靜音上限（秒）。間隔小於此值的內容會先被接起來再重新切，這樣被 Whisper 切在兩個 segment 的句子才能斷在合理的位置。"
+    },
     "language": {
       "label": "目標語言",
       "description": "目標語言。留空代表讓 Whisper 自動偵測；指定語言通常能得到更穩定的結果。"
@@ -195,7 +219,7 @@
     },
     "max_line_width": {
       "label": "單行最大字元",
-      "description": "字幕單行最長字元數。超過會自動折行，避免一行過長。留空使用 Whisper 預設。"
+      "description": "字幕單行的字數上限，單位是該語言自己的字。留空表示依語言自動決定：開啟重新切分時，拉丁文字為 42、中日韓為 16；關閉時留空代表不折行。"
     },
     "overwrite_policy": {
       "label": "覆寫策略",

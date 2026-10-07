@@ -22,6 +22,14 @@ def test_defaults_are_sane():
     assert cfg.diarize_num_speakers == 0
     assert cfg.diarize_threshold == 0.5
     assert cfg.speaker_label_template == "Speaker {n}"
+    # Subtitle segmentation is off by default for the same reason
+    # diarization is: it turns on word timestamps, which moves segment
+    # boundaries even where it does not re-cut anything.
+    assert cfg.subtitle_segmentation is False
+    assert cfg.subtitle_max_lines == 2
+    assert cfg.subtitle_max_duration == 7.0
+    assert cfg.subtitle_min_duration == 5 / 6
+    assert cfg.subtitle_run_gap == 1.0
 
 
 def test_from_dict_ignores_unknown_keys():
@@ -175,3 +183,96 @@ def test_example_config_template_carries_the_diarization_keys():
     # The widget the Settings UI infers depends on these exact literals.
     assert setting["diarize"] == "False"
     assert TranscribeConfig.from_dict(setting).diarize is False
+
+
+# --- subtitle segmentation fields ----------------------------------------
+
+
+def test_subtitle_segmentation_flag_coercion():
+    for raw, expected in (("False", False), ("True", True), ("0", False), (1, True)):
+        cfg = TranscribeConfig.from_dict({"subtitle_segmentation": raw})
+        assert cfg.subtitle_segmentation is expected, raw
+
+
+def test_subtitle_numeric_fields_coerce_from_strings():
+    cfg = TranscribeConfig.from_dict(
+        {
+            "subtitle_max_lines": "3",
+            "subtitle_max_duration": "6.5",
+            "subtitle_min_duration": "0.833",
+            "subtitle_run_gap": "1.5",
+        }
+    )
+    assert cfg.subtitle_max_lines == 3
+    assert isinstance(cfg.subtitle_max_lines, int)
+    assert cfg.subtitle_max_duration == 6.5
+    assert cfg.subtitle_min_duration == 0.833
+    assert cfg.subtitle_run_gap == 1.5
+
+
+def test_blank_subtitle_fields_coerce_to_zero_which_is_why_options_clamp():
+    # A blank number input is the realistic failure: a bare int becomes 0
+    # and a bare float becomes 0.0.  max_lines=0 would make every cue
+    # infeasible, so SegmentationOptions.__post_init__ has to clamp --
+    # this test records why that clamp exists.
+    cfg = TranscribeConfig.from_dict(
+        {
+            "subtitle_max_lines": "",
+            "subtitle_max_duration": "",
+            "subtitle_min_duration": "",
+            "subtitle_run_gap": "",
+        }
+    )
+    assert cfg.subtitle_max_lines == 0
+    assert cfg.subtitle_max_duration == 0.0
+    assert cfg.subtitle_min_duration == 0.0
+    assert cfg.subtitle_run_gap == 0.0
+
+    from whisperflow.subtitles.segmentation import SegmentationOptions
+
+    options = SegmentationOptions(
+        max_lines=cfg.subtitle_max_lines,
+        max_duration=cfg.subtitle_max_duration,
+        min_duration=cfg.subtitle_min_duration,
+        run_gap=cfg.subtitle_run_gap,
+    )
+    assert options.max_lines == 2
+    assert options.max_duration == 7.0
+
+
+def test_max_line_width_still_means_unset_when_blank():
+    # Optional[int] + "" short-circuits to None, which is what keeps
+    # "blank = decide by language" reachable from the Settings panel.
+    assert TranscribeConfig.from_dict({"max_line_width": ""}).max_line_width is None
+    assert TranscribeConfig.from_dict({"max_line_width": "42"}).max_line_width == 42
+
+
+def test_segmentation_fields_round_trip_through_to_dict():
+    cfg = TranscribeConfig(subtitle_segmentation=True, subtitle_max_lines=3)
+    data = cfg.to_dict()
+    assert data["subtitle_segmentation"] is True
+    assert data["subtitle_max_lines"] == 3
+    restored = TranscribeConfig.from_dict(data)
+    assert restored.subtitle_segmentation is True
+    assert restored.subtitle_max_lines == 3
+
+
+def test_example_config_template_carries_the_segmentation_keys():
+    template_path = Path(__file__).resolve().parents[2] / "config" / "config.example.json"
+    setting = json.loads(template_path.read_text(encoding="utf-8"))["SETTING"]
+    for key in (
+        "subtitle_segmentation",
+        "subtitle_max_lines",
+        "subtitle_max_duration",
+        "subtitle_min_duration",
+        "subtitle_run_gap",
+    ):
+        assert key in setting, key
+    # The Settings UI infers the widget from the value, so these exact
+    # string forms are what make a checkbox a checkbox.
+    assert setting["subtitle_segmentation"] == "False"
+    assert setting["subtitle_max_lines"] == "2"
+    # Blank keeps "decide by language" reachable; a numeric seed would
+    # turn the control into a number input and make it unreachable.
+    assert setting["max_line_width"] == ""
+    assert TranscribeConfig.from_dict(setting).subtitle_segmentation is False

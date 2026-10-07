@@ -55,6 +55,20 @@ describe('settings metadata', () => {
     expect(template).toHaveProperty(key);
   });
 
+  it('never lists the same key in two groups', () => {
+    // renderSettings does not dedupe: a key in two groups renders two
+    // inputs with the same data-key, and collectFormValues keeps
+    // whichever the DOM yields last.  Silent, and easy to do by accident.
+    const seen = new Map();
+    for (const group of metadata.fieldGroups) {
+      for (const key of group.keys || []) {
+        seen.set(key, [...(seen.get(key) || []), group.id]);
+      }
+    }
+    const duplicated = [...seen.entries()].filter(([, groups]) => groups.length > 1);
+    expect(duplicated).toEqual([]);
+  });
+
   it('leaves no config key ungrouped, which would land it in the Other card', () => {
     const hidden = new Set(metadata.hiddenFieldKeys || []);
     const grouped = new Set(groupKeys);
@@ -108,5 +122,67 @@ describe('diarization settings', () => {
     for (const key of KEYS) {
       expect(pathKeys).not.toContain(key);
     }
+  });
+});
+
+describe('subtitle segmentation settings', () => {
+  const KEYS = [
+    'subtitle_segmentation',
+    'subtitle_max_lines',
+    'subtitle_max_duration',
+    'subtitle_min_duration',
+    'subtitle_run_gap',
+  ];
+
+  it('are all in the segmentation group, in the transcription segment', () => {
+    const group = metadata.fieldGroups.find((entry) => entry.id === 'segmentation');
+    expect(group).toBeDefined();
+    expect(group.segment).toBe('transcription');
+    expect(group.keys).toEqual(KEYS);
+    // Not collapsed: collapse state is per-group, so hiding the card
+    // would hide the on/off switch itself.
+    expect(group.defaultCollapsed).toBeUndefined();
+  });
+
+  it('sits after diarization and before the advanced group', () => {
+    const order = metadata.fieldGroups.map((group) => group.id);
+    expect(order.indexOf('segmentation')).toBe(order.indexOf('diarization') + 1);
+    expect(order.indexOf('segmentation')).toBeLessThan(order.indexOf('advanced'));
+  });
+
+  it.each(KEYS)('%s has a label and description in both locales', (key) => {
+    for (const [locale, strings] of Object.entries(locales)) {
+      expect(strings.fields[key]?.label, `${locale}: fields.${key}.label`).toBeTruthy();
+      expect(strings.fields[key]?.description, `${locale}: fields.${key}.description`).toBeTruthy();
+    }
+  });
+
+  it('seeds values in the string form the widget inference needs', () => {
+    expect(template.subtitle_segmentation).toBe('False');
+    expect(template.subtitle_max_lines).toBe('2');
+    expect(template.subtitle_max_duration).toBe('7.0');
+    expect(template.subtitle_min_duration).toBe('0.833');
+    expect(template.subtitle_run_gap).toBe('1.0');
+    for (const key of KEYS) {
+      expect(metadata.enumOptions).not.toHaveProperty(key);
+    }
+  });
+
+  it('keeps max_line_width blank and in the output group', () => {
+    // Blank is what keeps "decide by language" (42 Latin / 16 CJK)
+    // reachable: a numeric seed flips the control to a number input and
+    // the auto behaviour becomes unreachable from the UI.
+    expect(template.max_line_width).toBe('');
+    const owner = metadata.fieldGroups.find((group) => (group.keys || []).includes('max_line_width'));
+    expect(owner.id).toBe('output');
+  });
+
+  it('rewrote the max_line_width description for its widened meaning', () => {
+    // It used to promise only "longer lines get wrapped"; the field now
+    // caps each of up to max_lines lines per cue and blank means auto.
+    expect(locales.en.fields.max_line_width.description).toMatch(/blank/i);
+    expect(locales.en.fields.max_line_width.description).toMatch(/42/);
+    expect(locales['zh-TW'].fields.max_line_width.description).toMatch(/留空/);
+    expect(locales['zh-TW'].fields.max_line_width.description).toMatch(/42/);
   });
 });

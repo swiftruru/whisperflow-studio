@@ -47,6 +47,10 @@ class TranscribeConfig:
     write_vtt: bool = True
     write_txt: bool = False
     write_json: bool = False
+    # Characters per subtitle line, in the language's own unit.  Blank
+    # means "decide by language": with subtitle_segmentation on that is 42
+    # for Latin scripts and 16 for CJK (the published Netflix figures);
+    # with it off, blank means no wrapping at all.
     max_line_width: Optional[int] = None
     # When an output file already exists at the target path:
     #   "overwrite"      — default: replace silently
@@ -84,6 +88,21 @@ class TranscribeConfig:
     # ``{n}`` is 1-based.  A template that fails to format falls back to the
     # default and logs a warning; see diarization.speaker_label().
     speaker_label_template: str = "Speaker {n}"
+
+    # --- subtitle segmentation -----------------------------------------
+    # Off by default, for the same reason diarization is: enabling it
+    # turns on faster-whisper's word timestamps, and add_word_timestamps()
+    # rewrites a segment's start/end from its first and last word.  So an
+    # upgraded user's timestamps would move even where re-segmentation
+    # never touched them.  See docs/specs/subtitle-segmentation.md.
+    subtitle_segmentation: bool = False
+    subtitle_max_lines: int = 2
+    subtitle_max_duration: float = 7.0
+    subtitle_min_duration: float = 5 / 6
+    # Silence that ends a run: no cue ever spans a longer gap, nor two
+    # speakers.  Joining content across Whisper's own segment boundaries
+    # first is what stops a sentence being cut after "the".
+    subtitle_run_gap: float = 1.0
 
     # --- Whisper decode options ---------------------------------------
     language: Optional[str] = None  # None = auto-detect

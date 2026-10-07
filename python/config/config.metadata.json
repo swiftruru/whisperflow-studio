@@ -66,6 +66,11 @@
         "keys": ["diarize", "diarize_num_speakers", "speaker_label_template", "diarize_threshold"]
       },
       {
+        "id": "segmentation",
+        "segment": "transcription",
+        "keys": ["subtitle_segmentation", "subtitle_max_lines", "subtitle_max_duration", "subtitle_min_duration", "subtitle_run_gap"]
+      },
+      {
         "id": "advanced",
         "segment": "transcription",
         "defaultCollapsed": true,
