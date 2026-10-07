@@ -12,6 +12,7 @@ from whisperflow.diarization import (
     SpeakerTurn,
     assign_speakers,
     default_num_threads,
+    label_speaker_turns,
     renumber_turns,
     resolve_label_template,
     speaker_label,
@@ -325,3 +326,46 @@ def test_sherpa_onnx_exposes_the_api_we_rely_on():
         "OfflineSpeakerDiarization",
     ):
         assert hasattr(sherpa_onnx, name), name
+
+
+# --- labelling a turn once ----------------------------------------------
+
+
+def test_label_speaker_turns_labels_only_the_first_segment_of_a_turn():
+    segments = [
+        {"speaker": 0}, {"speaker": 0}, {"speaker": 1}, {"speaker": 1}, {"speaker": 0},
+    ]
+    written = label_speaker_turns(segments, "Speaker {n}")
+    assert written == 3
+    assert [segment.get("speaker_label") for segment in segments] == [
+        "Speaker 1", None, "Speaker 2", None, "Speaker 1",
+    ]
+
+
+def test_label_speaker_turns_leaves_the_key_absent_in_between():
+    # Absent rather than "": format_speaker_prefix and
+    # transcript-reader.js both treat the two identically, so leaving it
+    # out keeps the JSON smaller and the intent obvious.
+    segments = [{"speaker": 0}, {"speaker": 0}]
+    label_speaker_turns(segments)
+    assert "speaker_label" in segments[0]
+    assert "speaker_label" not in segments[1]
+
+
+def test_label_speaker_turns_ignores_segments_with_no_speaker():
+    segments = [{"text": "a"}, {"text": "b"}]
+    assert label_speaker_turns(segments) == 0
+    assert all("speaker_label" not in segment for segment in segments)
+
+
+def test_label_speaker_turns_treats_speaker_zero_as_a_real_speaker():
+    # 0 is falsy; a truthiness check here would drop every "Speaker 1".
+    segments = [{"speaker": 0}]
+    assert label_speaker_turns(segments) == 1
+    assert segments[0]["speaker_label"] == "Speaker 1"
+
+
+def test_label_speaker_turns_honours_the_template():
+    segments = [{"speaker": 0}, {"speaker": 1}]
+    label_speaker_turns(segments, "講者 {n}")
+    assert [segment["speaker_label"] for segment in segments] == ["講者 1", "講者 2"]

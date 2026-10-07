@@ -133,6 +133,45 @@ def speaker_label(
         return DEFAULT_SPEAKER_LABEL_TEMPLATE.format(n=number)
 
 
+# A sentinel no speaker value can equal, so the first segment always
+# counts as a change.  ``None`` will not do: an unlabelled segment has
+# ``speaker is None``.
+_NO_SPEAKER = object()
+
+
+def label_speaker_turns(
+    segments: Sequence[dict],
+    template: str = DEFAULT_SPEAKER_LABEL_TEMPLATE,
+) -> int:
+    """Set ``speaker_label`` on the first segment of each speaker turn.
+
+    A speaker talks across many Whisper segments, and ``"[Speaker 1] "``
+    is a quarter of a 42-character subtitle line, so repeating it on every
+    one of them is noise rather than information.  Mutates ``segments`` in
+    place and returns how many labels were written.
+
+    The key is left absent rather than set to ``""`` on the segments in
+    between, which is what makes both writers and both chips skip them:
+    ``format_speaker_prefix`` and ``transcript-reader.js`` treat a missing
+    label and a blank one identically.
+
+    ``text`` is never touched.  The label is a presentation string, so the
+    JSON output carries no speaker markup and nothing downstream has to
+    parse one back out of a subtitle line.
+    """
+    previous: object = _NO_SPEAKER
+    written = 0
+    for segment in segments:
+        speaker = segment.get("speaker")
+        if speaker != previous:
+            label = speaker_label(speaker, template)
+            if label:
+                segment["speaker_label"] = label
+                written += 1
+        previous = speaker
+    return written
+
+
 def renumber_turns(raw: Iterable) -> list[SpeakerTurn]:
     """Normalise sherpa-onnx segments into 0..N-1 :class:`SpeakerTurn`s.
 

@@ -832,3 +832,30 @@ def test_segmentation_runs_after_diarization():
     assert source.index("self._run_diarization(result, input_path)") < source.index(
         "self._run_segmentation(result)"
     )
+
+
+def test_segmentation_thins_labels_the_same_way_diarization_does():
+    # Two implementations of one rule: diarization labels the first
+    # segment of each turn, segmentation the first cue of each turn.  This
+    # pins them to the same answer for the same speaker sequence.
+    from whisperflow.diarization import label_speaker_turns
+
+    options = SegmentationOptions()
+    source = [
+        segment("First speaker says something reasonably long here.", start=0.0, speaker=0),
+        segment("Then the first speaker carries on after a pause.", start=12.0, speaker=0),
+        segment("Now the second speaker replies at some length.", start=24.0, speaker=1),
+        segment("And the first speaker comes back again at the end.", start=36.0, speaker=0),
+    ]
+    cues, _ = resegment(source, options, language="en", label_for=lambda n: f"Speaker {n + 1}")
+
+    # What diarization would have produced for the same speaker run.
+    mirror = [{"speaker": cue.get("speaker")} for cue in cues]
+    label_speaker_turns(mirror, "Speaker {n}")
+
+    assert [cue.get("speaker_label") for cue in cues] == [
+        entry.get("speaker_label") for entry in mirror
+    ]
+    # Three turns: 0, 1, 0 -- the pause inside the first turn must not
+    # start a new one.
+    assert sum(1 for cue in cues if "speaker_label" in cue) == 3

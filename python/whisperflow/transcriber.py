@@ -280,13 +280,9 @@ class Transcriber:
 
         template = diarization.resolve_label_template(cfg.speaker_label_template)
         segments = diarization.assign_speakers(result.get("segments") or [], turns)
-        for segment in segments:
-            # The label is a presentation string; segment["text"] stays
-            # clean so the JSON output carries no speaker markup and the
-            # subtitle editor has nothing to parse back out.
-            segment["speaker_label"] = diarization.speaker_label(
-                segment.get("speaker"), template
-            )
+        # One label per turn rather than one per segment; subtitle
+        # segmentation thins its own labels by the same rule.
+        diarization.label_speaker_turns(segments, template)
         result["segments"] = segments
         # The backend builds result["text"] once from the pre-split
         # segments and nothing recomputed it afterwards, so it has been
