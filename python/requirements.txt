@@ -1,4 +1,15 @@
 faster-whisper>=0.10.0
+# PyAV is a transitive dependency of faster-whisper, pinned here because
+# av 19.0.0 (2026-09-29) removed the ``metadata_errors`` parameter from
+# ``av.open()``, while faster-whisper 1.2.1 still passes it in
+# ``faster_whisper/audio.py``'s ``decode_audio()``:
+#
+#     av.open(input_file, mode="r", metadata_errors="ignore")
+#
+# The result is a TypeError on a fresh install.  Verified: av 18.1.0 works,
+# 19.0.1 fails.  Lift this pin once faster-whisper ships a release that no
+# longer passes ``metadata_errors``.
+av<19
 ctranslate2>=3.24.0
 torch>=2.1.2
 torchaudio>=2.1.2
