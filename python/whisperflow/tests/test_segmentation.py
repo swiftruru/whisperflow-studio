@@ -490,8 +490,102 @@ def test_a_long_silence_inside_a_cue_is_capped_at_max_duration():
         {"start": 25.0, "end": 25.4, "word": " Right.", "probability": 1.0},
     ]
     cues, _ = resegment([{"start": 0.0, "end": 25.4, "text": "Thanks. Right.", "words": word_list}], options, language="en")
+    # The 24.6 s gap exceeds run_gap, so this input is really two runs of
+    # one token each; it documents the no-split half of the rule only.
+    assert len(cues) == 2
     for cue in cues:
         assert cue["end"] - cue["start"] <= options.max_duration + 1e-9
+
+
+def test_the_max_duration_cap_binds_when_the_stretch_would_exceed_it():
+    # The test above cannot reach the cap: at the default 42-column width
+    # the reading-speed stretch target tops out at 84/20 = 4.2 s, well
+    # inside max_duration, so deleting the clamp changed nothing.  A wide
+    # line raises the target past 7 s and makes the clamp load-bearing.
+    options = SegmentationOptions(max_line_chars=100)
+    limits = resolve_limits(options, "en")
+    # One dense cue, then a long silence for the stretch to expand into.
+    text = " ".join(["alpha"] * 28)
+    assert text_columns(text) <= limits.cue_columns, "precondition: fits one cue"
+    assert text_columns(text) / limits.columns_per_second > options.max_duration, (
+        "precondition: the reading-speed stretch target must exceed max_duration"
+    )
+    word_list = []
+    for index, token in enumerate(re.findall(r"\s*\S+", " " + text)):
+        word_list.append(
+            {"start": index * 0.05, "end": index * 0.05 + 0.05,
+             "word": token if index else token.lstrip(), "probability": 1.0}
+        )
+    source = [
+        {"start": 0.0, "end": word_list[-1]["end"], "text": text, "words": word_list},
+        {"start": 120.0, "end": 121.0, "text": "End.",
+         "words": [{"start": 120.0, "end": 121.0, "word": "End.", "probability": 1.0}]},
+    ]
+    cues, stats = resegment(source, options, language="en")
+    assert cues[0]["end"] - cues[0]["start"] == pytest.approx(options.max_duration)
+    assert stats.over_duration == 0
+
+
+def test_a_fast_cue_is_stretched_towards_the_reading_speed_limit():
+    # Sibling of test_short_cue_is_stretched_into_the_following_silence:
+    # that one pins the min_duration half of the same sweep, this one the
+    # reading-speed half, which otherwise survives deletion untested.
+    options = SegmentationOptions()
+    limits = resolve_limits(options, "en")
+    text = " ".join(["alpha"] * 7)  # 41 columns, comfortably one line
+    word_list = []
+    for index, token in enumerate(re.findall(r"\s*\S+", " " + text)):
+        word_list.append(
+            {"start": index * 0.15, "end": index * 0.15 + 0.15,
+             "word": token if index else token.lstrip(), "probability": 1.0}
+        )
+    natural = word_list[-1]["end"] - word_list[0]["start"]
+    columns = text_columns(text)
+    assert columns / natural > limits.columns_per_second, "precondition: too fast to read"
+    assert natural > options.min_duration, "precondition: min_duration cannot explain the stretch"
+    source = [
+        {"start": 0.0, "end": word_list[-1]["end"], "text": text, "words": word_list},
+        {"start": 40.0, "end": 41.0, "text": "End.",
+         "words": [{"start": 40.0, "end": 41.0, "word": "End.", "probability": 1.0}]},
+    ]
+    cues, stats = resegment(source, options, language="en")
+    duration = cues[0]["end"] - cues[0]["start"]
+    assert duration > natural + 1e-9, "the cue was not stretched at all"
+    assert columns / duration <= limits.columns_per_second + 1e-9
+    assert stats.stretched >= 1
+    assert stats.over_reading_speed == 0
+
+
+def test_dense_speech_cannot_buy_an_over_wide_line():
+    # Line width is hard and reading speed is soft (spec 4.2), but the
+    # soft term was an unbounded quadratic against a flat penalty, so a
+    # fast tail used to win: this span came out as ONE 76-column line
+    # below ~1 s of tail, while the same span at 1.5 s split legally.
+    options = SegmentationOptions()
+    limits = resolve_limits(options, "en")
+    parts = ["a" * 18, "b" * 28, "c" * 28]
+    text = " ".join(parts)
+    assert wrap_text(text, max_columns=limits.line_columns,
+                     max_lines=limits.max_lines) is None, (
+        "precondition: no break candidate fits, so the DP must split instead"
+    )
+    assert all(text_columns(p) <= limits.line_columns for p in parts), (
+        "precondition: every token fits a line, so this is not the escape hatch"
+    )
+    for tail in (3.0, 1.5, 1.0, 0.5, 0.15):
+        word_list = []
+        clock = 0.0
+        for index, part in enumerate(parts):
+            duration = tail if index == len(parts) - 1 else 1.0
+            word_list.append({"start": clock, "end": clock + duration,
+                              "word": (" " if index else "") + part,
+                              "probability": 1.0})
+            clock += duration
+        source = [{"start": 0.0, "end": clock, "text": text, "words": word_list}]
+        cues, stats = resegment(source, options, language="en")
+        check_invariants(cues, limits)
+        assert stats.over_line_width == 0, tail
+        assert joined(cues) == text
 
 
 def test_a_single_word_longer_than_max_duration_keeps_its_span():
@@ -795,8 +889,17 @@ def test_log_message_is_stable():
     )
     assert stats.log_message() == (
         "subtitle segmentation: 408 -> 727 cues in 146 runs, 0 over duration, "
-        "0 over line count, 11 over reading speed, 24 stretched, longest 7.00s"
+        "0 over line count, 0 over line width, 11 over reading speed, "
+        "24 stretched, longest 7.00s"
     )
+
+
+def test_log_message_reports_an_over_wide_cue():
+    # A width violation is the one the DP can still produce via the escape
+    # hatch, so it must be visible in the summary rather than only in the
+    # stats object nobody prints.
+    stats = SegmentationStats(cues_in=1, cues_out=1, runs=1, over_line_width=3)
+    assert "3 over line width" in stats.log_message()
 
 
 def test_apply_to_result_rewrites_segments_text_and_metadata():

@@ -603,6 +603,18 @@ COST_OVER_DURATION = 40.0
 COST_OVER_DURATION_RATE = 20.0
 COST_UNDER_DURATION = 10.0
 
+# Line width is a HARD condition and reading speed is a soft one (spec
+# 4.2: over-speed that stretching cannot fix is accepted and merely
+# counted).  A soft term must therefore never be able to outvote the hard
+# one, which a flat penalty against an unbounded quadratic cannot
+# guarantee: COST_SPEED * (excess ** 2) passes 100 at 27 columns/second
+# against a 20 limit, so an unwrappable span used to win outright.  The
+# unwrappable penalty now scales with the overflow, and the speed term is
+# capped below its floor.
+COST_UNWRAPPABLE = 400.0
+COST_UNWRAPPABLE_RATE = 20.0
+COST_SPEED_MAX = 200.0
+
 _ORPHAN_TOKEN_COUNT = 2
 _ORPHAN_WIDTH_RATIO = 0.3
 _CLOSERS = frozenset("\"'”’）)]}」』")
@@ -675,8 +687,13 @@ def _plan_run(
                 profile=profile,
             )
             if wrapped is None:
-                # Only reachable for a lone token wider than one line.
-                penalty += COST_FILL * 4
+                # Reachable for ANY span no break candidate can fit, not
+                # just a lone over-wide token: at 2 x 42 columns a
+                # 76-column span needs a break in [34, 42] and no word
+                # boundary need fall there.  Scaled by the overflow so
+                # the hard width rule outranks the soft speed term.
+                excess = columns + own_prefix - limits.line_columns
+                penalty += COST_UNWRAPPABLE + COST_UNWRAPPABLE_RATE * max(0, excess)
                 widths = [columns + own_prefix]
             else:
                 widths = [
@@ -706,7 +723,10 @@ def _plan_run(
         if duration > 0:
             speed = columns / duration
             if speed > limits.columns_per_second:
-                penalty += COST_SPEED * (speed - limits.columns_per_second) ** 2
+                penalty += min(
+                    COST_SPEED * (speed - limits.columns_per_second) ** 2,
+                    COST_SPEED_MAX,
+                )
 
         whole_run = start == 0 and stop == count
         if not whole_run:
@@ -753,7 +773,13 @@ def _plan_run(
                 duration = tokens[stop - 1].end - tokens[start].start
                 if duration > limits.max_duration:
                     break
-                if span_columns(start, stop) > limits.cue_columns:
+                # The run's own prefix is charged here too, or a labelled
+                # first span of exactly cue_columns is admitted although
+                # only cue_columns - prefix_columns can be rendered.  It
+                # applies at start == 0 only, which is the last iteration,
+                # so breaking on it cannot skip a narrower candidate.
+                own = prefix_columns if start == 0 else 0
+                if span_columns(start, stop) + own > limits.cue_columns:
                     break
             total = cost[start] + evaluate(start, stop)
             if total < best:
@@ -870,6 +896,7 @@ class SegmentationStats:
             f"subtitle segmentation: {self.cues_in} -> {self.cues_out} cues "
             f"in {self.runs} runs, {self.over_duration} over duration, "
             f"{self.over_lines} over line count, "
+            f"{self.over_line_width} over line width, "
             f"{self.over_reading_speed} over reading speed, "
             f"{self.stretched} stretched, "
             f"longest {self.longest_duration:.2f}s"
