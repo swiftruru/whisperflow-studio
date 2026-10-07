@@ -5,6 +5,31 @@ const subscribers = new Set();
 let initialized = false;
 let activeError = null;
 
+// The i18n half of an app error.  error-banner.js and error-dialog.js
+// both resolve `titleKey` / `messageKey` in preference to the legacy
+// `title` / `message` strings, so dropping these fields here silently
+// disabled every localized error message: `createAppError` leaves
+// `title: ''` on the run paths, so the hard-coded fallbacks below won.
+// That is why INPUT_FILE_VANISHED and PREFLIGHT_BLOCKED never showed
+// their copy. Keep this list in sync with createAppError in
+// src/main/error-catalog.js.
+const I18N_FIELDS = [
+  'titleKey',
+  'titleParams',
+  'messageKey',
+  'messageParams',
+  'detailsKey',
+  'detailsParams',
+];
+
+function pickI18nFields(errorLike) {
+  const picked = {};
+  for (const field of I18N_FIELDS) {
+    picked[field] = errorLike?.[field] ?? null;
+  }
+  return picked;
+}
+
 function normalizeError(errorLike) {
   if (!errorLike) return null;
 
@@ -19,6 +44,7 @@ function normalizeError(errorLike) {
       actionPayload: null,
       source: 'runtime',
       meta: null,
+      ...pickI18nFields(null),
     };
   }
 
@@ -32,6 +58,7 @@ function normalizeError(errorLike) {
     actionPayload: errorLike.actionPayload || null,
     source: errorLike.source || 'runtime',
     meta: errorLike.meta || null,
+    ...pickI18nFields(errorLike),
   };
 }
 
