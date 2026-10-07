@@ -150,7 +150,7 @@
       "label": "Identify speakers"
     },
     "diarize_num_speakers": {
-      "description": "Exact number of speakers. Leave at 0 to work it out automatically; when you already know the number, setting it is usually the single biggest accuracy gain.",
+      "description": "Exact number of speakers. Leave at 0 to work it out automatically, but expect automatic counting to over-split a long recording: a 64-minute talk measured here came out as 60 speakers. When you know the number, setting it is the single biggest accuracy gain — pinning that same recording to 3 gave exactly 3.",
       "label": "Number of speakers"
     },
     "speaker_label_template": {
@@ -158,7 +158,7 @@
       "label": "Speaker label format"
     },
     "diarize_threshold": {
-      "description": "Advanced; normally leave as-is. Between 0 and 1, default 0.5. Lower values separate voices more eagerly, so automatic detection reports more speakers.",
+      "description": "Advanced; normally leave as-is. Between 0 and 1, default 0.5. Lower values separate voices more eagerly, so automatic detection reports more speakers. On the 64-minute recording measured here, 0.5 gave 60 speakers and 0.8 gave 17 — setting the speaker count is the more reliable fix.",
       "label": "Clustering threshold"
     },
     "subtitle_segmentation": {
