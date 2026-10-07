@@ -193,19 +193,84 @@ upstream repository.
 
 ## 11. 3D-Speaker CAM++ speaker-embedding model
 
-**Upstream**: https://github.com/modelscope/3D-Speaker
-**License**: **TO BE CONFIRMED** — see note below
+**Upstream (weights)**: https://www.modelscope.cn/models/iic/speech_campplus_sv_zh_en_16k-common_advanced (revision `v1.0.0`)
+**Upstream (source project)**: https://github.com/modelscope/3D-Speaker
+**Redistributor of the ONNX build**: https://github.com/k2-fsa/sherpa-onnx
+**License**: Apache License 2.0, as declared in the upstream model card's
+metadata — see the note below, which records exactly what that declaration is
+and is not
+**Publisher of the weights**: ModelScope organisation `iic`, whose own platform
+metadata gives the full name 通义实验室, glossed there as "Institute for
+Intelligent Computing, aka Tongyi Lab"
 
-Speaker-embedding model (`3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced`),
-used in its ONNX form as redistributed by the sherpa-onnx project. WhisperFlow
-Studio downloads it into the App-managed models directory on first use and does
-not redistribute it in the App bundle.
+Speaker-embedding model, used in the ONNX form that the sherpa-onnx project
+publishes as `3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx`
+(28,281,164 bytes, sha256 `aa3cfc16963a10586a9393f5035d6d6b57e98d358b347f80c2a30bf4f00ceba2`;
+the digest matters because a sibling model in the same release differs by 26
+bytes in size). WhisperFlow Studio downloads this file into the App-managed
+models directory on first use and distributes no copy of it in the App bundle.
 
-**Note**: the 3D-Speaker *source code* is licensed under the Apache License 2.0,
-but the upstream repository does not state a licence for the released model
-weights themselves. This entry is deliberately left as an open question rather
-than assuming the code licence extends to the weights; it must be confirmed
-with the upstream project before any claim is made here.
+**Note** — what was checked, on 2026-10-07, and what it establishes:
+
+1. **The weights are not published in the source-code repository**, so the
+   previous version of this entry was looking in the wrong place. The ONNX file
+   embeds its own provenance (`framework` = `3d-speaker`, `url` =
+   `https://www.modelscope.cn/models/iic/speech_campplus_sv_zh_en_16k-common_advanced/summary`),
+   and 3D-Speaker's `speakerlab/bin/infer_sv.py` pins that model at revision
+   `v1.0.0`, checkpoint `campplus_cn_en_common.pt`. The licence question
+   therefore belongs to the ModelScope repository named above, not to
+   github.com/modelscope/3D-Speaker, whose Apache-2.0 licence covers its code.
+
+2. **That ModelScope repository does declare a licence**, so the previous
+   claim that upstream states none is withdrawn. Its model card carries
+   `license: Apache License 2.0` in the YAML front matter, identically at
+   `master` and at the pinned tag `v1.0.0`, and ModelScope's metadata API
+   returns the same value with an empty `LicenseLink` and `LicenseName`. It is
+   the only licence statement anywhere in that repository: there is no
+   `LICENSE`, `MODEL_LICENSE` or `NOTICE` file and no copyright line, so there
+   is no upstream NOTICE text to propagate.
+
+3. **The declaration began as a platform default.** The repository's first
+   README, committed 2024-02-02, is ModelScope's scaffold template — it says so
+   itself (「该模型当前使用的是默认介绍模版，处于『预发布』阶段」) — and already
+   carried `license: Apache License 2.0`. A hand rewrite on 2024-02-22
+   restructured that same front-matter block and kept the line; tag `v1.0.0`
+   points at that rewrite. So the value is publisher-retained rather than
+   merely machine-generated, but no primary source shows it being chosen.
+
+4. **The redistributor states no licence and defers.** The sherpa-onnx release
+   that serves the file says, in full: "This release contains speaker
+   recognition models for sherpa-onnx. Each model has its own license. Please
+   see the corresponding repository for the specific license of a given model."
+   No licence file accompanies the asset, and the ONNX file embeds no licence
+   string. sherpa-onnx does state licences when upstream supplies one — it
+   notes a Revai model's non-commercial terms, and the pyannote model in
+   section 10 ships its own `LICENSE` inside the tarball — so the silence here
+   is not an oversight.
+
+5. **The same question is open upstream for a sibling model.** In
+   modelscope/FunASR issue #3458 (open since 2026-08-03), a project
+   collaborator audited four fixed `iic/` revisions — one of them
+   `iic/speech_campplus_sv_zh-cn_16k-common` at `v2.0.2`, the Chinese-only
+   CAM++ — and reported that for those revisions the verifiable repository-level
+   declaration is Apache License 2.0 with no `LICENSE`, `MODEL_LICENSE` or
+   `NOTICE` file present. The same reply states that a code repository's licence
+   does not automatically cover model weights, that a fixed revision's model
+   card is 「核验权重许可的起点」 — the starting point for verifying a weight
+   licence, not the answer — and that pending a formal reply from the publisher
+   one should 「不把模型卡上的简短标签扩张解释为发布方尚未明确授予的权利」: not
+   expand the card's short label into rights the publisher has not explicitly
+   granted. Whether the training data carries additional attribution or use
+   restrictions is expressly left unresolved there.
+
+This entry therefore records the Apache License 2.0 value as upstream's own
+declaration rather than as a finding of ours, and stands as attribution
+whichever terms govern the weights. Because the App downloads the file at
+runtime and ships no copy, no redistribution terms are engaged by the App
+bundle; this entry makes no finding on what someone redistributing the weights
+themselves would owe. Turning point 2 from a declared metadata field into a
+quotable grant would need the publisher to say so directly, which is what the
+upstream thread in point 5 is asking for.
 
 ---
 
