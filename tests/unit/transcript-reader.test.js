@@ -73,13 +73,15 @@ describe('readTranscriptForMedia', () => {
 
     const result = readTranscriptForMedia(mediaPath, '');
     expect(result.source).toBe(path.join(workDir, 'clip.json'));
-    expect(result.segments).toEqual([{ start: 0, end: 1, text: 'from json' }]);
+    expect(result.segments).toEqual([
+      { start: 0, end: 1, text: 'from json', speaker: null, speakerLabel: null },
+    ]);
   });
 
   it('accepts a bare top-level array in the JSON', () => {
     writeSidecar('json', JSON.stringify([{ start: 1, end: 2, text: 'bare' }]));
     expect(readTranscriptForMedia(mediaPath, '').segments).toEqual([
-      { start: 1, end: 2, text: 'bare' },
+      { start: 1, end: 2, text: 'bare', speaker: null, speakerLabel: null },
     ]);
   });
 
@@ -136,5 +138,49 @@ describe('hasTranscriptForMedia', () => {
     expect(hasTranscriptForMedia(mediaPath, '')).toBe(false);
     writeSidecar('vtt', 'WEBVTT\n');
     expect(hasTranscriptForMedia(mediaPath, '')).toBe(true);
+  });
+});
+
+describe('speaker labels', () => {
+  it('carries speaker and speakerLabel out of the JSON', () => {
+    writeSidecar('json', JSON.stringify({
+      segments: [
+        { start: 0, end: 1, text: 'hello', speaker: 0, speaker_label: 'Speaker 1' },
+        { start: 1, end: 2, text: 'hi', speaker: 1, speaker_label: '講者 2' },
+      ],
+    }));
+    expect(readTranscriptForMedia(mediaPath, '').segments).toEqual([
+      { start: 0, end: 1, text: 'hello', speaker: 0, speakerLabel: 'Speaker 1' },
+      { start: 1, end: 2, text: 'hi', speaker: 1, speakerLabel: '講者 2' },
+    ]);
+  });
+
+  it('normalises missing or blank speaker fields to null', () => {
+    writeSidecar('json', JSON.stringify({
+      segments: [
+        { start: 0, end: 1, text: 'a' },
+        { start: 1, end: 2, text: 'b', speaker: 'nonsense', speaker_label: '   ' },
+      ],
+    }));
+    const segments = readTranscriptForMedia(mediaPath, '').segments;
+    expect(segments[0]).toMatchObject({ speaker: null, speakerLabel: null });
+    expect(segments[1]).toMatchObject({ speaker: null, speakerLabel: null });
+  });
+
+  it('keeps speaker 0 rather than treating it as absent', () => {
+    // The first speaker is index 0, which is falsy — a truthiness check
+    // here would silently drop every "Speaker 1" label.
+    writeSidecar('json', JSON.stringify([{ start: 0, end: 1, text: 'a', speaker: 0, speaker_label: 'Speaker 1' }]));
+    expect(readTranscriptForMedia(mediaPath, '').segments[0].speaker).toBe(0);
+  });
+
+  it('does not parse speaker labels back out of an SRT fallback', () => {
+    // Whisper emits [Music] / [音樂] of its own, so recovering a speaker
+    // from the text would misread those as speakers.  The prefix stays in
+    // the text and no speakerLabel is invented.
+    writeSidecar('srt', '1\n00:00:00,000 --> 00:00:01,000\n[Speaker 1] hi\n');
+    const segments = readTranscriptForMedia(mediaPath, '').segments;
+    expect(segments[0].text).toBe('[Speaker 1] hi');
+    expect(segments[0].speakerLabel).toBeUndefined();
   });
 });

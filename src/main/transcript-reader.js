@@ -7,6 +7,11 @@
  * carries precise segment objects from whisperflow directly.  Falls
  * back to parsing `<basename>.srt` so we still show something when
  * write_json is disabled in the user's config.
+ *
+ * The SRT/VTT fallback deliberately does NOT try to recover speaker
+ * labels from the cue text.  Whisper emits bracketed content of its own
+ * ([Music], [音樂]), so `[...]` at the start of a line is ambiguous by
+ * construction; the prefix simply displays as part of the text.
  */
 
 const fs = require('fs');
@@ -51,6 +56,15 @@ function readFromJson(filePath) {
       start: Number(s.start) || 0,
       end: Number(s.end) || 0,
       text: (s.text || '').trim(),
+      // Speaker fields ride alongside the text rather than inside it: the
+      // JSON keeps a clean `text`, the preview renders the label as a
+      // separate chip, and the editor can regenerate SRT/VTT/TXT with the
+      // same `[Speaker 1] ` prefix the Python writers produce.  Null when
+      // the file predates diarization or it was switched off.
+      speaker: Number.isInteger(s.speaker) ? s.speaker : null,
+      speakerLabel: typeof s.speaker_label === 'string' && s.speaker_label.trim()
+        ? s.speaker_label
+        : null,
     }))
     .filter((s) => s.text);
 }

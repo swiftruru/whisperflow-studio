@@ -1,8 +1,12 @@
 import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 
 import subtitleWriter from '../../src/main/subtitle-writer.js';
 
 const {
+  SPEAKER_PREFIX_FORMAT,
+  formatSpeakerPrefix,
   formatSrtTime,
   formatVttTime,
   generateSrt,
@@ -120,5 +124,112 @@ describe('patchJsonWithEdits', () => {
 
   it('ends the file with a newline', () => {
     expect(patchJsonWithEdits('{"segments":[]}', [])).toMatch(/\n$/);
+  });
+});
+
+describe('speaker prefixes', () => {
+  const labelled = [
+    { start: 0, end: 1.5, text: 'Hello world', speaker: 0, speakerLabel: 'Speaker 1' },
+    { start: 2, end: 4.25, text: 'Second cue', speaker: 1, speakerLabel: 'Speaker 2' },
+  ];
+
+  it('uses the same format literal as the Python writers', () => {
+    // Python writes the subtitle files; this module regenerates them from
+    // the user's edits.  A divergence here silently rewrites every cue on
+    // the first save, which no runtime check would catch.
+    const pythonSource = fs.readFileSync(
+      path.resolve(import.meta.dirname, '../../python/whisperflow/subtitles/writers.py'),
+      'utf-8',
+    );
+    const pythonFormat = pythonSource.match(/^SPEAKER_PREFIX_FORMAT = "(.*)"$/m)?.[1];
+    expect(pythonFormat).toBe('[{label}] ');
+    expect(SPEAKER_PREFIX_FORMAT).toBe(pythonFormat);
+  });
+
+  it('formats a label into a prefix', () => {
+    expect(formatSpeakerPrefix('Speaker 1')).toBe('[Speaker 1] ');
+    expect(formatSpeakerPrefix('講者 2')).toBe('[講者 2] ');
+  });
+
+  it.each([undefined, null, '', '   ', 0, 7, {}])('treats %o as no label', (label) => {
+    expect(formatSpeakerPrefix(label)).toBe('');
+  });
+
+  it('prefixes SRT cues', () => {
+    expect(generateSrt(labelled)).toBe(
+      '1\n00:00:00,000 --> 00:00:01,500\n[Speaker 1] Hello world\n\n'
+      + '2\n00:00:02,000 --> 00:00:04,250\n[Speaker 2] Second cue\n',
+    );
+  });
+
+  it('prefixes VTT cues without a voice tag', () => {
+    const vtt = generateVtt(labelled);
+    expect(vtt).toBe(
+      'WEBVTT\n\n'
+      + '00:00:00.000 --> 00:00:01.500\n[Speaker 1] Hello world\n\n'
+      + '00:00:02.000 --> 00:00:04.250\n[Speaker 2] Second cue\n',
+    );
+    expect(vtt).not.toContain('<v');
+  });
+
+  it('prefixes TXT lines', () => {
+    expect(generateTxt(labelled)).toBe('[Speaker 1] Hello world\n[Speaker 2] Second cue\n');
+  });
+
+  it('is byte-identical to the unlabelled output when there is no label', () => {
+    // The regression guard for "diarization off changes nothing".  These
+    // are the exact strings the baseline tests above assert.
+    const plain = [
+      { start: 0, end: 1.5, text: 'Hello world' },
+      { start: 2, end: 4.25, text: 'Second cue' },
+    ];
+    expect(generateSrt(plain)).toBe(
+      '1\n00:00:00,000 --> 00:00:01,500\nHello world\n\n'
+      + '2\n00:00:02,000 --> 00:00:04,250\nSecond cue\n',
+    );
+    expect(generateVtt(plain)).toBe('WEBVTT\n\n00:00:00.000 --> 00:00:01.500\nHello world\n\n00:00:02.000 --> 00:00:04.250\nSecond cue\n');
+    expect(generateTxt(plain)).toBe('Hello world\nSecond cue\n');
+
+    // Explicit nulls, which is what transcript-reader.js produces for a
+    // transcript written before diarization existed.
+    const nulls = plain.map((seg) => ({ ...seg, speaker: null, speakerLabel: null }));
+    expect(generateSrt(nulls)).toBe(generateSrt(plain));
+    expect(generateVtt(nulls)).toBe(generateVtt(plain));
+    expect(generateTxt(nulls)).toBe(generateTxt(plain));
+  });
+
+  it('does not turn a blank segment into a bare label', () => {
+    const srt = generateSrt([{ start: 0, end: 1, text: '   ', speakerLabel: 'Speaker 1' }]);
+    expect(srt).toBe('');
+  });
+
+  it('leaves speaker fields in the JSON untouched when patching text', () => {
+    // patchJsonWithEdits only assigns `text`, and the editor's text is
+    // clean, so the on-disk JSON keeps both the speaker fields and a
+    // markup-free text.  This is the whole reason the prefix is applied at
+    // write time rather than stored.
+    const original = JSON.stringify({
+      segments: [{
+        start: 0,
+        end: 1,
+        text: 'old',
+        speaker: 2,
+        speaker_label: 'Speaker 3',
+        words: [{ start: 0, end: 1, word: 'old', speaker: 2 }],
+      }],
+    });
+    const patched = JSON.parse(patchJsonWithEdits(original, [{
+      text: 'new',
+      speaker: 2,
+      speakerLabel: 'Speaker 3',
+    }]));
+    expect(patched.segments[0]).toEqual({
+      start: 0,
+      end: 1,
+      text: 'new',
+      speaker: 2,
+      speaker_label: 'Speaker 3',
+      words: [{ start: 0, end: 1, word: 'old', speaker: 2 }],
+    });
   });
 });

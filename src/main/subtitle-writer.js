@@ -18,6 +18,27 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
+/**
+ * Rendered in front of the first line of a cue whose segment carries a
+ * speaker label.
+ *
+ * KEEP IN SYNC with SPEAKER_PREFIX_FORMAT in
+ * python/whisperflow/subtitles/writers.py.  Python writes the files
+ * originally and this module regenerates them from the user's edits, so a
+ * mismatch would silently rewrite every cue on the first save.  Pinned on
+ * both sides: tests/unit/subtitle-writer.test.js here,
+ * test_writers.py::test_speaker_prefix_format_constant_is_stable there.
+ */
+const SPEAKER_PREFIX_FORMAT = '[{label}] ';
+
+/** `"Speaker 1"` → `"[Speaker 1] "`; blank or missing → `''`. */
+function formatSpeakerPrefix(label) {
+  if (typeof label !== 'string') return '';
+  const trimmed = label.trim();
+  if (!trimmed) return '';
+  return SPEAKER_PREFIX_FORMAT.replace('{label}', trimmed);
+}
+
 function pad2(n) { return String(n).padStart(2, '0'); }
 function pad3(n) { return String(n).padStart(3, '0'); }
 
@@ -37,10 +58,18 @@ function formatVttTime(seconds) {
   return formatSrtTime(seconds).replace(',', '.');
 }
 
+// Prefix only a cue that has text, so a blank segment stays blank
+// instead of becoming a bare label — matching Python's writers.
+function cueText(seg) {
+  const text = String(seg.text ?? '').trim();
+  if (!text) return '';
+  return `${formatSpeakerPrefix(seg.speakerLabel)}${text}`;
+}
+
 function generateSrt(segments) {
   const out = [];
   segments.forEach((seg, idx) => {
-    const text = String(seg.text ?? '').trim();
+    const text = cueText(seg);
     if (!text) return;
     out.push(String(idx + 1));
     out.push(`${formatSrtTime(seg.start)} --> ${formatSrtTime(seg.end)}`);
@@ -53,8 +82,10 @@ function generateSrt(segments) {
 function generateVtt(segments) {
   const out = ['WEBVTT', ''];
   segments.forEach((seg) => {
-    const text = String(seg.text ?? '').trim();
+    const text = cueText(seg);
     if (!text) return;
+    // A plain text prefix, never a <v> tag: the app previews VTT through
+    // its SRT parser, which would show the tag verbatim.
     out.push(`${formatVttTime(seg.start)} --> ${formatVttTime(seg.end)}`);
     out.push(text);
     out.push('');
@@ -64,7 +95,7 @@ function generateVtt(segments) {
 
 function generateTxt(segments) {
   // Match Python's write_txt: one stripped segment per line, trailing LF.
-  return segments.map((s) => String(s.text ?? '').trim()).join('\n') + '\n';
+  return segments.map((seg) => cueText(seg)).join('\n') + '\n';
 }
 
 /**
@@ -204,6 +235,8 @@ function writeEditedSubtitles({ mediaPath, outputDir, segments, formats }) {
 }
 
 module.exports = {
+  SPEAKER_PREFIX_FORMAT,
+  formatSpeakerPrefix,
   formatSrtTime,
   formatVttTime,
   generateSrt,
