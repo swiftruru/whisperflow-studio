@@ -25,6 +25,10 @@ let state = {
   mediaPath: null,
   outputDir: null,
   sourceFormat: null,
+  // Lines a cue may hold, from subtitle_max_lines.  Re-read on open
+  // because a cue's line breaks are now part of its text and the user
+  // has to be able to move one.
+  maxLines: 2,
   original: [],
   draft: [],
   dirty: false,
@@ -266,6 +270,29 @@ function updateButtons() {
 // Back-compat alias — a few call sites still read this name.
 const updateSaveButton = updateButtons;
 
+/**
+ * Live-typing guard for a cue's text.
+ *
+ * Mirrors `normalizeCueText` in src/main/subtitle-writer.js, which is the
+ * authoritative copy: that one runs on every save path, so no file can
+ * carry a blank line even if this is bypassed.  This one exists so the
+ * editor shows what will actually be written as the user types.
+ *
+ * Deliberately does NOT trim trailing whitespace the way the save-path
+ * copy does — deleting a space the moment it is typed is maddening, and
+ * the save normalises it anyway.
+ */
+function normalizeCueText(text, maxLines) {
+  const limit = Math.max(1, Number(maxLines) || 2);
+  const lines = String(text ?? '').replace(/\r\n?/g, '\n').split('\n');
+  // A blank line terminates an SRT or WebVTT cue block, so everything
+  // after it is silently dropped when the file is read back.
+  const kept = lines.filter((line, index) => line.trim() !== '' || index === 0);
+  if (kept.length <= limit) return kept.join('\n');
+  // Fold the surplus into the last allowed line rather than dropping it.
+  return [...kept.slice(0, limit - 1), kept.slice(limit - 1).join(' ')].join('\n');
+}
+
 function autosizeTextarea(el) {
   el.style.height = 'auto';
   el.style.height = `${el.scrollHeight}px`;
@@ -311,22 +338,47 @@ function renderRows() {
     textArea.rows = Math.max(1, String(seg.text || '').split('\n').length);
     textArea.value = seg.text || '';
     textArea.spellcheck = false;
-    // Subtitle segments are single-line in this editor.  Block the
-    // Enter key from inserting a literal newline — but defer to the
-    // IME (注音/Pinyin/Kana) when it's using Enter to commit a
-    // candidate, otherwise typing Chinese becomes impossible.
+    // A cue may hold up to state.maxLines lines, and subtitle
+    // segmentation writes its line breaks into the cue text, so Enter has
+    // to work — the user needs to be able to move a break.  It is gated
+    // rather than blocked.
     textArea.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return;
+      // Defer to the IME (注音/Pinyin/Kana) when Enter is committing a
+      // candidate, otherwise typing Chinese becomes impossible.
       if (e.isComposing || e.keyCode === 229) return;
-      e.preventDefault();
+
+      const before = textArea.value.slice(0, textArea.selectionStart);
+      const after = textArea.value.slice(textArea.selectionEnd);
+      // Never allow a blank line: it terminates the SRT/VTT cue block, so
+      // "a\n\nb" truncates the file and every parser drops the tail.
+      if (!before.trim() || !after.trim()
+          || before.endsWith('\n') || after.startsWith('\n')) {
+        e.preventDefault();
+        return;
+      }
+      if (textArea.value.split('\n').length >= state.maxLines) {
+        e.preventDefault();
+        showToast(
+          t('transcript:editor.toast.lineLimit', { count: state.maxLines }),
+          'warning',
+          2000,
+        );
+      }
     });
     textArea.addEventListener('input', () => {
-      // Safety net for pasted multi-line content — collapse any
-      // newlines into a single space so downstream writers never
-      // produce multi-line segments.
-      if (textArea.value.includes('\n')) {
-        const cleaned = textArea.value.replace(/\s*\n+\s*/g, ' ');
+      // Safety net for pasted content: fold blank lines and anything past
+      // the line cap.  Unlike the old handler this preserves the caret --
+      // reassigning .value used to send it to the end on every paste.
+      const raw = textArea.value;
+      const cleaned = normalizeCueText(raw, state.maxLines);
+      if (cleaned !== raw) {
+        const caret = Math.max(0, Math.min(
+          cleaned.length,
+          textArea.selectionStart - (raw.length - cleaned.length),
+        ));
         textArea.value = cleaned;
+        textArea.setSelectionRange(caret, caret);
       }
       state.draft[idx].text = textArea.value;
       autosizeTextarea(textArea);
@@ -396,6 +448,17 @@ async function readEnabledFormats() {
  * enabled at all, so a non-format flag in that object would make an
  * all-formats-off save look enabled.
  */
+/** Lines a cue may hold, from subtitle_max_lines (default 2). */
+async function readMaxLines() {
+  try {
+    const cfg = await window.electronAPI.readConfig();
+    const raw = Number(cfg?.SETTING?.subtitle_max_lines);
+    return Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 2;
+  } catch (_) {
+    return 2;
+  }
+}
+
 async function readParagraphMode() {
   try {
     const cfg = await window.electronAPI.readConfig();
@@ -791,13 +854,16 @@ async function openSubtitleEditor({ mediaPath, outputDir }) {
   }
 
   const sourceFormat = (result.source || '').split('.').pop()?.toLowerCase() || '';
-  // Flatten any existing multi-line segments into single lines —
-  // this editor enforces single-line segments, and keeping stray
-  // newlines would let them leak back into the file on save.
+  // Line breaks are preserved: a re-segmented cue is up to maxLines lines
+  // and the break is part of its text.  This used to flatten them, which
+  // also meant `original` was flattened, so Revert could not put one
+  // back.  normalizeCueText still folds a blank line or an over-long cue,
+  // because those are structurally illegal rather than merely unusual.
+  const maxLines = await readMaxLines();
   const segs = (result.segments || []).map((s) => ({
     start: Number(s.start) || 0,
     end:   Number(s.end) || 0,
-    text:  String(s.text || '').replace(/\s*\n+\s*/g, ' '),
+    text:  normalizeCueText(String(s.text || ''), maxLines),
     speaker: s.speaker ?? null,
     speakerLabel: s.speakerLabel ?? null,
   }));
@@ -806,6 +872,7 @@ async function openSubtitleEditor({ mediaPath, outputDir }) {
     mediaPath: mediaPath || null,
     outputDir: outputDir || null,
     sourceFormat,
+    maxLines,
     original: segs,
     draft:    segs.map((s) => ({ ...s })),
     dirty: false,

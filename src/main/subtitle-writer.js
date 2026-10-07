@@ -94,8 +94,12 @@ function formatVttTime(seconds) {
 // Prefix only a cue that has text, so a blank segment stays blank
 // instead of becoming a bare label — matching Python's writers.
 function cueText(seg) {
-  const text = String(seg.text ?? '').trim();
-  if (!text) return '';
+  // normalizeCueText here rather than only in the renderer: this is the
+  // last point before bytes hit disk, so no save path can write a blank
+  // line inside a cue whatever the UI did.  Uncapped on purpose -- the
+  // line count is the editor's business, the blank line is everyone's.
+  const text = normalizeCueText(String(seg.text ?? '').trim());
+  if (!text.trim()) return '';
   return `${formatSpeakerPrefix(seg.speakerLabel)}${text}`;
 }
 
@@ -124,6 +128,32 @@ function generateVtt(segments) {
     out.push('');
   });
   return out.join('\n');
+}
+
+/**
+ * Make a cue's text safe to write, whatever the editor handed over.
+ *
+ * Always collapses blank lines, which are a correctness problem rather
+ * than a style one: a blank line terminates an SRT or WebVTT cue block,
+ * so everything after it is silently dropped by any parser, this app's
+ * own transcript-reader.js included.
+ *
+ * `maxLines` additionally caps the line count, folding the surplus into
+ * the last allowed line rather than discarding it — losing the user's
+ * words would be far worse than one long line.  It is left uncapped by
+ * default, and supplied only by the editor, which knows the configured
+ * limit: capping at a guessed 2 here would quietly destroy a legitimate
+ * three-line cue for anyone who raised `subtitle_max_lines`.
+ */
+function normalizeCueText(text, maxLines = Infinity) {
+  const limit = Math.max(1, Number(maxLines) || Infinity);
+  const lines = String(text ?? '')
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.replace(/[ \t]+$/, ''));
+  const kept = lines.filter((line, index) => line.trim() !== '' || index === 0);
+  if (kept.length <= limit) return kept.join('\n');
+  return [...kept.slice(0, limit - 1), kept.slice(limit - 1).join(' ')].join('\n');
 }
 
 function isCjk(char) {
@@ -329,6 +359,7 @@ function writeEditedSubtitles({ mediaPath, outputDir, segments, formats, paragra
 module.exports = {
   SPEAKER_PREFIX_FORMAT,
   TXT_PARAGRAPH_GAP,
+  normalizeCueText,
   formatSpeakerPrefix,
   formatSrtTime,
   formatVttTime,

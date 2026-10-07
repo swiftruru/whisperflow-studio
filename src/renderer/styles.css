@@ -5002,6 +5002,12 @@ kbd {
 .transcript-segment-text {
   color: var(--text);
   word-break: break-word;
+  /* A re-segmented cue may be two lines, and its newline already reaches
+     the DOM as a text node -- without this it collapses to a space and
+     the cue renders as one run-on line.  pre-line rather than pre-wrap:
+     it honours the break but still collapses runs of spaces, which keeps
+     the existing look alongside word-break. */
+  white-space: pre-line;
 }
 
 .transcript-segment-text mark {

@@ -33,7 +33,7 @@
       "close": "Close"
     },
     "hints": {
-      "textOnly": "Only text is editable; timestamps stay locked to Whisper's output.",
+      "textOnly": "Only text is editable; timestamps stay locked to Whisper's output. Line breaks inside a cue are part of the subtitle and are kept.",
       "unsaved": "Unsaved changes"
     },
     "history": {
@@ -67,6 +67,7 @@
       "saveFailed": "Save failed: {{error}}",
       "openFailed": "Failed to open editor: {{error}}",
       "noFormatsEnabled": "All subtitle output formats are off in Settings. Enable at least one under \"Settings → Subtitle output\" before saving.",
+      "lineLimit": "A cue can hold at most {{count}} lines.",
       "reverted": "Reverted to the version on disk"
     },
     "speakerChipLabel": "Speaker: {{label}}"

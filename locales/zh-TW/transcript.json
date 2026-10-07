@@ -33,7 +33,7 @@
       "close": "關閉"
     },
     "hints": {
-      "textOnly": "僅能編輯文字；時間軸由 Whisper 決定，為避免誤改已鎖定。",
+      "textOnly": "僅文字可編輯；時間碼鎖定為 Whisper 的輸出。一則字幕內的換行屬於字幕本身，會被保留。",
       "unsaved": "有未儲存的變更"
     },
     "history": {
@@ -67,6 +67,7 @@
       "saveFailed": "儲存失敗：{{error}}",
       "openFailed": "開啟編輯器失敗：{{error}}",
       "noFormatsEnabled": "設定裡所有字幕輸出格式都關閉了，請先至「設定 → 字幕輸出」勾選至少一種格式再儲存。",
+      "lineLimit": "一則字幕最多 {{count}} 行。",
       "reverted": "已還原為磁碟上的內容"
     },
     "speakerChipLabel": "講者：{{label}}"

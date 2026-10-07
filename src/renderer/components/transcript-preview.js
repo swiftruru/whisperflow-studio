@@ -179,7 +179,10 @@ function renderSegments(query = '') {
 
 async function copyAllSegments() {
   if (currentSegments.length === 0) return;
-  const text = currentSegments.map((s) => s.text).join('\n');
+  // A blank line between cues: a re-segmented cue can itself be two
+  // lines, so joining with a single newline would make cue boundaries
+  // indistinguishable from breaks inside one.
+  const text = currentSegments.map((s) => s.text).join('\n\n');
   try {
     await navigator.clipboard.writeText(text);
     showToast(t('transcript:toast.copiedAll'), 'success', 2000);

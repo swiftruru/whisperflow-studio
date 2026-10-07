@@ -7,6 +7,7 @@ import subtitleWriter from '../../src/main/subtitle-writer.js';
 const {
   SPEAKER_PREFIX_FORMAT,
   TXT_PARAGRAPH_GAP,
+  normalizeCueText,
   formatSpeakerPrefix,
   formatSrtTime,
   formatVttTime,
@@ -281,5 +282,117 @@ describe('TXT paragraphs', () => {
     ];
     expect(generateTxt(segments)).toBe('[Speaker 1] line one\nline two\n');
     expect(generateTxt(segments)).toBe(generateTxt(segments, { paragraphs: false }));
+  });
+});
+
+describe('normalizeCueText', () => {
+  it('collapses a blank line, which would truncate the file', () => {
+    // A blank line terminates an SRT or WebVTT cue block, so every
+    // parser silently drops the rest of the file -- including this app's
+    // own transcript-reader.js.
+    expect(normalizeCueText('a\n\nb')).toBe('a\nb');
+    expect(normalizeCueText('a\n\n\n\nb')).toBe('a\nb');
+    expect(normalizeCueText('a\n   \nb')).toBe('a\nb');
+  });
+
+  it('leaves a legal multi-line cue alone, however many lines', () => {
+    // Uncapped by default on purpose: capping at a guessed 2 here would
+    // destroy a legitimate three-line cue for anyone who raised
+    // subtitle_max_lines.
+    expect(normalizeCueText('line one\nline two')).toBe('line one\nline two');
+    expect(normalizeCueText('one\ntwo\nthree')).toBe('one\ntwo\nthree');
+  });
+
+  it('folds surplus lines into the last allowed one when capped', () => {
+    // Folded, never dropped: losing the user's words is worse than one
+    // long line.
+    expect(normalizeCueText('one\ntwo\nthree\nfour', 2)).toBe('one\ntwo three four');
+    expect(normalizeCueText('one\ntwo\nthree', 3)).toBe('one\ntwo\nthree');
+    expect(normalizeCueText('one\ntwo', 1)).toBe('one two');
+  });
+
+  it('normalises CRLF and trims trailing whitespace', () => {
+    expect(normalizeCueText('a\r\nb')).toBe('a\nb');
+    expect(normalizeCueText('a  \nb\t')).toBe('a\nb');
+  });
+
+  it('is idempotent', () => {
+    for (const text of ['a\n\nb\nc\nd', 'line one\nline two', '', '   ', 'a\r\n\r\nb']) {
+      const once = normalizeCueText(text, 2);
+      expect(normalizeCueText(once, 2)).toBe(once);
+    }
+  });
+
+  it('is applied on every save path', () => {
+    // cueText runs it, so no generator can emit a blank line inside a
+    // cue whatever the renderer did.
+    const segments = [
+      { start: 0, end: 1, text: 'a\n\nb' },
+      { start: 2, end: 3, text: 'next' },
+    ];
+    for (const out of [generateSrt(segments), generateVtt(segments)]) {
+      expect(out).toContain('a\nb');
+      expect(out).toContain('next');
+      // Two cue blocks, so the structure survived.
+      expect(out.split(' --> ')).toHaveLength(3);
+    }
+  });
+});
+
+describe('multi-line cues', () => {
+  it('round-trip through SRT as a two-line body', () => {
+    const srt = generateSrt([{ start: 0, end: 1.5, text: 'line one\nline two' }]);
+    expect(srt).toBe('1\n00:00:00,000 --> 00:00:01,500\nline one\nline two\n');
+  });
+
+  it('round-trip through VTT as a two-line body', () => {
+    const vtt = generateVtt([{ start: 0, end: 1.5, text: 'line one\nline two' }]);
+    expect(vtt).toBe('WEBVTT\n\n00:00:00.000 --> 00:00:01.500\nline one\nline two\n');
+  });
+
+  it('keep the speaker prefix on the first line only', () => {
+    const srt = generateSrt([
+      { start: 0, end: 1, text: 'line one\nline two', speakerLabel: 'Speaker 1' },
+    ]);
+    expect(srt).toContain('[Speaker 1] line one\nline two');
+  });
+
+  it('survive a JSON patch with their newline escaped', () => {
+    const original = JSON.stringify({ segments: [{ start: 0, end: 1, text: 'old' }] });
+    const patched = patchJsonWithEdits(original, [{ text: 'line one\nline two' }]);
+    expect(JSON.parse(patched).segments[0].text).toBe('line one\nline two');
+    expect(patched).toContain('\\n');
+  });
+});
+
+describe('the editor no longer flattens cue text', () => {
+  // Source-scraping, because subtitle-editor.js is a renderer ES module
+  // that touches `document` at import time and vitest runs without jsdom.
+  // These three lines were what destroyed a cue's line break: the load
+  // normaliser (which also flattened `original`, so Revert could not put
+  // one back), the Enter block, and the input-handler collapse.
+  const editor = fs.readFileSync(
+    path.resolve(import.meta.dirname, '../../src/renderer/components/subtitle-editor.js'),
+    'utf-8',
+  );
+
+  it('does not collapse newlines into spaces anywhere', () => {
+    expect(editor).not.toMatch(/replace\(\/\\s\*\\n\+\\s\*\/g, ' '\)/);
+  });
+
+  it('still defers to the IME on Enter', () => {
+    // Removing this guard makes it impossible to type Chinese.
+    expect(editor).toContain('e.isComposing || e.keyCode === 229');
+  });
+
+  it('gates Enter on the configured line count rather than blocking it', () => {
+    expect(editor).toContain("textArea.value.split('\\n').length >= state.maxLines");
+    expect(editor).toContain('transcript:editor.toast.lineLimit');
+  });
+
+  it('preserves the caret when it rewrites the value', () => {
+    // The old handler reassigned .value unconditionally, which sent the
+    // caret to the end on every multi-line paste.
+    expect(editor).toContain('setSelectionRange(caret, caret)');
   });
 });
