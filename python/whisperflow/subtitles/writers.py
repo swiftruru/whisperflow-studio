@@ -25,6 +25,30 @@ Segment = Mapping[str, object]
 # collapse them rather than trusting their callers.
 _BLANK_LINES = re.compile(r"\n[ \t]*(?:\n[ \t]*)+")
 
+# Silence that starts a new paragraph in the TXT transcript.
+# KEEP IN SYNC with TXT_PARAGRAPH_GAP in src/main/subtitle-writer.js: the
+# in-app editor regenerates the TXT from edited segments, so a mismatch
+# would silently re-paragraph the file on the first save.
+TXT_PARAGRAPH_GAP = 2.0
+
+# Characters after or before which no space belongs when two cues are run
+# together into a paragraph.
+#
+# KEEP IN SYNC with CJK_RANGES in src/main/subtitle-writer.js.  An
+# explicit range set rather than each language's own "right" API
+# (unicodedata.east_asian_width here, a \p{Script=Han} regex there),
+# because those two disagree on fullwidth Latin and several other edges --
+# and the two implementations have to agree exactly, not approximately.
+_CJK_RANGES = (
+    (0x3000, 0x303F),  # CJK symbols and punctuation
+    (0x3040, 0x30FF),  # Hiragana and Katakana
+    (0x3400, 0x4DBF),  # CJK unified ideographs extension A
+    (0x4E00, 0x9FFF),  # CJK unified ideographs
+    (0xAC00, 0xD7AF),  # Hangul syllables
+    (0xF900, 0xFAFF),  # CJK compatibility ideographs
+    (0xFF00, 0xFF60),  # Fullwidth forms
+)
+
 # Rendered in front of the first line of a cue whose segment carries a
 # ``speaker_label``.
 #
@@ -73,14 +97,98 @@ def format_timestamp(
     return f"{hours_block}{minutes:02d}:{secs:02d}{fractional_separator}{millis:03d}"
 
 
-def write_txt(segments: Iterable[Segment], file: TextIO) -> None:
-    """Write plain-text transcript, one segment per line."""
+def _is_cjk(char: str) -> bool:
+    code = ord(char)
+    return any(low <= code <= high for low, high in _CJK_RANGES)
+
+
+def _needs_space(left: str, right: str) -> bool:
+    """Does a space belong between two cues run together in a paragraph?
+
+    Only omitted when BOTH sides of the join are CJK: Chinese and
+    Japanese do not separate words, so a space there would be as wrong as
+    dropping one in English.  A Latin/CJK boundary keeps its space, which
+    is what Chinese typography does with embedded Latin anyway.
+    """
+    if not left or not right:
+        return False
+    return not (_is_cjk(left[-1]) and _is_cjk(right[0]))
+
+
+def _paragraphs(segments: Iterable[Segment]) -> Iterator[str]:
+    """Run consecutive cues by one speaker together into paragraphs.
+
+    A paragraph break is a speaker change or more than
+    ``TXT_PARAGRAPH_GAP`` seconds of silence -- structural rules only, no
+    punctuation table and no language knowledge, so the Python and
+    JavaScript implementations cannot drift apart on the logic.
+
+    Each cue's own line break is flattened to a space: TXT is prose, not
+    subtitles.  A paragraph that begins because of a pause rather than a
+    speaker change carries no label, since only the first cue of a turn
+    has one -- the break itself is the signal.
+    """
+    buffer = ""
+    previous: Optional[Segment] = None
+
     for segment in segments:
-        text = str(segment.get("text", "")).strip()
-        # Gate the prefix on non-empty text so a blank segment still writes
-        # a blank line rather than a bare label.
-        prefix = format_speaker_prefix(segment.get("speaker_label")) if text else ""
-        print(f"{prefix}{text}", file=file, flush=True)
+        text = " ".join(str(segment.get("text", "")).split())
+        if not text:
+            continue
+
+        if previous is None:
+            starts_paragraph = True
+        else:
+            gap = float(segment.get("start", 0.0) or 0.0) - float(
+                previous.get("end", 0.0) or 0.0
+            )
+            starts_paragraph = (
+                segment.get("speaker") != previous.get("speaker")
+                or gap > TXT_PARAGRAPH_GAP
+            )
+
+        if starts_paragraph:
+            if buffer:
+                yield buffer
+            buffer = f"{format_speaker_prefix(segment.get('speaker_label'))}{text}"
+        else:
+            separator = " " if _needs_space(buffer, text) else ""
+            buffer = f"{buffer}{separator}{text}"
+
+        previous = segment
+
+    if buffer:
+        yield buffer
+
+
+def write_txt(
+    segments: Iterable[Segment],
+    file: TextIO,
+    *,
+    paragraphs: bool = False,
+) -> None:
+    """Write a plain-text transcript.
+
+    ``paragraphs=False`` (the default) keeps the historic behaviour
+    exactly: one segment per line.  With it on, consecutive cues by the
+    same speaker are run together and paragraphs are separated by a blank
+    line -- because subtitle segmentation turns a transcript into several
+    hundred six-word lines, which is unusable as the prose document TXT
+    exists to be.
+    """
+    if not paragraphs:
+        for segment in segments:
+            text = str(segment.get("text", "")).strip()
+            # Gate the prefix on non-empty text so a blank segment still
+            # writes a blank line rather than a bare label.
+            prefix = format_speaker_prefix(segment.get("speaker_label")) if text else ""
+            print(f"{prefix}{text}", file=file, flush=True)
+        return
+
+    for index, block in enumerate(_paragraphs(segments)):
+        if index:
+            print("", file=file)
+        print(block, file=file, flush=True)
 
 
 def write_vtt(

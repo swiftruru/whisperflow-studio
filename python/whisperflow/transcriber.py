@@ -609,7 +609,12 @@ class Transcriber:
             if target is not None:
                 txt_path = target
                 with target.open("w", encoding="utf-8") as f:
-                    write_txt(result["segments"], f)
+                    # Paragraphs only when segmentation ran: without it
+                    # one cue per line is already prose-shaped, and the
+                    # legacy branch stays byte-identical.
+                    write_txt(
+                        result["segments"], f, paragraphs=cfg.subtitle_segmentation
+                    )
         if cfg.write_json:
             target = resolve(output_dir / f"{base_name}.json")
             if target is not None:

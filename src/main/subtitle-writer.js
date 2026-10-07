@@ -31,6 +31,39 @@ const path = require('path');
  */
 const SPEAKER_PREFIX_FORMAT = '[{label}] ';
 
+/**
+ * Silence that starts a new paragraph in the TXT transcript.
+ *
+ * KEEP IN SYNC with TXT_PARAGRAPH_GAP in
+ * python/whisperflow/subtitles/writers.py.  Python writes the TXT first
+ * and this module regenerates it from the user's edits, so a mismatch
+ * would silently re-paragraph the whole file on the first save.  Pinned
+ * from both sides: subtitle-writer.test.js reads the Python constant out
+ * of its source, and both suites compare against the same hand-written
+ * contract in tests/fixtures/txt-paragraphs.json.
+ */
+const TXT_PARAGRAPH_GAP = 2.0;
+
+/**
+ * Characters between which no space belongs when two cues are run
+ * together into a paragraph.
+ *
+ * KEEP IN SYNC with _CJK_RANGES in python/whisperflow/subtitles/writers.py.
+ * An explicit range set rather than each language's own "right" API
+ * (`unicodedata.east_asian_width` there, `\p{Script=Han}` here), because
+ * those two disagree on fullwidth Latin and several other edges, and the
+ * two implementations have to agree exactly rather than approximately.
+ */
+const CJK_RANGES = [
+  [0x3000, 0x303f], // CJK symbols and punctuation
+  [0x3040, 0x30ff], // Hiragana and Katakana
+  [0x3400, 0x4dbf], // CJK unified ideographs extension A
+  [0x4e00, 0x9fff], // CJK unified ideographs
+  [0xac00, 0xd7af], // Hangul syllables
+  [0xf900, 0xfaff], // CJK compatibility ideographs
+  [0xff00, 0xff60], // Fullwidth forms
+];
+
 /** `"Speaker 1"` → `"[Speaker 1] "`; blank or missing → `''`. */
 function formatSpeakerPrefix(label) {
   if (typeof label !== 'string') return '';
@@ -93,9 +126,68 @@ function generateVtt(segments) {
   return out.join('\n');
 }
 
-function generateTxt(segments) {
-  // Match Python's write_txt: one stripped segment per line, trailing LF.
-  return segments.map((seg) => cueText(seg)).join('\n') + '\n';
+function isCjk(char) {
+  const code = char.codePointAt(0);
+  return CJK_RANGES.some(([low, high]) => code >= low && code <= high);
+}
+
+/**
+ * Only omitted when BOTH sides of the join are CJK: Chinese and Japanese
+ * do not separate words, so a space there would be as wrong as dropping
+ * one in English.  A Latin/CJK boundary keeps its space, which is what
+ * Chinese typography does with embedded Latin anyway.
+ */
+function needsSpace(left, right) {
+  if (!left || !right) return false;
+  return !(isCjk(left[left.length - 1]) && isCjk(right[0]));
+}
+
+/**
+ * Run consecutive cues by one speaker together into paragraphs.
+ *
+ * A paragraph break is a speaker change or more than TXT_PARAGRAPH_GAP
+ * seconds of silence — structural rules only, no punctuation table and no
+ * language knowledge, so this and Python's `_paragraphs` cannot drift
+ * apart on the logic.  Each cue's own line break is flattened to a space:
+ * TXT is prose, not subtitles.
+ */
+function buildParagraphs(segments) {
+  const blocks = [];
+  let buffer = '';
+  let previous = null;
+
+  for (const seg of segments) {
+    const text = String(seg.text ?? '').split(/\s+/).filter(Boolean).join(' ');
+    if (!text) continue;
+
+    let startsParagraph;
+    if (previous === null) {
+      startsParagraph = true;
+    } else {
+      const gap = (Number(seg.start) || 0) - (Number(previous.end) || 0);
+      startsParagraph = seg.speaker !== previous.speaker || gap > TXT_PARAGRAPH_GAP;
+    }
+
+    if (startsParagraph) {
+      if (buffer) blocks.push(buffer);
+      buffer = `${formatSpeakerPrefix(seg.speakerLabel)}${text}`;
+    } else {
+      buffer = `${buffer}${needsSpace(buffer, text) ? ' ' : ''}${text}`;
+    }
+    previous = seg;
+  }
+
+  if (buffer) blocks.push(buffer);
+  return blocks;
+}
+
+function generateTxt(segments, { paragraphs = false } = {}) {
+  if (!paragraphs) {
+    // Match Python's write_txt: one stripped segment per line, trailing LF.
+    return segments.map((seg) => cueText(seg)).join('\n') + '\n';
+  }
+  const blocks = buildParagraphs(segments);
+  return blocks.length === 0 ? '' : `${blocks.join('\n\n')}\n`;
 }
 
 /**
@@ -169,7 +261,7 @@ function atomicWrite(filePath, contents) {
  *
  * Returns a summary the renderer can show in a toast.
  */
-function writeEditedSubtitles({ mediaPath, outputDir, segments, formats }) {
+function writeEditedSubtitles({ mediaPath, outputDir, segments, formats, paragraphs = false }) {
   if (!mediaPath) {
     const err = new Error('mediaPath required');
     err.code = 'NO_MEDIA_PATH';
@@ -225,7 +317,7 @@ function writeEditedSubtitles({ mediaPath, outputDir, segments, formats }) {
 
   handleFormat(want.srt,  srtPath,  () => generateSrt(segments));
   handleFormat(want.vtt,  vttPath,  () => generateVtt(segments));
-  handleFormat(want.txt,  txtPath,  () => generateTxt(segments));
+  handleFormat(want.txt,  txtPath,  () => generateTxt(segments, { paragraphs }));
   handleFormat(want.json, jsonPath, (fp) => {
     const raw = fs.readFileSync(fp, 'utf-8');
     return patchJsonWithEdits(raw, segments);
@@ -236,6 +328,7 @@ function writeEditedSubtitles({ mediaPath, outputDir, segments, formats }) {
 
 module.exports = {
   SPEAKER_PREFIX_FORMAT,
+  TXT_PARAGRAPH_GAP,
   formatSpeakerPrefix,
   formatSrtTime,
   formatVttTime,

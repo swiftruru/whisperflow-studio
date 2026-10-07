@@ -388,6 +388,23 @@ async function readEnabledFormats() {
   }
 }
 
+/**
+ * Is the TXT on disk written as speaker paragraphs?
+ *
+ * Read separately from readEnabledFormats() on purpose: handleSave does
+ * `Object.values(formats).some(Boolean)` to decide whether anything is
+ * enabled at all, so a non-format flag in that object would make an
+ * all-formats-off save look enabled.
+ */
+async function readParagraphMode() {
+  try {
+    const cfg = await window.electronAPI.readConfig();
+    return truthy(cfg?.SETTING?.subtitle_segmentation);
+  } catch (_) {
+    return false;
+  }
+}
+
 async function handleSave() {
   if (state.saving || !state.dirty) return;
   state.saving = true;
@@ -414,6 +431,9 @@ async function handleSave() {
       outputDir: state.outputDir,
       segments,
       formats,
+      // Regenerating the TXT in the other shape would silently
+      // re-paragraph the whole file on the first save.
+      paragraphs: await readParagraphMode(),
     });
     if (!result || result.ok === false) {
       const msg = result?.message || t('transcript:empty.genericError');

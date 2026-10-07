@@ -6,6 +6,7 @@ import subtitleWriter from '../../src/main/subtitle-writer.js';
 
 const {
   SPEAKER_PREFIX_FORMAT,
+  TXT_PARAGRAPH_GAP,
   formatSpeakerPrefix,
   formatSrtTime,
   formatVttTime,
@@ -231,5 +232,54 @@ describe('speaker prefixes', () => {
       speaker_label: 'Speaker 3',
       words: [{ start: 0, end: 1, word: 'old', speaker: 2 }],
     });
+  });
+});
+
+describe('TXT paragraphs', () => {
+  // The same hand-written contract python/whisperflow/tests/test_writers.py
+  // reads.  Python writes the TXT and this module regenerates it from the
+  // user's edits, so the two have to agree byte for byte.
+  const contract = JSON.parse(
+    fs.readFileSync(
+      path.resolve(import.meta.dirname, '../fixtures/txt-paragraphs.json'),
+      'utf-8',
+    ),
+  );
+  const pythonSource = fs.readFileSync(
+    path.resolve(import.meta.dirname, '../../python/whisperflow/subtitles/writers.py'),
+    'utf-8',
+  );
+
+  it('uses the same paragraph gap as the contract and as Python', () => {
+    expect(TXT_PARAGRAPH_GAP).toBe(contract.paragraphGapSeconds);
+    expect(pythonSource).toContain(`TXT_PARAGRAPH_GAP = ${TXT_PARAGRAPH_GAP.toFixed(1)}`);
+  });
+
+  it('uses the same CJK ranges as Python', () => {
+    // Each language's own "right" API disagrees on fullwidth Latin and
+    // other edges, so both sides declare an explicit range set instead.
+    for (const [low, high] of [
+      [0x3000, 0x303f], [0x3040, 0x30ff], [0x3400, 0x4dbf],
+      [0x4e00, 0x9fff], [0xac00, 0xd7af], [0xf900, 0xfaff], [0xff00, 0xff60],
+    ]) {
+      const hex = (n) => `0x${n.toString(16).toUpperCase().padStart(4, '0')}`;
+      expect(pythonSource).toContain(`(${hex(low)}, ${hex(high)})`);
+    }
+  });
+
+  it.each(contract.cases.map((c) => [c.name, c]))('%s', (_name, testCase) => {
+    // The contract uses the Python JSON shape; transcript-reader.js does
+    // the same snake-to-camel mapping for real files.
+    const segments = testCase.segments.map((s) => ({ ...s, speakerLabel: s.speaker_label }));
+    expect(generateTxt(segments, { paragraphs: testCase.paragraphs })).toBe(testCase.expected);
+  });
+
+  it('defaults to one cue per line', () => {
+    const segments = [
+      { start: 0, end: 1, text: 'line one', speaker: 0, speakerLabel: 'Speaker 1' },
+      { start: 1, end: 2, text: 'line two', speaker: 0 },
+    ];
+    expect(generateTxt(segments)).toBe('[Speaker 1] line one\nline two\n');
+    expect(generateTxt(segments)).toBe(generateTxt(segments, { paragraphs: false }));
   });
 });

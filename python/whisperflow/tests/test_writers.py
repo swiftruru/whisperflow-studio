@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import io
+import json
+from pathlib import Path
 
 import pytest
 
 from whisperflow.subtitles.writers import (
     SPEAKER_PREFIX_FORMAT,
+    TXT_PARAGRAPH_GAP,
     _wrap_text,
     format_speaker_prefix,
     format_timestamp,
@@ -271,3 +274,46 @@ def test_a_two_line_cue_keeps_its_speaker_prefix_on_the_first_line():
     out = io.StringIO()
     write_vtt(segments, out)
     assert "[Speaker 1] line one\nline two" in out.getvalue()
+
+
+# --- TXT paragraphs, against the cross-language contract ----------------
+#
+# tests/fixtures/txt-paragraphs.json is hand-written and read by BOTH this
+# file and tests/unit/subtitle-writer.test.js, which compare their own
+# output against the same `expected` strings.  Python writes the TXT and
+# the in-app editor regenerates it, so the two have to agree byte for
+# byte or the first save silently re-paragraphs the file.
+
+
+def _contract() -> dict:
+    # parents[3] because CI runs pytest with working-directory: python, so
+    # a relative path would fail only on CI.
+    path = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "txt-paragraphs.json"
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_txt_paragraph_gap_matches_the_contract():
+    assert TXT_PARAGRAPH_GAP == _contract()["paragraphGapSeconds"]
+
+
+def test_txt_matches_the_shared_contract():
+    cases = _contract()["cases"]
+    assert len(cases) >= 10, "the contract should not have been quietly emptied"
+    for case in cases:
+        out = io.StringIO()
+        write_txt(case["segments"], out, paragraphs=case["paragraphs"])
+        assert out.getvalue() == case["expected"], case["name"]
+
+
+def test_write_txt_defaults_to_one_line_per_segment():
+    # The legacy branch is untouched code, not a reimplementation, so
+    # segmentation-off TXT output is byte-identical.
+    segments = [
+        {"start": 0.0, "end": 1.0, "text": "line one", "speaker": 0, "speaker_label": "Speaker 1"},
+        {"start": 1.0, "end": 2.0, "text": "line two", "speaker": 0},
+    ]
+    default_out, explicit_out = io.StringIO(), io.StringIO()
+    write_txt(segments, default_out)
+    write_txt(segments, explicit_out, paragraphs=False)
+    assert default_out.getvalue() == explicit_out.getvalue()
+    assert default_out.getvalue() == "[Speaker 1] line one\nline two\n"

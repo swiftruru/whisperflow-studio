@@ -847,9 +847,15 @@ function registerHandlers(
   // keeps edits from ever creating a new file at the wrong place
   // if output_dir shifted between read and save.
   ipcMain.handle('subtitle:save', (_event, payload = {}) => {
-    const { mediaPath, outputDir, segments, formats } = payload;
+    const { mediaPath, outputDir, segments, formats, paragraphs } = payload;
     try {
-      const result = writeEditedSubtitles({ mediaPath, outputDir, segments, formats });
+      const result = writeEditedSubtitles({
+        mediaPath,
+        outputDir,
+        segments,
+        formats,
+        paragraphs,
+      });
       return { ok: true, ...result };
     } catch (error) {
       return {
