@@ -327,7 +327,7 @@ whisperflow-studio/
 │       │   ├── base.py            # PromptStrategy protocol + InitialPromptMode enum
 │       │   ├── prepend.py         # Prepend-all / prepend-first
 │       │   └── json_prompt.py     # Per-segment JSON-driven prompts
-│       └── tests/                 # pytest unit tests (229 tests, lightweight)
+│       └── tests/                 # pytest unit tests (236 tests, lightweight)
 ├── preload/
 │   └── preload.js                 # Electron contextBridge (window.electronAPI)
 ├── src/
@@ -509,7 +509,7 @@ Output goes to `dist/`.
 
 ## Development
 
-Run the Python unit tests (229 tests, lightweight — no torch, faster-whisper or sherpa-onnx required):
+Run the Python unit tests (236 tests, lightweight — no torch, faster-whisper or sherpa-onnx required):
 
 ```bash
 cd python

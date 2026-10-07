@@ -327,7 +327,7 @@ whisperflow-studio/
 │       │   ├── base.py            # PromptStrategy 協定 + InitialPromptMode enum
 │       │   ├── prepend.py         # Prepend-all / prepend-first
 │       │   └── json_prompt.py     # 以 JSON 驅動的逐段提示
-│       └── tests/                 # pytest 單元測試（229 項，輕量化）
+│       └── tests/                 # pytest 單元測試（236 項，輕量化）
 ├── preload/
 │   └── preload.js                 # Electron contextBridge（window.electronAPI）
 ├── src/
@@ -509,7 +509,7 @@ npm run build:linux  # Linux AppImage
 
 ## 開發
 
-執行 Python 單元測試（229 項，輕量——不需要 torch、faster-whisper 或 sherpa-onnx）：
+執行 Python 單元測試（236 項，輕量——不需要 torch、faster-whisper 或 sherpa-onnx）：
 
 ```bash
 cd python
