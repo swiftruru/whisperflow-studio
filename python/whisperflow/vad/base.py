@@ -404,9 +404,24 @@ class AbstractVadTranscription:
             new_segment["start"] = local_start + offset
             new_segment["end"] = local_end + offset
 
-            for word in new_segment.get("words") or []:
-                word["start"] = word["start"] + offset
-                word["end"] = word["end"] + offset
+            words = segment.get("words") or []
+            if words:
+                # Copy rather than offset in place: ``dict(segment)`` is a
+                # shallow copy, so the word dicts are shared with the
+                # caller's result and mutating them would be visible there.
+                # Words are also clamped to the same window as their
+                # segment -- without that, a segment straddling a chunk
+                # boundary keeps words running past its own clamped end,
+                # and per-word speaker assignment then reads outside the
+                # segment it belongs to.
+                adjusted = []
+                for word in words:
+                    word_start = min(max(float(word["start"]), local_start), local_end)
+                    word_end = min(max(float(word["end"]), word_start), local_end)
+                    adjusted.append(
+                        {**word, "start": word_start + offset, "end": word_end + offset}
+                    )
+                new_segment["words"] = adjusted
 
             result.append(new_segment)
         return result

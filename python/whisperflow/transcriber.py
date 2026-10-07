@@ -19,7 +19,9 @@ from typing import Optional
 from .config import TranscribeConfig
 from .events import (
     STAGE_COMPLETED,
+    STAGE_DIARIZING,
     STAGE_LOADING_MODEL,
+    STAGE_LOADING_VAD,
     STAGE_PREPARING,
     STAGE_TRANSCRIBING,
     STAGE_WRITING_SUBTITLE,
@@ -136,6 +138,12 @@ class Transcriber:
         elapsed = time.perf_counter() - perf_start
         _log.info("whisper + VAD took %.2fs", elapsed)
 
+        if cfg.diarize:
+            # After _run_vad, so the segments are already on the global
+            # timeline and share one clock with the speaker turns; before
+            # _write_outputs, so the writers see speaker_label.
+            self._run_diarization(result, input_path)
+
         self._emitter.stage(
             STAGE_WRITING_SUBTITLE,
             message="Writing subtitle files",
@@ -176,7 +184,7 @@ class Transcriber:
 
     def _build_decode_options(self) -> dict:
         cfg = self._config
-        return {
+        options = {
             "temperature": cfg.temperature,
             "beam_size": cfg.beam_size,
             "best_of": cfg.best_of,
@@ -189,6 +197,148 @@ class Transcriber:
             "no_speech_threshold": cfg.no_speech_threshold,
             "verbose": cfg.verbose,
         }
+
+        if cfg.diarize:
+            # Word timestamps are what make per-word speaker assignment --
+            # and therefore mid-segment speaker splits -- possible.
+            #
+            # Gated on cfg.diarize because switching them on is NOT a pure
+            # addition: faster-whisper's add_word_timestamps() rewrites a
+            # segment's start/end from its first/last word, and changes how
+            # the decode window advances.  Leaving the key out entirely
+            # means faster-whisper's own default (False) applies, so with
+            # diarization off the decode is bit-for-bit what it was.
+            options["word_timestamps"] = True
+
+        return options
+
+    # --- speaker diarization -------------------------------------------
+
+    def _run_diarization(self, result: TranscribeResult, input_path: Path) -> None:
+        """Label every segment in ``result`` with a speaker, in place.
+
+        Progress occupies the 50..90 band, which is otherwise empty: the
+        Whisper run reports 35 and subtitle writing reports 92, and no
+        ProgressListener is wired up in production, so the bar sits at 35
+        for the whole decode.  Downloading the models takes 50..58, the
+        diarization pass itself 60..90.
+
+        Both imports are deferred.  models/diarization_models.py pulls in
+        urllib/tarfile, and diarization.py reaches for sherpa-onnx the
+        moment a SherpaDiarizer is built -- neither belongs in the import
+        graph of a run with diarization switched off.
+        """
+        from . import diarization
+        from .models import diarization_models
+
+        cfg = self._config
+        models_dir = self._model_manager.models_dir
+        megabytes = round(diarization_models.TOTAL_DOWNLOAD_BYTES / 1024 / 1024)
+
+        segmentation_model, embedding_model = self._ensure_diarization_models(
+            diarization, diarization_models, models_dir, megabytes
+        )
+
+        self._emitter.stage(
+            STAGE_DIARIZING,
+            message="Identifying speakers",
+            message_key="events:stage.diarizing",
+            progress=60,
+        )
+
+        def report(value: float) -> None:
+            self._emitter.stage(
+                STAGE_DIARIZING,
+                message="Identifying speakers",
+                message_key="events:stage.diarizing",
+                progress=round(value),
+            )
+
+        diarizer = diarization.SherpaDiarizer(
+            segmentation_model,
+            embedding_model,
+            num_speakers=cfg.diarize_num_speakers,
+            threshold=cfg.diarize_threshold,
+        )
+        perf_start = time.perf_counter()
+        turns = diarizer.diarize_file(
+            str(input_path),
+            on_progress=diarization.ProgressThrottle(report, start=60.0, span=30.0),
+        )
+        _log.info("diarization took %.2fs", time.perf_counter() - perf_start)
+
+        template = diarization.resolve_label_template(cfg.speaker_label_template)
+        segments = diarization.assign_speakers(result.get("segments") or [], turns)
+        for segment in segments:
+            # The label is a presentation string; segment["text"] stays
+            # clean so the JSON output carries no speaker markup and the
+            # subtitle editor has nothing to parse back out.
+            segment["speaker_label"] = diarization.speaker_label(
+                segment.get("speaker"), template
+            )
+        result["segments"] = segments
+
+    def _ensure_diarization_models(
+        self,
+        diarization,
+        diarization_models,
+        models_dir: Path,
+        megabytes: int,
+    ) -> tuple[Path, Path]:
+        """Download the two ONNX models if they aren't cached yet.
+
+        Two message variants, mirroring _ensure_silero_vad: the cold path
+        names the download size so the user understands the pause, the warm
+        path uses shorter copy that doesn't imply a download is coming.
+        """
+        if diarization_models.is_diarization_cached(models_dir):
+            self._emitter.stage(
+                STAGE_DIARIZING,
+                message="Preparing speaker diarization",
+                message_key="events:stage.preparingDiarization",
+                progress=58,
+            )
+            return diarization_models.ensure_diarization_models(models_dir)
+
+        self._emitter.stage(
+            STAGE_DIARIZING,
+            message=(
+                f"Downloading speaker diarization models "
+                f"(~{megabytes} MB, first run only)"
+            ),
+            message_key="events:stage.downloadingDiarizationModels",
+            message_params={"size": megabytes},
+            progress=50,
+        )
+
+        # Map downloaded bytes onto 50..58 so a slow connection doesn't
+        # look like a hang.
+        download_progress = diarization.ProgressThrottle(
+            lambda value: self._emitter.stage(
+                STAGE_DIARIZING,
+                message=(
+                    f"Downloading speaker diarization models "
+                    f"(~{megabytes} MB, first run only)"
+                ),
+                message_key="events:stage.downloadingDiarizationModels",
+                message_params={"size": megabytes},
+                progress=round(value),
+            ),
+            start=50.0,
+            span=8.0,
+        )
+
+        def on_download(event_type: str, payload: dict) -> None:
+            if event_type != "progress":
+                return
+            total = payload.get("total_bytes") or 0
+            if total <= 0:
+                return
+            download_progress(min(1.0, (payload.get("downloaded_bytes") or 0) / total))
+
+        return diarization_models.ensure_diarization_models(
+            models_dir, progress=on_download
+        )
 
     def _ensure_silero_vad(self) -> SileroVad:
         if isinstance(self._vad_model, SileroVad):
@@ -206,14 +356,14 @@ class Transcriber:
         cached = is_silero_vad_cached(self._model_manager.torch_hub_dir)
         if cached:
             self._emitter.stage(
-                "loading-vad",
+                STAGE_LOADING_VAD,
                 message="Preparing voice activity detection (Silero VAD)",
                 message_key="events:stage.preparingVad",
                 progress=25,
             )
         else:
             self._emitter.stage(
-                "loading-vad",
+                STAGE_LOADING_VAD,
                 message="Downloading Silero VAD speech detection model (~10 MB, first run only)",
                 message_key="events:stage.loadingVad",
                 progress=25,
