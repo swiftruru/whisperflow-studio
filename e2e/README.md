@@ -41,6 +41,12 @@ Running 5 tests using 1 worker
   5 passed (~10s)
 ```
 
+> **已知問題：在多數機器上實際是 `4 passed, 1 failed`。** `smoke.spec.js` 斷言狀態徽章
+> 顯示 `Idle`，而那個值是從 `python/config/config.json` 推導出來的——那是一個 gitignored
+> 的本機檔案，fixture 並沒有隔離它（見下面的「隔離原則」）。只要 `media_root_path` 留空
+> 或指向一個不存在的資料夾，preflight 就會產生一個 error 級檢查，徽章正確地顯示 `Setup`，
+> 斷言於是失敗。這是測試不夠封閉，不是 App 的缺陷。
+
 ### 互動式 UI 模式（demo 用 ⭐）
 
 ```bash
@@ -74,7 +80,7 @@ npm run test:e2e:report
 
 | 檔案 | 測什麼 | 為什麼重要 |
 |------|--------|-----------|
-| [smoke.spec.js](specs/smoke.spec.js) | App 啟動、視窗開出、`Main` tab 是 active、狀態徽章顯示 `Idle` | 最基本的煙霧測試 — 啟動失敗會立刻被抓到 |
+| [smoke.spec.js](specs/smoke.spec.js) | App 啟動、視窗開出、`Main` tab 是 active、狀態徽章顯示 `Idle`（**這一項依賴本機設定，見上面的已知問題**） | 最基本的煙霧測試 — 啟動失敗會立刻被抓到 |
 | [navigation.spec.js](specs/navigation.spec.js) | 依序點四個 tab（主要/模型/設定/關於），驗證 `.active` class 與對應 pane 顯示 | 保證導覽不被未來 refactor 弄壞 |
 | [i18n.spec.js](specs/i18n.spec.js) | 點 `中/EN` 按鈕，驗證 tab 文字從 `Main` ⇄ `主要` 翻轉 | 雙語切換是這個 app 的核心，最容易出 i18next bug |
 | [theme.spec.js](specs/theme.spec.js) | 點月亮/太陽按鈕，驗證 `<html data-theme>` 在 `light` 與 移除狀態之間切換 | CSS 變數主題系統的回歸測試 |
@@ -113,6 +119,20 @@ e2e/
 4. 測試結束後關閉 app、刪除臨時資料夾
 
 → **不會污染你日常開發用的 `settings.json`、`history.json`、`localStorage`**。
+
+**但隔離只到 userData 為止。** `python/config/config.json` 的路徑在
+[`src/main/ipc-handlers.js`](../src/main/ipc-handlers.js) 裡是直接寫死在專案樹下的，
+沒有任何 `WHISPERFLOW_E2E*` 覆寫，所以測試會讀**你本機那一份**。兩個後果：
+
+1. 上面那個 `Idle` 斷言的結果取決於你的 `media_root_path`。
+2. 跑測試會**寫入**那個檔案。`readConfig` 在檔案不存在時會建立它，接著
+   `ensureModelsDirInConfig` 看到空的 `models_dir` 就填入 fixture 的臨時 userData
+   路徑並寫回——而那個目錄在測試結束時就被刪掉了。全新 clone 如果在第一次啟動 App
+   之前先跑 e2e，`config.json` 的 `models_dir` 就會指向一個已不存在的目錄。已在
+   隔離複本上重現兩次。
+
+修法是把 config 目錄也納入隔離（讓 `getPaths()` 認得一個 e2e 覆寫），這會動到正式
+程式碼，所以留待獨立的分支處理。
 
 ### `WHISPERFLOW_E2E` 環境變數做什麼？
 
