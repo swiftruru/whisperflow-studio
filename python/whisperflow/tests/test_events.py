@@ -5,7 +5,19 @@ from __future__ import annotations
 import io
 import json
 
-from whisperflow.events import EVENT_PREFIX, EventEmitter, emitter_for
+from whisperflow.events import (
+    EVENT_PREFIX,
+    STAGE_COMPLETED,
+    STAGE_DIARIZING,
+    STAGE_FAILED,
+    STAGE_LOADING_MODEL,
+    STAGE_LOADING_VAD,
+    STAGE_PREPARING,
+    STAGE_TRANSCRIBING,
+    STAGE_WRITING_SUBTITLE,
+    EventEmitter,
+    emitter_for,
+)
 
 
 def test_emit_writes_prefixed_json_line(capsys):
@@ -43,3 +55,19 @@ def test_emitter_for_empty_returns_blank_emitter():
     em = emitter_for(None)
     assert em.file_name == ""
     assert em.file_path == ""
+
+
+def test_stage_constants_match_the_strings_the_ui_keys_on():
+    # These exact strings are keyed on in five places outside Python:
+    # locales/*/events.json, locales/*/progress.json, queue-panel.js's
+    # stageLabel keyMap, queue-manager.js's getStageProgress, and
+    # console-log.js's STAGE_LABELS.  A typo here shows up as a stage chip
+    # silently reading "Idle", so pin them.
+    assert STAGE_PREPARING == "preparing"
+    assert STAGE_LOADING_MODEL == "loading-model"
+    assert STAGE_LOADING_VAD == "loading-vad"
+    assert STAGE_TRANSCRIBING == "transcribing"
+    assert STAGE_DIARIZING == "diarizing"
+    assert STAGE_WRITING_SUBTITLE == "writing-subtitle"
+    assert STAGE_COMPLETED == "completed"
+    assert STAGE_FAILED == "failed"

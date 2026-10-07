@@ -18,10 +18,19 @@ EVENT_PREFIX = "[WhisperFlowEvent]"
 
 
 # Canonical stage names.  The renderer maps these to progress bar states,
-# so any change here has to be mirrored in the UI.
+# so any change here has to be mirrored in the UI.  Adding a stage means
+# touching all of:
+#   - locales/{en,zh-TW}/events.json      -> stage.<camelCase> message
+#   - locales/{en,zh-TW}/progress.json    -> stage.<camelCase> chip label
+#   - src/renderer/components/queue-panel.js  -> stageLabel()'s keyMap
+#   - src/main/queue-manager.js           -> getStageProgress() fallback
+#   - src/renderer/components/console-log.js  -> STAGE_LABELS
+# Miss one and the stage chip silently falls back to "Idle".
 STAGE_PREPARING = "preparing"
 STAGE_LOADING_MODEL = "loading-model"
+STAGE_LOADING_VAD = "loading-vad"
 STAGE_TRANSCRIBING = "transcribing"
+STAGE_DIARIZING = "diarizing"
 STAGE_WRITING_SUBTITLE = "writing-subtitle"
 STAGE_COMPLETED = "completed"
 STAGE_FAILED = "failed"
