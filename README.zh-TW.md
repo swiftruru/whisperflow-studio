@@ -34,6 +34,7 @@
   <img src="https://img.shields.io/badge/CTranslate2-3.24+-ff9800?style=flat-square" alt="CTranslate2">
   <img src="https://img.shields.io/badge/PyTorch-2.1+-EE4C2C?logo=pytorch&logoColor=white&style=flat-square" alt="PyTorch">
   <img src="https://img.shields.io/badge/Silero%20VAD-latest-6DB33F?style=flat-square" alt="Silero VAD">
+  <img src="https://img.shields.io/badge/sherpa--onnx-1.13+-7E57C2?style=flat-square" alt="sherpa-onnx">
 </p>
 
 ---
@@ -110,13 +111,14 @@ xattr -cr "/Applications/WhisperFlow Studio.app"
 ### 核心
 
 - **自給自足的轉錄核心** — [`python/whisperflow/`](python/whisperflow/) 是重寫、依賴完全隔離的 Python 套件，統籌 faster-whisper、Silero VAD、片段合併、字幕輸出器。不需外部專案。
+- **講者辨識（選用）** — 為每段字幕標上是誰在說話，並在行首加上 `[Speaker 1]` 前綴。底層採用 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)（ONNX Runtime，不需 torch），首次使用時會把 pyannote segmentation-3.0 與 3D-Speaker CAM++ 模型（約 34 MB）下載到同一個 App 管理的模型資料夾。講者人數可交給程式自動判斷，已知時也可直接指定；一段話中途換人會被拆成兩段。預設關閉，關閉時輸出與先前逐位元組相同
 - **批次影音掃描** — 以遞迴方式建立尚無字幕伴隨檔的影音佇列
 - **模型管理分頁** — 在 App 管理的目錄中列出 / 下載 / 刪除 faster-whisper 模型；所有權重都放在 Electron 的 `userData/models/`，不會佔用你的全域 HuggingFace 快取。下載會將即時進度（百分比、位元組數、速度、ETA）串流到 Models 分頁的常駐卡片與標題列脈動式標記中，不會再對著停滯的「Downloading…」字樣乾等 15 分鐘。可在中途取消、稍後重試；`huggingface_hub` 內建的續傳功能會從上次中斷處接續
 - **首次啟動 venv 自動建置** — App 會在首次啟動時自動建立 Python 虛擬環境（`python/.venv`）並安裝 `requirements.txt`
-- **結構化執行事件** — bridge 會發送可機器解析的階段事件（`preparing`、`loading-model`、`transcribing`、`writing-subtitle`、`completed`、`failed`）來驅動進度 UI
+- **結構化執行事件** — bridge 會發送可機器解析的階段事件（`preparing`、`loading-model`、`loading-vad`、`transcribing`、`diarizing`、`writing-subtitle`、`completed`、`failed`）來驅動進度 UI
 - **多 GPU 平行轉錄** — 延續自上游架構，可在 Linux / Windows 上跨 CUDA 裝置分派工作
 - **預檢（Preflight）** — 執行前驗證內建 Python 環境、`whisperflow` 套件、`ffmpeg` / `ffprobe`、以及影音根目錄；若缺少 ffmpeg，可透過偵測到的系統套件管理工具一鍵安裝
-- **設定面板** — 在 App 內直接調整模型、語言、VAD、初始提示、裝置、計算類型，並以 UI 語言提供每個欄位的內嵌說明。依語意分組為卡片（一般 / 模型 / 轉錄 / 輸出 / VAD / 進階），並於頂部提供「轉錄 ↔ App」分段切換。App 內所有 `<select>` 都改用配合主題色的自訂下拉選單，展開時會符合奶油 / 琥珀色調色盤，而非退回 OS 原生樣式
+- **設定面板** — 在 App 內直接調整模型、語言、VAD、初始提示、裝置、計算類型，並以 UI 語言提供每個欄位的內嵌說明。依語意分組為卡片（一般 / 模型 / 轉錄 / 輸出 / VAD / 講者辨識 / 進階），並於頂部提供「轉錄 ↔ App」分段切換。App 內所有 `<select>` 都改用配合主題色的自訂下拉選單，展開時會符合奶油 / 琥珀色調色盤，而非退回 OS 原生樣式
 - **輸出格式與翻譯控制** — Whisper 所有輸出格式（`.srt` / `.vtt` / `.txt` / `.json`）、輸出目錄、字幕最長行寬、覆寫策略（覆寫 / 略過 / 重新命名加後綴）、以及 Whisper 內建的 `task=translate`（翻譯為英文）均以勾選框 / 下拉選單方式在 Settings 分頁公開
 - **進階 Whisper 解碼參數** — `beam_size`、`best_of`、`temperature`、`condition_on_previous_text`、`no_speech_threshold`、`logprob_threshold`、`compression_ratio_threshold` 等皆集中於預設收合的「進階」區塊，供進階調校
 - **HuggingFace 快取匯入** — Models 分頁會掃描 `~/.cache/huggingface/hub/` 中既有的 faster-whisper 模型，並以硬連結（hard-link）一鍵匯入 App 管理資料夾（無須重新下載）
@@ -175,7 +177,7 @@ xattr -cr "/Applications/WhisperFlow Studio.app"
 
 ### 國際化（zh-TW / en）
 
-- **正式版 i18n 架構** — 建構在 [i18next](https://www.i18next.com/) 之上，具 19 個功能命名空間（`common`、`sidebar`、`preflight`、`settings`、`queue`、`progress`、`models`、`console`、`controls`、`dialogs`、`errors`、`events`、`toasts`、`about`、`help`、`updater`、`downloads`、`changelog`、`transcript`）。每種語言約 915 個鍵。
+- **正式版 i18n 架構** — 建構在 [i18next](https://www.i18next.com/) 之上，具 19 個功能命名空間（`common`、`sidebar`、`preflight`、`settings`、`queue`、`progress`、`models`、`console`、`controls`、`dialogs`、`errors`、`events`、`toasts`、`about`、`help`、`updater`、`downloads`、`changelog`、`transcript`）。每種語言約 956 個鍵。
 - **標題列語言切換** — 一鍵在台灣繁體中文與英文之間切換；所有靜態 HTML、動態元件、Python 執行事件、以及 Electron 原生對話框皆可即時切換、不需重啟
 - **首次啟動自動偵測** — 以 `app.getLocale()` 為依據，中文系統預設 `zh-TW`、英文系統預設 `en`，fallback 為 `zh-TW`
 - **以鍵為基礎的主程序 → renderer 約定** — `createAppError` / `createPreflightCheck` / Python `[WhisperFlowEvent]` 皆攜帶 `messageKey` + `messageParams` 而非原始字串，renderer 在顯示時才在地化，切換語言可即時更新已顯示的錯誤橫幅 / 預檢項目
@@ -391,6 +393,10 @@ Whisper 轉錄設定。透過 App 內的 **Settings** 分頁編輯。`python/con
 | `vad_max_merge_size` | 合併後片段的最長長度（秒）。 |
 | `vad_padding` | 每個偵測到的語音片段周圍所加的 padding（秒）。 |
 | `vad_prompt_window` | 滾動提示視窗長度（秒）。 |
+| `diarize` | 啟用講者辨識。首次使用會下載約 34 MB 的模型。預設關閉。 |
+| `diarize_num_speakers` | 指定講者人數；填 `0` 表示自動判斷。 |
+| `speaker_label_template` | 標籤格式，`{n}` 為從 1 起算的講者編號（預設 `Speaker {n}`）。 |
+| `diarize_threshold` | 講者分群門檻，0-1（預設 `0.5`）。數值越低辨識出的講者越多。 |
 | `language` | 目標語言（人類可讀名稱；留空則自動偵測）。 |
 | `initial_prompt` | 給 Whisper 的提示文字（例如輸出繁中時可填 `台灣繁體中文`）。 |
 | `initial_prompt_mode` | `prepend_all_segments`、`prepend_first_segment`、或 `json_prompt_mode`。 |
@@ -493,7 +499,7 @@ npm run build:linux  # Linux AppImage
 
 ## 開發
 
-執行 Python 單元測試（46 項，輕量——不需要 torch）：
+執行 Python 單元測試（133 項，輕量——不需要 torch、faster-whisper 或 sherpa-onnx）：
 
 ```bash
 cd python
@@ -503,6 +509,12 @@ python3 -m venv .venv-test
 ```
 
 每次發佈的 CI 都會跑同一套測試——見 [`.github/workflows/release.yml`](.github/workflows/release.yml)。
+
+執行 main process 模組的 JavaScript 單元測試（字幕輸出器、transcript 讀取器、venv 狀態，以及階段 / 文案的接線）：
+
+```bash
+npm run test:unit
+```
 
 ### 新增翻譯
 
@@ -525,7 +537,7 @@ python3 -m venv .venv-test
 | 桌面殼層 | Electron 35 |
 | Renderer | Vanilla JS（ES modules），無框架 |
 | 樣式 | CSS custom properties、奶油黃粉彩色票（亮 + 暗） |
-| 轉錄核心 | `whisperflow` 套件 → faster-whisper + CTranslate2 + Silero VAD |
+| 轉錄核心 | `whisperflow` 套件 → faster-whisper + CTranslate2 + Silero VAD + sherpa-onnx（講者辨識） |
 | Python 環境 | 首次啟動建立的本機 `python/.venv/`（無 poetry、無外部專案） |
 | 設定 I/O | 透過 `fs` 讀寫 JSON 檔（`python/config/config.json`、`settings.json`） |
 | Python 子程序 | `child_process.spawn` 搭配 `PYTHONUNBUFFERED=1` |
@@ -536,6 +548,6 @@ python3 -m venv .venv-test
 
 ## 致謝
 
-WhisperFlow Studio 的轉錄核心最初衍生（為重寫而非直接複製）自 [aadnk/faster-whisper-webui](https://gitlab.com/aadnk/faster-whisper-webui)，該專案採 Apache License 2.0 授權。Gradio WebUI 層、YouTube 下載器、說話人分離（diarization）以及 HuggingFace 轉換器皆已移除；VAD / 合併 / 提示策略 / 轉錄邏輯則被重寫成具乾淨型別註解 API 的 `whisperflow` 套件。完整標示請見 [NOTICES.md](NOTICES.md)。
+WhisperFlow Studio 的轉錄核心最初衍生（為重寫而非直接複製）自 [aadnk/faster-whisper-webui](https://gitlab.com/aadnk/faster-whisper-webui)，該專案採 Apache License 2.0 授權。Gradio WebUI 層、YouTube 下載器、上游的 `pyannote-audio` 說話人分離（diarization）以及 HuggingFace 轉換器皆已移除（講者辨識後來以不同引擎 sherpa-onnx 重新加回）；VAD / 合併 / 提示策略 / 轉錄邏輯則被重寫成具乾淨型別註解 API 的 `whisperflow` 套件。完整標示請見 [NOTICES.md](NOTICES.md)。
 
-執行期轉錄由 [faster-whisper](https://github.com/SYSTRAN/faster-whisper)（MIT）與 [CTranslate2](https://github.com/OpenNMT/CTranslate2)（MIT）驅動，使用 [OpenAI Whisper](https://github.com/openai/whisper) 模型權重（MIT）。語音活動偵測使用 [Silero VAD](https://github.com/snakers4/silero-vad)（MIT）。
+執行期轉錄由 [faster-whisper](https://github.com/SYSTRAN/faster-whisper)（MIT）與 [CTranslate2](https://github.com/OpenNMT/CTranslate2)（MIT）驅動，使用 [OpenAI Whisper](https://github.com/openai/whisper) 模型權重（MIT）。語音活動偵測使用 [Silero VAD](https://github.com/snakers4/silero-vad)（MIT）。講者辨識使用 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)（Apache-2.0），搭配 [pyannote](https://github.com/pyannote/pyannote-audio) segmentation-3.0 模型（MIT，© CNRS）與 [3D-Speaker](https://github.com/modelscope/3D-Speaker) CAM++ 聲紋模型。

@@ -34,6 +34,7 @@
   <img src="https://img.shields.io/badge/CTranslate2-3.24+-ff9800?style=flat-square" alt="CTranslate2">
   <img src="https://img.shields.io/badge/PyTorch-2.1+-EE4C2C?logo=pytorch&logoColor=white&style=flat-square" alt="PyTorch">
   <img src="https://img.shields.io/badge/Silero%20VAD-latest-6DB33F?style=flat-square" alt="Silero VAD">
+  <img src="https://img.shields.io/badge/sherpa--onnx-1.13+-7E57C2?style=flat-square" alt="sherpa-onnx">
 </p>
 
 ---
@@ -110,13 +111,14 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 ### Core
 
 - **Self-contained transcription core** — [`python/whisperflow/`](python/whisperflow/) is a rewritten, dependency-isolated Python package that drives faster-whisper, Silero VAD, segment merging, and subtitle writers. No external project required.
+- **Speaker diarization (optional)** — labels every subtitle segment with who is speaking and prefixes the line with `[Speaker 1]`. Runs on [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) (ONNX Runtime, no torch), with the pyannote segmentation-3.0 and 3D-Speaker CAM++ models downloaded on first use (~34 MB) into the same app-managed models folder. Speaker count can be left on automatic or pinned when you know it; a segment spanning a hand-over is split in two. Off by default, and with it off the output is byte-identical to before
 - **Batch media scan** — recursively builds a queue of media files without subtitle companions
 - **Model Manager tab** — list / download / delete faster-whisper models into an app-managed directory; all weights live under Electron's `userData/models/`, not in your global HuggingFace cache. Downloads stream real-time progress (percentage, bytes, speed, ETA) into a persistent card on the Models tab and a pulsing titlebar chip so you always know what's happening — no more staring at a frozen "Downloading…" label for 15 minutes. Cancel mid-download and retry later; `huggingface_hub`'s built-in resume picks up where it left off
 - **First-run venv bootstrap** — the app creates its own Python virtualenv (`python/.venv`) on first launch and installs `requirements.txt` for you
-- **Structured runner events** — the bridge emits machine-readable stage events (`preparing`, `loading-model`, `transcribing`, `writing-subtitle`, `completed`, `failed`) that drive the progress UI
+- **Structured runner events** — the bridge emits machine-readable stage events (`preparing`, `loading-model`, `loading-vad`, `transcribing`, `diarizing`, `writing-subtitle`, `completed`, `failed`) that drive the progress UI
 - **Multi-GPU parallel transcription** — preserved from the upstream architecture, fans work across CUDA devices on Linux/Windows
 - **Preflight checks** — validates the bundled Python environment, `whisperflow` package, `ffmpeg` / `ffprobe`, and media root before running; ffmpeg can be installed in one click via the detected system package manager
-- **Settings panel** — edit model, language, VAD, initial prompt, device, and compute type in-app, with per-parameter inline descriptions in your UI language. Grouped into semantic cards (General / Model / Transcription / Output / VAD / Advanced) with a Transcription ↔ App segmented control at the top. Every `<select>` in the app uses a themed custom dropdown so the open menu matches the cream/amber palette instead of falling back to the OS-native style
+- **Settings panel** — edit model, language, VAD, initial prompt, device, and compute type in-app, with per-parameter inline descriptions in your UI language. Grouped into semantic cards (General / Model / Transcription / Output / VAD / Speaker diarization / Advanced) with a Transcription ↔ App segmented control at the top. Every `<select>` in the app uses a themed custom dropdown so the open menu matches the cream/amber palette instead of falling back to the OS-native style
 - **Output format + translation controls** — the full set of Whisper output formats (`.srt` / `.vtt` / `.txt` / `.json`), output directory, subtitle max-line-width, overwrite policy (overwrite / skip / rename-suffix), and Whisper's built-in `task=translate` (to-English) are all exposed as checkboxes / dropdowns in the Settings tab
 - **Advanced Whisper decoder parameters** — `beam_size`, `best_of`, `temperature`, `condition_on_previous_text`, `no_speech_threshold`, `logprob_threshold`, and `compression_ratio_threshold` surface behind a collapsed-by-default Advanced group for power tuning
 - **HuggingFace cache import** — the Models tab scans `~/.cache/huggingface/hub/` for faster-whisper models already on disk and one-click imports them into the app-managed models folder via hard-link (no re-download)
@@ -175,7 +177,7 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 
 ### Internationalization (zh-TW / en)
 
-- **Production-grade i18n architecture** — built on [i18next](https://www.i18next.com/) with 19 feature namespaces (`common`, `sidebar`, `preflight`, `settings`, `queue`, `progress`, `models`, `console`, `controls`, `dialogs`, `errors`, `events`, `toasts`, `about`, `help`, `updater`, `downloads`, `changelog`, `transcript`). ~915 keys per locale.
+- **Production-grade i18n architecture** — built on [i18next](https://www.i18next.com/) with 19 feature namespaces (`common`, `sidebar`, `preflight`, `settings`, `queue`, `progress`, `models`, `console`, `controls`, `dialogs`, `errors`, `events`, `toasts`, `about`, `help`, `updater`, `downloads`, `changelog`, `transcript`). ~956 keys per locale.
 - **Titlebar language toggle** — one-click flip between Traditional Chinese and English; all static HTML, dynamic components, Python runner events, and Electron native dialogs switch live without restart
 - **Auto-detect on first launch** — reads `app.getLocale()` and picks `zh-TW` for any Chinese system, `en` for English, with `zh-TW` as the fallback
 - **Key-based main→renderer contract** — `createAppError` / `createPreflightCheck` / Python `[WhisperFlowEvent]` all carry `messageKey` + `messageParams` instead of raw strings, so the renderer can localize at display time and switching language updates already-visible error banners / preflight checks
@@ -391,6 +393,10 @@ Whisper transcription settings. Edited via the **Settings** tab inside the app. 
 | `vad_max_merge_size` | Maximum merged-segment length (seconds). |
 | `vad_padding` | Padding added around each detected speech segment (seconds). |
 | `vad_prompt_window` | Rolling prompt window length (seconds). |
+| `diarize` | Enable speaker diarization. Downloads ~34 MB of models on first use. Off by default. |
+| `diarize_num_speakers` | Exact speaker count; `0` detects it automatically. |
+| `speaker_label_template` | Label format, `{n}` being the 1-based speaker number (default `Speaker {n}`). |
+| `diarize_threshold` | Speaker-clustering threshold, 0-1 (default `0.5`). Lower finds more speakers. |
 | `language` | Target language (human-readable name; auto-detected if empty). |
 | `initial_prompt` | Hint text fed to Whisper (e.g. `台灣繁體中文` for Traditional Chinese output). |
 | `initial_prompt_mode` | `prepend_all_segments`, `prepend_first_segment`, or `json_prompt_mode`. |
@@ -493,7 +499,7 @@ Output goes to `dist/`.
 
 ## Development
 
-Run the Python unit tests (46 tests, lightweight — no torch required):
+Run the Python unit tests (133 tests, lightweight — no torch, faster-whisper or sherpa-onnx required):
 
 ```bash
 cd python
@@ -503,6 +509,12 @@ python3 -m venv .venv-test
 ```
 
 The same suite runs on every release in CI — see [`.github/workflows/release.yml`](.github/workflows/release.yml).
+
+Run the JavaScript unit tests for the main-process modules (subtitle writers, transcript reader, venv state, and the stage / locale wiring):
+
+```bash
+npm run test:unit
+```
 
 ### Adding a translation
 
@@ -525,7 +537,7 @@ See [locales/zh-TW/](locales/zh-TW/) and [src/renderer/lib/i18n.js](src/renderer
 | Desktop shell | Electron 35 |
 | Renderer | Vanilla JS (ES modules), no framework |
 | Styling | CSS custom properties, pastel cream/yellow palette (light + dark) |
-| Transcription core | `whisperflow` package → faster-whisper + CTranslate2 + Silero VAD |
+| Transcription core | `whisperflow` package → faster-whisper + CTranslate2 + Silero VAD + sherpa-onnx (diarization) |
 | Python env | Local `python/.venv/` created on first launch (no poetry, no external project) |
 | Config I/O | JSON files via `fs` (`python/config/config.json`, `settings.json`) |
 | Python subprocess | `child_process.spawn` with `PYTHONUNBUFFERED=1` |
@@ -536,6 +548,6 @@ See [locales/zh-TW/](locales/zh-TW/) and [src/renderer/lib/i18n.js](src/renderer
 
 ## Credits
 
-WhisperFlow Studio's transcription core was originally derived (rewritten, not copied) from [aadnk/faster-whisper-webui](https://gitlab.com/aadnk/faster-whisper-webui), which is licensed under the Apache License 2.0. The Gradio WebUI layer, YouTube downloader, speaker diarization, and HuggingFace converter have been removed; the VAD/merge/prompt-strategy/transcription logic was rewritten into the `whisperflow` package with a cleaner type-hinted API. See [NOTICES.md](NOTICES.md) for full attribution.
+WhisperFlow Studio's transcription core was originally derived (rewritten, not copied) from [aadnk/faster-whisper-webui](https://gitlab.com/aadnk/faster-whisper-webui), which is licensed under the Apache License 2.0. The Gradio WebUI layer, YouTube downloader, upstream `pyannote-audio` speaker diarization, and HuggingFace converter have been removed (diarization was later reintroduced on a different engine, sherpa-onnx); the VAD/merge/prompt-strategy/transcription logic was rewritten into the `whisperflow` package with a cleaner type-hinted API. See [NOTICES.md](NOTICES.md) for full attribution.
 
-Runtime transcription is powered by [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (MIT) and [CTranslate2](https://github.com/OpenNMT/CTranslate2) (MIT), using [OpenAI Whisper](https://github.com/openai/whisper) model weights (MIT). Voice activity detection uses [Silero VAD](https://github.com/snakers4/silero-vad) (MIT).
+Runtime transcription is powered by [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (MIT) and [CTranslate2](https://github.com/OpenNMT/CTranslate2) (MIT), using [OpenAI Whisper](https://github.com/openai/whisper) model weights (MIT). Voice activity detection uses [Silero VAD](https://github.com/snakers4/silero-vad) (MIT). Speaker diarization uses [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) (Apache-2.0) with the [pyannote](https://github.com/pyannote/pyannote-audio) segmentation-3.0 model (MIT, © CNRS) and a [3D-Speaker](https://github.com/modelscope/3D-Speaker) CAM++ speaker-embedding model.

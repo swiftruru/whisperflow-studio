@@ -30,7 +30,7 @@ Portions of the Python transcription core in [python/whisperflow/](python/whispe
 | `python/whisperflow/progress.py` | `src/hooks/progressListener.py` |
 | `python/whisperflow/languages.py` | `src/languages.py` |
 
-**Modifications** (per Apache 2.0 §4(b)): These modules have been rewritten with different class names, module layout, type hints, and coding style. The Gradio WebUI layer, YouTube downloader (`yt-dlp`), speaker diarization (`pyannote-audio`), HuggingFace converter, and alternative whisper backends (`openai/whisper`, dummy) have been removed. The configuration surface has been reduced to transcription-relevant options only. Each derived source file carries a header noting its upstream origin.
+**Modifications** (per Apache 2.0 §4(b)): These modules have been rewritten with different class names, module layout, type hints, and coding style. The Gradio WebUI layer, YouTube downloader (`yt-dlp`), the upstream speaker-diarization integration (`pyannote-audio`), HuggingFace converter, and alternative whisper backends (`openai/whisper`, dummy) have been removed. Speaker diarization was later reintroduced as new code on a different engine (sherpa-onnx, see sections 9-11 below); it shares no source with the upstream implementation. The configuration surface has been reduced to transcription-relevant options only. Each derived source file carries a header noting its upstream origin.
 
 A verbatim copy of the Apache License 2.0 text is reproduced below (see section [Apache License 2.0 Full Text](#apache-license-20-full-text)).
 
@@ -159,6 +159,53 @@ The following are installed via `pip` at runtime and are not vendored into this 
 | `intervaltree` | Apache 2.0 |
 | `srt` | ISC |
 | `tqdm` | MIT / MPL 2.0 |
+| `av` (PyAV) | BSD 3-Clause |
+| `sherpa-onnx` | Apache 2.0 |
+
+---
+
+## 9. sherpa-onnx
+
+**Upstream**: https://github.com/k2-fsa/sherpa-onnx
+**License**: Apache License 2.0
+
+Used as a runtime dependency (installed via `pip`) for speaker diarization. It
+runs the ONNX models listed in sections 10 and 11 on ONNX Runtime. No source
+code is vendored. The Apache License 2.0 text is reproduced below (see section
+[Apache License 2.0 Full Text](#apache-license-20-full-text)).
+
+---
+
+## 10. pyannote segmentation-3.0
+
+**Upstream**: https://github.com/pyannote/pyannote-audio
+**License**: MIT License
+**Copyright**: (c) CNRS
+
+Speaker-segmentation model, used in its ONNX form as redistributed by the
+sherpa-onnx project. WhisperFlow Studio downloads this model into the
+App-managed models directory on first use and does not redistribute it in the
+App bundle. No `pyannote-audio` code is used or installed — only the model
+weights, executed by sherpa-onnx. The MIT licence text is available in the
+upstream repository.
+
+---
+
+## 11. 3D-Speaker CAM++ speaker-embedding model
+
+**Upstream**: https://github.com/modelscope/3D-Speaker
+**License**: **TO BE CONFIRMED** — see note below
+
+Speaker-embedding model (`3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced`),
+used in its ONNX form as redistributed by the sherpa-onnx project. WhisperFlow
+Studio downloads it into the App-managed models directory on first use and does
+not redistribute it in the App bundle.
+
+**Note**: the 3D-Speaker *source code* is licensed under the Apache License 2.0,
+but the upstream repository does not state a licence for the released model
+weights themselves. This entry is deliberately left as an open question rather
+than assuming the code licence extends to the weights; it must be confirmed
+with the upstream project before any claim is made here.
 
 ---
 
