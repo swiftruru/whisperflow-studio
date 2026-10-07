@@ -1,0 +1,124 @@
+import { describe, it, expect } from 'vitest';
+
+import subtitleWriter from '../../src/main/subtitle-writer.js';
+
+const {
+  formatSrtTime,
+  formatVttTime,
+  generateSrt,
+  generateVtt,
+  generateTxt,
+  patchJsonWithEdits,
+} = subtitleWriter;
+
+describe('timestamp formatting', () => {
+  it('formats SRT timestamps with a comma and always includes hours', () => {
+    expect(formatSrtTime(0)).toBe('00:00:00,000');
+    expect(formatSrtTime(1.5)).toBe('00:00:01,500');
+    expect(formatSrtTime(3661.123)).toBe('01:01:01,123');
+  });
+
+  it('formats VTT timestamps with a dot', () => {
+    expect(formatVttTime(1.5)).toBe('00:00:01.500');
+    // NOTE: Python's write_vtt omits the HH: block under an hour, this one
+    // does not.  Pinned as-is; the editor only rewrites files that already
+    // exist, so the two never interleave inside one file.
+    expect(formatVttTime(12.5)).toBe('00:00:12.500');
+  });
+
+  it('clamps negative and unparseable input to zero', () => {
+    expect(formatSrtTime(-5)).toBe('00:00:00,000');
+    expect(formatSrtTime('nonsense')).toBe('00:00:00,000');
+    expect(formatSrtTime(undefined)).toBe('00:00:00,000');
+  });
+});
+
+describe('generateSrt', () => {
+  it('writes numbered cues', () => {
+    const srt = generateSrt([
+      { start: 0, end: 1.5, text: 'Hello world' },
+      { start: 2, end: 4.25, text: 'Second cue' },
+    ]);
+    expect(srt).toBe(
+      '1\n00:00:00,000 --> 00:00:01,500\nHello world\n\n'
+      + '2\n00:00:02,000 --> 00:00:04,250\nSecond cue\n',
+    );
+  });
+
+  it('trims cue text and skips empty cues', () => {
+    const srt = generateSrt([
+      { start: 0, end: 1, text: '  padded  ' },
+      { start: 1, end: 2, text: '   ' },
+      { start: 2, end: 3, text: 'kept' },
+    ]);
+    expect(srt).toContain('padded');
+    expect(srt).not.toContain('   \n');
+    // Empty cues are skipped but the index comes from the ORIGINAL array
+    // position, so numbering has a gap.  Pinned to document the behaviour.
+    expect(srt.split('\n')[0]).toBe('1');
+    expect(srt).toContain('3\n00:00:02,000 --> 00:00:03,000\nkept');
+  });
+});
+
+describe('generateVtt', () => {
+  it('writes a WEBVTT header and unnumbered cues', () => {
+    const vtt = generateVtt([{ start: 0, end: 1.5, text: 'Hello world' }]);
+    expect(vtt).toBe('WEBVTT\n\n00:00:00.000 --> 00:00:01.500\nHello world\n');
+  });
+
+  it('does not emit a voice tag', () => {
+    // The app previews VTT through the SRT parser, which would render a
+    // <v> tag verbatim.
+    const vtt = generateVtt([{ start: 0, end: 1, text: 'hi' }]);
+    expect(vtt).not.toContain('<v');
+  });
+});
+
+describe('generateTxt', () => {
+  it('writes one trimmed segment per line with a trailing newline', () => {
+    expect(generateTxt([
+      { start: 0, end: 1, text: '  line one  ' },
+      { start: 1, end: 2, text: 'line two' },
+    ])).toBe('line one\nline two\n');
+  });
+});
+
+describe('patchJsonWithEdits', () => {
+  it('rewrites only text and preserves every other field', () => {
+    const original = JSON.stringify({
+      language: 'zh',
+      duration: 12.5,
+      segments: [
+        { start: 0, end: 1, text: 'old', words: [{ start: 0, end: 1, word: 'old' }] },
+      ],
+    });
+
+    const patched = JSON.parse(patchJsonWithEdits(original, [{ text: 'new' }]));
+    expect(patched.segments[0].text).toBe('new');
+    expect(patched.segments[0].words).toEqual([{ start: 0, end: 1, word: 'old' }]);
+    expect(patched.segments[0].start).toBe(0);
+    expect(patched.language).toBe('zh');
+    expect(patched.duration).toBe(12.5);
+  });
+
+  it('accepts a bare top-level array', () => {
+    const patched = JSON.parse(patchJsonWithEdits('[{"start":0,"end":1,"text":"a"}]', [{ text: 'b' }]));
+    expect(patched[0].text).toBe('b');
+  });
+
+  it('patches only as far as the shorter of the two arrays', () => {
+    const original = JSON.stringify({ segments: [{ text: 'a' }, { text: 'b' }] });
+    const patched = JSON.parse(patchJsonWithEdits(original, [{ text: 'A' }]));
+    expect(patched.segments.map((s) => s.text)).toEqual(['A', 'b']);
+  });
+
+  it('rejects JSON with no segments array', () => {
+    expect(() => patchJsonWithEdits('{"nope":true}', [])).toThrowError(
+      expect.objectContaining({ code: 'INVALID_JSON_SHAPE' }),
+    );
+  });
+
+  it('ends the file with a newline', () => {
+    expect(patchJsonWithEdits('{"segments":[]}', [])).toMatch(/\n$/);
+  });
+});
