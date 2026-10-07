@@ -135,6 +135,51 @@ def build_parser() -> argparse.ArgumentParser:
         help="Label format, with {n} as the 1-based speaker number (default 'Speaker {n}').",
     )
 
+    # --- subtitle segmentation -----------------------------------------
+    #
+    # Same default=None discipline as the diarization flags above, for the
+    # same reason: Electron drives transcription entirely through
+    # config.json, so a flag with a real argparse default would clobber
+    # whatever the user set in Settings.
+    parser.add_argument(
+        "--segment-subtitles",
+        dest="segment_subtitles",
+        action="store_true",
+        default=None,
+        help="Re-cut subtitles into short cues by word timestamp (needs word timestamps).",
+    )
+    parser.add_argument(
+        "--no-segment-subtitles",
+        dest="segment_subtitles",
+        action="store_false",
+        default=None,
+        help="Disable subtitle re-segmentation even when the config file enables it.",
+    )
+    parser.add_argument(
+        "--subtitle-max-lines",
+        type=int,
+        default=None,
+        help="Lines per cue (default 2, the subtitle standard).",
+    )
+    parser.add_argument(
+        "--subtitle-max-duration",
+        type=float,
+        default=None,
+        help="Longest a cue may stay on screen, in seconds (default 7.0).",
+    )
+    parser.add_argument(
+        "--subtitle-min-duration",
+        type=float,
+        default=None,
+        help="Shortest a cue may stay on screen, in seconds (default 0.833).",
+    )
+    parser.add_argument(
+        "--subtitle-run-gap",
+        type=float,
+        default=None,
+        help="Silence that ends a run, in seconds (default 1.0). No cue spans a longer gap.",
+    )
+
     return parser
 
 
@@ -397,6 +442,17 @@ def _build_transcribe_config(args: argparse.Namespace) -> TranscribeConfig:
         base.diarize_threshold = args.diarize_threshold
     if args.speaker_label_template is not None:
         base.speaker_label_template = args.speaker_label_template
+
+    if args.segment_subtitles is not None:
+        base.subtitle_segmentation = args.segment_subtitles
+    if args.subtitle_max_lines is not None:
+        base.subtitle_max_lines = args.subtitle_max_lines
+    if args.subtitle_max_duration is not None:
+        base.subtitle_max_duration = args.subtitle_max_duration
+    if args.subtitle_min_duration is not None:
+        base.subtitle_min_duration = args.subtitle_min_duration
+    if args.subtitle_run_gap is not None:
+        base.subtitle_run_gap = args.subtitle_run_gap
 
     return base
 
