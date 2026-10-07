@@ -79,6 +79,10 @@
       "title": "Voice activity detection",
       "description": "Segmentation strategy — affects speed and boundary quality."
     },
+    "diarization": {
+      "title": "Speaker diarization",
+      "description": "Label who is speaking in each segment. Downloads ~34 MB of models on first use."
+    },
     "advanced": {
       "title": "Advanced decoder",
       "description": "Fine-tuning for people who know Whisper internals; usually leave as-is."
@@ -136,6 +140,22 @@
     "vad_prompt_window": {
       "description": "Cross-segment prompt window (seconds). Whisper will be fed the last N seconds of the previous segment as context, helping it keep terminology consistent.",
       "label": "Cross-segment prompt (sec)"
+    },
+    "diarize": {
+      "description": "Tag each segment with a speaker and prefix its subtitle line with [Speaker 1]. Runs an extra pass after transcription and turns on word timestamps, so segment boundaries shift slightly compared with having it off.",
+      "label": "Identify speakers"
+    },
+    "diarize_num_speakers": {
+      "description": "Exact number of speakers. Leave at 0 to work it out automatically; when you already know the number, setting it is usually the single biggest accuracy gain.",
+      "label": "Number of speakers"
+    },
+    "speaker_label_template": {
+      "description": "Label written in front of each line. {n} is the speaker number, starting at 1. For Chinese subtitles try 講者 {n}. An invalid format falls back to Speaker {n}.",
+      "label": "Speaker label format"
+    },
+    "diarize_threshold": {
+      "description": "Advanced; normally leave as-is. Between 0 and 1, default 0.5. Lower values separate voices more eagerly, so automatic detection reports more speakers.",
+      "label": "Clustering threshold"
     },
     "language": {
       "description": "Target language. Leave blank to let Whisper auto-detect; specifying a language usually gives more stable output.",

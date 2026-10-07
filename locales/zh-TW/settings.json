@@ -79,6 +79,10 @@
       "title": "語音活動偵測（VAD）",
       "description": "切段策略，影響轉錄速度與斷句品質。"
     },
+    "diarization": {
+      "title": "講者辨識",
+      "description": "標示每段是誰在說話。首次啟用會下載約 34 MB 的模型。"
+    },
     "advanced": {
       "title": "進階解碼參數",
       "description": "給熟悉 Whisper 內部參數的使用者微調；一般無需調整。"
@@ -136,6 +140,22 @@
     "vad_prompt_window": {
       "label": "跨段提示視窗 (秒)",
       "description": "跨段提示視窗長度（秒）。Whisper 轉錄下一段時會帶上前段的最後 N 秒做上下文，有助於維持術語一致。"
+    },
+    "diarize": {
+      "label": "辨識講者",
+      "description": "為每段標上講者，並在字幕行開頭加上 [Speaker 1] 前綴。會在轉錄後多跑一個階段，並開啟逐字時間碼，因此分段邊界與關閉時會略有差異。"
+    },
+    "diarize_num_speakers": {
+      "label": "講者人數",
+      "description": "實際的講者人數。填 0 表示自動判斷；已知人數時直接指定，通常是提升準確度最有效的做法。"
+    },
+    "speaker_label_template": {
+      "label": "講者標籤格式",
+      "description": "寫在每行開頭的標籤。{n} 是講者編號，從 1 開始。中文字幕可改成 講者 {n}。格式錯誤時會退回 Speaker {n}。"
+    },
+    "diarize_threshold": {
+      "label": "分群門檻",
+      "description": "進階，一般不需調整。介於 0 到 1，預設 0.5。數值越低越容易把聲音分成不同人，自動判斷出的講者會變多。"
     },
     "language": {
       "label": "目標語言",
