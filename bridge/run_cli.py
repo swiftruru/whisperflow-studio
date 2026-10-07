@@ -28,8 +28,11 @@ if str(PYTHON_DIR) not in sys.path:
     sys.path.insert(0, str(PYTHON_DIR))
 
 from whisperflow.config import TranscribeConfig  # noqa: E402
+from whisperflow.diarization import DiarizationDependencyError  # noqa: E402
 from whisperflow.events import STAGE_FAILED, emitter_for  # noqa: E402
+from whisperflow.models.diarization_models import DiarizationModelError  # noqa: E402
 from whisperflow.transcriber import Transcriber  # noqa: E402
+from whisperflow.vad.base import InputFileVanishedError  # noqa: E402
 
 
 def _setup_logging() -> None:
@@ -123,6 +126,36 @@ def main() -> int:
     try:
         transcriber = Transcriber(config, emitter=emitter)
         transcriber.run()
+    # Each of these needs an explicit clause: the catch-all below reports
+    # ``reason = type(err).__name__``, and ipc-handlers.js dispatches on
+    # snake_case reason strings, so a CamelCase class name matches nothing
+    # and the user gets the generic "transcription failed" banner instead
+    # of the specific one.  (That is exactly why the existing
+    # INPUT_FILE_VANISHED banner was unreachable from this script, which
+    # is the only one Electron actually runs for transcription.)
+    except InputFileVanishedError as err:
+        emitter.error(
+            str(err),
+            message_key="errors:INPUT_FILE_VANISHED.message",
+            message_params={"path": err.path},
+            extra={"reason": "input_file_vanished"},
+        )
+        return 2
+    except DiarizationDependencyError as err:
+        emitter.error(
+            str(err),
+            message_key="errors:DIARIZATION_DEPENDENCY_MISSING.message",
+            extra={"reason": err.reason},
+        )
+        return 2
+    except DiarizationModelError as err:
+        emitter.error(
+            str(err),
+            message_key="errors:DIARIZATION_MODEL_DOWNLOAD_FAILED.message",
+            message_params={"urls": "\n".join(err.urls), "path": str(err.target_dir)},
+            extra={"reason": err.reason},
+        )
+        return 2
     except Exception as err:  # pragma: no cover - top-level safety net
         emitter.error(str(err), extra={"reason": type(err).__name__})
         return 1

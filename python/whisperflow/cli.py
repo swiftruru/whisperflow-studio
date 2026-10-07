@@ -1,6 +1,7 @@
 # Rewritten from faster-whisper-webui cli.py (Apache 2.0, (c) aadnk).
-# Changes: argparse surface is much smaller (no YouTube, no diarization,
-# no parallel-auto-detect options, no WebUI flags), config is driven by
+# Changes: argparse surface is much smaller (no YouTube, no upstream
+# pyannote diarization, no parallel-auto-detect options, no WebUI flags),
+# config is driven by
 # WhisperFlow Studio's own ``python/config/config.json`` file when called
 # from Electron, and the script exposes three sub-commands:
 #   (default) transcribe a single file
@@ -19,7 +20,9 @@ from pathlib import Path
 from typing import Optional
 
 from .config import VAD_CHOICES, TranscribeConfig
+from .diarization import DiarizationDependencyError
 from .events import STAGE_FAILED, STAGE_PREPARING, EventEmitter, emitter_for
+from .models.diarization_models import DiarizationModelError
 from .models.manager import ModelManager, default_models_dir
 from .models.registry import all_models, model_names
 from .prompts.base import InitialPromptMode
@@ -92,6 +95,46 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--verbose", action="store_true")
 
+    # --- speaker diarization -------------------------------------------
+    #
+    # Every flag here uses default=None and is applied only when the user
+    # actually passed it.  Most of the older flags above carry a real
+    # argparse default and therefore clobber whatever the config file said
+    # (--model always wins as "large-v2", --vad as "silero-vad", and so
+    # on).  New flags must not repeat that, because Electron drives
+    # transcription entirely through config.json.
+    parser.add_argument(
+        "--diarize",
+        dest="diarize",
+        action="store_true",
+        default=None,
+        help="Label each segment with a speaker (downloads ~34 MB of models on first use).",
+    )
+    parser.add_argument(
+        "--no-diarize",
+        dest="diarize",
+        action="store_false",
+        default=None,
+        help="Disable speaker diarization even when the config file enables it.",
+    )
+    parser.add_argument(
+        "--num-speakers",
+        type=int,
+        default=None,
+        help="Exact number of speakers. Omit or pass 0 to detect automatically.",
+    )
+    parser.add_argument(
+        "--diarize-threshold",
+        type=float,
+        default=None,
+        help="Speaker-clustering threshold, 0-1 (default 0.5). Lower finds more speakers.",
+    )
+    parser.add_argument(
+        "--speaker-label-template",
+        default=None,
+        help="Label format, with {n} as the 1-based speaker number (default 'Speaker {n}').",
+    )
+
     return parser
 
 
@@ -132,6 +175,21 @@ def main(argv: Optional[list[str]] = None) -> int:
             message_key="errors:INPUT_FILE_VANISHED.message",
             message_params={"path": err.path},
             extra={"reason": "input_file_vanished"},
+        )
+        return 2
+    except DiarizationDependencyError as err:
+        emitter.error(
+            str(err),
+            message_key="errors:DIARIZATION_DEPENDENCY_MISSING.message",
+            extra={"reason": err.reason},
+        )
+        return 2
+    except DiarizationModelError as err:
+        emitter.error(
+            str(err),
+            message_key="errors:DIARIZATION_MODEL_DOWNLOAD_FAILED.message",
+            message_params={"urls": "\n".join(err.urls), "path": str(err.target_dir)},
+            extra={"reason": err.reason},
         )
         return 2
     except Exception as err:  # pragma: no cover - defensive top-level
@@ -330,6 +388,15 @@ def _build_transcribe_config(args: argparse.Namespace) -> TranscribeConfig:
     base.beam_size = args.beam_size
     base.temperature = args.temperature
     base.verbose = args.verbose
+
+    if args.diarize is not None:
+        base.diarize = args.diarize
+    if args.num_speakers is not None:
+        base.diarize_num_speakers = args.num_speakers
+    if args.diarize_threshold is not None:
+        base.diarize_threshold = args.diarize_threshold
+    if args.speaker_label_template is not None:
+        base.speaker_label_template = args.speaker_label_template
 
     return base
 
