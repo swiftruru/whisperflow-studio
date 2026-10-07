@@ -40,6 +40,7 @@ from .vad.base import (
     NonSpeechStrategy,
     PeriodicTranscriptionConfig,
     TranscriptionConfig,
+    load_audio,
 )
 from .vad.parallel import ParallelContext, ParallelVadTranscription
 from .vad.periodic import PeriodicVad
@@ -246,7 +247,16 @@ class Transcriber:
                     max_prompt_window=1.0,
                 )
                 return self._dispatch_vad(vad, audio_path, callback, periodic)
-            return callback.invoke(audio_path, 0, None, None, progress_listener=self._listener)
+            # Decode with our own ffmpeg-CLI loader rather than handing the
+            # path to faster-whisper.  This was the one code path that still
+            # relied on faster-whisper's PyAV-based decode_audio(), which
+            # breaks on av 19 (see the av<19 pin in requirements.txt), and it
+            # is also the only path that never raised InputFileVanishedError
+            # for a file deleted mid-run.  load_audio() returns exactly the
+            # 16 kHz mono float32 ndarray model.transcribe() accepts, and it
+            # is already the decoder every other VAD mode depends on.
+            samples = load_audio(audio_path, sample_rate=16000)
+            return callback.invoke(samples, 0, None, None, progress_listener=self._listener)
 
         if cfg.vad == "periodic-vad":
             vad = PeriodicVad()
