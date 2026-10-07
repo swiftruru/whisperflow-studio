@@ -66,6 +66,7 @@ function stageLabel(stage) {
     'loading-vad': 'vad',
     'transcribing': 'transcribing',
     'diarizing': 'diarizing',
+    'segmenting': 'segmenting',
     'writing-subtitle': 'writingSubtitle',
     'finalizing': 'finalizing',
     'failed': 'failed',

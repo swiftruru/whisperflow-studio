@@ -43,6 +43,7 @@
     "vad": "Running VAD",
     "transcribing": "Transcribing",
     "diarizing": "Identifying Speakers",
+    "segmenting": "Splitting Subtitles",
     "writingSubtitle": "Writing Subtitle",
     "finalizing": "Finalizing",
     "failed": "Failed",

@@ -43,6 +43,7 @@
     "vad": "執行 VAD",
     "transcribing": "轉錄中",
     "diarizing": "辨識講者",
+    "segmenting": "切分字幕",
     "writingSubtitle": "寫入字幕",
     "finalizing": "收尾中",
     "failed": "失敗",

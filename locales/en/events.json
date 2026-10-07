@@ -9,6 +9,7 @@
     "diarizing": "Identifying speakers",
     "preparingDiarization": "Preparing speaker identification…",
     "downloadingDiarizationModels": "First run — downloading speaker-identification models (~{{size}} MB; they work out who is speaking in each segment)…",
+    "segmenting": "Splitting subtitles into short cues",
     "writingSubtitle": "Writing subtitle files",
     "completed": "Subtitle files generated"
   },

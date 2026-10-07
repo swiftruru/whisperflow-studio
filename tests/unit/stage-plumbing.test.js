@@ -36,8 +36,9 @@ const STAGE_PROGRESS = read('src/main/queue-manager.js')
 describe('runner stage plumbing', () => {
   it('found the stage constants to check', () => {
     expect(PYTHON_STAGES).toContain('diarizing');
+    expect(PYTHON_STAGES).toContain('segmenting');
     expect(PYTHON_STAGES).toContain('loading-vad');
-    expect(PYTHON_STAGES.length).toBeGreaterThanOrEqual(8);
+    expect(PYTHON_STAGES.length).toBeGreaterThanOrEqual(9);
   });
 
   it.each(PYTHON_STAGES)('%s has a stage-chip label in both locales', (stage) => {
@@ -54,7 +55,15 @@ describe('runner stage plumbing', () => {
     expect(CONSOLE_LABELS).toContain(`'${stage}'`);
   });
 
-  it.each(['preparing', 'loading-model', 'loading-vad', 'transcribing', 'diarizing', 'writing-subtitle'])(
+  it.each([
+    'preparing',
+    'loading-model',
+    'loading-vad',
+    'transcribing',
+    'diarizing',
+    'segmenting',
+    'writing-subtitle',
+  ])(
     '%s has a progress fallback for events that carry no explicit value',
     (stage) => {
       expect(STAGE_PROGRESS).toContain(`case '${stage}':`);

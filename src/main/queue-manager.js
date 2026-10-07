@@ -108,6 +108,8 @@ function getStageProgress(stage) {
       return 55;
     case 'diarizing':
       return 60;
+    case 'segmenting':
+      return 88;
     case 'writing-subtitle':
       return 90;
     case 'skipping':

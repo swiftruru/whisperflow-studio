@@ -94,6 +94,7 @@ const STAGE_LABELS = {
   'loading-vad':     'Loading VAD',
   'transcribing':    'Transcribing',
   'diarizing':       'Diarizing',
+  'segmenting':      'Segmenting',
   'writing-subtitle': 'Writing SRT',
   'completed':       'Completed',
   'failed':          'Failed',
