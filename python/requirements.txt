@@ -18,3 +18,11 @@ more-itertools>=10.2.0
 intervaltree>=3.1.0
 srt>=3.5.3
 tqdm>=4.66.0
+# Speaker diarization.  Pulls in exactly one dependency
+# (sherpa-onnx-core, ~10 MB) and runs the pyannote segmentation-3.0 and
+# 3D-Speaker CAM++ ONNX models on ONNX Runtime: no torch, no Hugging Face
+# token, and wheels for macOS arm64/x86_64, Windows x64 and Linux
+# x86_64/aarch64 -- which is why this and not pyannote.audio, whose
+# torch>=2.8 requirement has no macOS x86_64 wheel (PyTorch's last one was
+# 2.2.2) and would make the Intel Mac build uninstallable.
+sherpa-onnx>=1.13.8,<2
