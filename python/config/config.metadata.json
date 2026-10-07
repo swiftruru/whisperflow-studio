@@ -61,6 +61,11 @@
         "keys": ["vad", "vad_merge_window", "vad_max_merge_size", "vad_padding", "vad_prompt_window"]
       },
       {
+        "id": "diarization",
+        "segment": "transcription",
+        "keys": ["diarize", "diarize_num_speakers", "speaker_label_template", "diarize_threshold"]
+      },
+      {
         "id": "advanced",
         "segment": "transcription",
         "defaultCollapsed": true,

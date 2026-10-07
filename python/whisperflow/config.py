@@ -72,6 +72,19 @@ class TranscribeConfig:
     vad_prompt_window: float = 3.0
     vad_periodic_duration: float = 30.0
 
+    # --- speaker diarization -------------------------------------------
+    # Off by default: enabling it downloads ~34 MB of models on first use
+    # and turns on faster-whisper's word timestamps, which shifts segment
+    # boundaries slightly.  See docs/specs/speaker-diarization.md.
+    diarize: bool = False
+    # 0 means "let the clustering threshold decide".  Mapped to sherpa-onnx's
+    # num_clusters=-1 at the call site -- 0 is not a valid cluster count.
+    diarize_num_speakers: int = 0
+    diarize_threshold: float = 0.5
+    # ``{n}`` is 1-based.  A template that fails to format falls back to the
+    # default and logs a warning; see diarization.speaker_label().
+    speaker_label_template: str = "Speaker {n}"
+
     # --- Whisper decode options ---------------------------------------
     language: Optional[str] = None  # None = auto-detect
     task: str = "transcribe"  # or "translate"

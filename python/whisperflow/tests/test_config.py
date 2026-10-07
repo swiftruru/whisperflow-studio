@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from whisperflow.config import TranscribeConfig
 from whisperflow.prompts.base import InitialPromptMode
@@ -15,6 +16,12 @@ def test_defaults_are_sane():
     assert cfg.task == "transcribe"
     assert cfg.write_srt is True
     assert cfg.write_vtt is True
+    # Diarization must stay off by default: it downloads ~34 MB on first
+    # use and changes the Whisper decode options.
+    assert cfg.diarize is False
+    assert cfg.diarize_num_speakers == 0
+    assert cfg.diarize_threshold == 0.5
+    assert cfg.speaker_label_template == "Speaker {n}"
 
 
 def test_from_dict_ignores_unknown_keys():
@@ -103,3 +110,68 @@ def test_to_dict_roundtrip():
     restored = TranscribeConfig.from_dict(data)
     assert restored.model == "tiny"
     assert restored.language == "English"
+
+
+# --- speaker diarization fields ------------------------------------------
+#
+# config.example.json stores every one of these as a *string* so the
+# auto-generated Settings UI picks the right widget ("False" -> checkbox,
+# "0" / "0.5" -> number input).  These tests pin the coercion that turns
+# those strings back into real Python values.
+
+
+def test_diarize_flag_coercion():
+    for raw, expected in (
+        ("False", False),
+        ("True", True),
+        ("true", True),
+        ("0", False),
+        ("0.0", False),
+        (0, False),
+        (1, True),
+    ):
+        cfg = TranscribeConfig.from_dict({"diarize": raw})
+        assert cfg.diarize is expected, raw
+
+
+def test_diarize_num_speakers_coercion():
+    # Blank means "unset", which _coerce_value turns into 0 -- the same
+    # value as an explicit 0, and both mean "decide automatically".
+    assert TranscribeConfig.from_dict({"diarize_num_speakers": "0"}).diarize_num_speakers == 0
+    assert TranscribeConfig.from_dict({"diarize_num_speakers": ""}).diarize_num_speakers == 0
+    assert TranscribeConfig.from_dict({"diarize_num_speakers": "4"}).diarize_num_speakers == 4
+    assert TranscribeConfig.from_dict({"diarize_num_speakers": 4.0}).diarize_num_speakers == 4
+    assert isinstance(
+        TranscribeConfig.from_dict({"diarize_num_speakers": "4"}).diarize_num_speakers, int
+    )
+
+
+def test_diarize_threshold_coercion():
+    cfg = TranscribeConfig.from_dict({"diarize_threshold": "0.45"})
+    assert cfg.diarize_threshold == 0.45
+    assert isinstance(cfg.diarize_threshold, float)
+    assert TranscribeConfig.from_dict({"diarize_threshold": ""}).diarize_threshold == 0.0
+
+
+def test_speaker_label_template_none_becomes_empty_string():
+    # _coerce_value maps None onto "" for str fields, which is why
+    # diarization.speaker_label() has to treat a blank template as
+    # "fall back to the default" rather than trusting it.
+    assert TranscribeConfig.from_dict({"speaker_label_template": None}).speaker_label_template == ""
+    cfg = TranscribeConfig.from_dict({"speaker_label_template": "講者 {n}"})
+    assert cfg.speaker_label_template == "講者 {n}"
+
+
+def test_example_config_template_carries_the_diarization_keys():
+    # python/config/config.json is gitignored, so config.example.json is the
+    # only file that ships new defaults -- and config-manager.js merges it
+    # into an existing user's config on read.  A key missing here never
+    # reaches config.json, and the Settings UI only renders keys that are
+    # actually present in config.json.
+    template_path = Path(__file__).resolve().parents[2] / "config" / "config.example.json"
+    setting = json.loads(template_path.read_text(encoding="utf-8"))["SETTING"]
+    for key in ("diarize", "diarize_num_speakers", "speaker_label_template", "diarize_threshold"):
+        assert key in setting, key
+    # The widget the Settings UI infers depends on these exact literals.
+    assert setting["diarize"] == "False"
+    assert TranscribeConfig.from_dict(setting).diarize is False
