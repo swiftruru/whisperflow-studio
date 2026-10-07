@@ -65,7 +65,8 @@
     "retryRun": "Retry",
     "retryScan": "Rescan",
     "openFolder": "Open folder",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "updateEnvironment": "Update environment"
   },
   "toast": {
     "preflightPassed": "System check passed",
@@ -78,5 +79,13 @@
   "MODEL_CHECK_FAILED": {
     "title": "Cannot check model status",
     "message": "Could not verify whether the selected model is downloaded. Please make sure the Python virtual environment is set up, or check the Models tab manually."
+  },
+  "DIARIZATION_DEPENDENCY_MISSING": {
+    "title": "Speaker identification is not installed",
+    "message": "Speaker identification needs the sherpa-onnx Python package, which this environment does not have yet. Update the Python environment to install it, then run again."
+  },
+  "DIARIZATION_MODEL_DOWNLOAD_FAILED": {
+    "title": "Could not get the speaker-identification models",
+    "message": "The speaker-identification models could not be downloaded or verified. Check your network connection and try again, or download them by hand into {{path}}:\n{{urls}}"
   }
 }

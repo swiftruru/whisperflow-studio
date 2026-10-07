@@ -60,8 +60,12 @@ function stageLabel(stage) {
     'error': 'error',
     'preparing': 'preparing',
     'loading-model': 'loadingModel',
+    // Python emits 'loading-vad'; without the alias the VAD stage chip
+    // silently fell back to "Idle" for the whole download/load step.
     'vad': 'vad',
+    'loading-vad': 'vad',
     'transcribing': 'transcribing',
+    'diarizing': 'diarizing',
     'writing-subtitle': 'writingSubtitle',
     'finalizing': 'finalizing',
     'failed': 'failed',

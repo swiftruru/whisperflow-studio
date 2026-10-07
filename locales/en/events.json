@@ -6,6 +6,9 @@
     "preparingVad": "Preparing voice activity detection (Silero VAD)…",
     "transcribing": "Running VAD and Whisper",
     "transcribingWhisper": "Whisper transcribing · model {{model}}",
+    "diarizing": "Identifying speakers",
+    "preparingDiarization": "Preparing speaker identification…",
+    "downloadingDiarizationModels": "First run — downloading speaker-identification models (~{{size}} MB; they work out who is speaking in each segment)…",
     "writingSubtitle": "Writing subtitle files",
     "completed": "Subtitle files generated"
   },

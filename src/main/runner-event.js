@@ -7,6 +7,7 @@ const RUNNER_STAGES = Object.freeze({
   LOADING_MODEL: 'loading-model',
   VAD: 'vad',
   TRANSCRIBING: 'transcribing',
+  DIARIZING: 'diarizing',
   WRITING_SUBTITLE: 'writing-subtitle',
   COMPLETED: 'completed',
   FAILED: 'failed',

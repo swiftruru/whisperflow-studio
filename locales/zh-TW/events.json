@@ -6,6 +6,9 @@
     "preparingVad": "準備語音片段偵測（Silero VAD）…",
     "transcribing": "執行 VAD 與 Whisper",
     "transcribingWhisper": "Whisper 轉錄中 · 模型 {{model}}",
+    "diarizing": "辨識講者中",
+    "preparingDiarization": "準備講者辨識…",
+    "downloadingDiarizationModels": "首次使用，正在下載講者辨識模型（約 {{size}} MB；用來判斷每段話是誰說的）…",
     "writingSubtitle": "寫入字幕檔",
     "completed": "字幕檔已產生"
   },

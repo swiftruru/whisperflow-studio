@@ -2,6 +2,7 @@
 
 import { clearActiveError, setActiveError } from './error-state.js';
 import { refreshPreflight } from './preflight-panel.js';
+import { updateVenvRequirementsWithProgress } from '../lib/venv-bootstrap.js';
 import { getQueueState } from './queue-state.js';
 import { triggerRun, triggerScan } from './controls-bar.js';
 import { showToast } from './toast.js';
@@ -39,6 +40,8 @@ function getActionLabel(actionType) {
       return t('errors:actions.openFolder');
     case 'dismiss-error':
       return t('errors:actions.dismiss');
+    case 'update-venv-requirements':
+      return t('errors:actions.updateEnvironment');
     default:
       return '';
   }
@@ -151,6 +154,33 @@ async function openFolder(actionPayload = {}) {
   };
 }
 
+/**
+ * Install the Python dependencies this build needs but the existing venv
+ * lacks.  Reached from the DIARIZATION_DEPENDENCY_MISSING banner, where
+ * the remedy is a pip install rather than a retry — so offering
+ * "retry run" there would just fail again.
+ */
+async function updateVenvRequirements() {
+  showToast(t('toasts:venv.updating'), 'info', 5000);
+  try {
+    await updateVenvRequirementsWithProgress({ onStage: () => {} });
+  } catch (error) {
+    showToast(t('toasts:venv.failed', { error: error?.message || error }), 'error', 6000);
+    return {
+      handled: false,
+      shouldCloseDialog: false,
+    };
+  }
+
+  showToast(t('toasts:venv.updated'), 'success', 3000);
+  await refreshPreflight();
+  clearActiveError();
+  return {
+    handled: true,
+    shouldCloseDialog: true,
+  };
+}
+
 async function performErrorAction(actionOrError, payload = null) {
   const { actionType, actionPayload, sourceError } = normalizeActionInput(actionOrError, payload);
 
@@ -181,6 +211,9 @@ async function performErrorAction(actionOrError, payload = null) {
           handled: true,
           shouldCloseDialog: true,
         };
+
+      case 'update-venv-requirements':
+        return updateVenvRequirements();
 
       default:
         return {

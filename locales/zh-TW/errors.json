@@ -65,7 +65,8 @@
     "retryRun": "重新執行",
     "retryScan": "重新掃描",
     "openFolder": "開啟資料夾",
-    "dismiss": "關閉提示"
+    "dismiss": "關閉提示",
+    "updateEnvironment": "更新環境"
   },
   "toast": {
     "preflightPassed": "系統檢查已通過",
@@ -78,5 +79,13 @@
   "MODEL_CHECK_FAILED": {
     "title": "無法檢查模型狀態",
     "message": "無法確認目前選擇的模型是否已下載。請先確認 Python 虛擬環境已建立，或手動到「模型」頁面檢查。"
+  },
+  "DIARIZATION_DEPENDENCY_MISSING": {
+    "title": "講者辨識尚未安裝",
+    "message": "講者辨識需要 sherpa-onnx Python 套件，而目前的環境尚未安裝。請先更新 Python 環境，再重新執行。"
+  },
+  "DIARIZATION_MODEL_DOWNLOAD_FAILED": {
+    "title": "無法取得講者辨識模型",
+    "message": "講者辨識模型下載或驗證失敗。請檢查網路連線後重試，或手動下載以下檔案並放到 {{path}}：\n{{urls}}"
   }
 }

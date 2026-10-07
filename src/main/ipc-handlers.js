@@ -560,15 +560,46 @@ function registerHandlers(
             const realMessage = lastStructuredError?.message
               || stderrBuffer.trim()
               || `Process exited with code ${code}`;
+            // Python reports a stable snake_case `reason` in the
+            // structured error event; map the ones we have specific copy
+            // and a specific remedy for.  Anything else falls through to
+            // the generic banner below.
             const reason = lastStructuredError?.meta?.reason;
-            if (reason === 'input_file_vanished') {
-              sendRunError(createAppError({
+            const specific = {
+              input_file_vanished: {
                 code: ERROR_CODES.INPUT_FILE_VANISHED,
-                titleKey: 'errors:INPUT_FILE_VANISHED.title',
-                messageKey: lastStructuredError.messageKey || 'errors:INPUT_FILE_VANISHED.message',
+                suggestedAction: 'retry-run',
+              },
+              diarization_dependency_missing: {
+                code: ERROR_CODES.DIARIZATION_DEPENDENCY_MISSING,
+                // The remedy is a pip install, not a retry.
+                suggestedAction: 'update-venv-requirements',
+              },
+              diarization_model_download_failed: {
+                code: ERROR_CODES.DIARIZATION_MODEL_DOWNLOAD_FAILED,
+                suggestedAction: 'retry-run',
+              },
+              diarization_model_checksum_mismatch: {
+                code: ERROR_CODES.DIARIZATION_MODEL_DOWNLOAD_FAILED,
+                suggestedAction: 'retry-run',
+              },
+              diarization_model_extract_failed: {
+                code: ERROR_CODES.DIARIZATION_MODEL_DOWNLOAD_FAILED,
+                suggestedAction: 'retry-run',
+              },
+            }[reason];
+
+            if (specific) {
+              sendRunError(createAppError({
+                code: specific.code,
+                titleKey: `errors:${specific.code}.title`,
+                messageKey: lastStructuredError.messageKey || `errors:${specific.code}.message`,
                 messageParams: lastStructuredError.messageParams || {},
                 message: realMessage,
-                suggestedAction: 'retry-run',
+                // Python's own message embeds the download URLs and target
+                // directory, so keep it available behind "Details".
+                details: `${reason}: ${realMessage}\n\n${stderrBuffer.trim()}`.trim(),
+                suggestedAction: specific.suggestedAction,
                 source: 'run',
               }));
             } else {

@@ -99,10 +99,15 @@ function getStageProgress(stage) {
       return 10;
     case 'loading-model':
       return 20;
+    // Python emits 'loading-vad'; 'vad' is kept because runner-event.js
+    // has long advertised it and nothing verifies which one arrives.
     case 'vad':
+    case 'loading-vad':
       return 35;
     case 'transcribing':
       return 55;
+    case 'diarizing':
+      return 60;
     case 'writing-subtitle':
       return 90;
     case 'skipping':

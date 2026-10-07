@@ -42,6 +42,7 @@
     "loadingModel": "Loading Model",
     "vad": "Running VAD",
     "transcribing": "Transcribing",
+    "diarizing": "Identifying Speakers",
     "writingSubtitle": "Writing Subtitle",
     "finalizing": "Finalizing",
     "failed": "Failed",

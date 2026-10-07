@@ -85,10 +85,15 @@ let _currentStage  = '';
 // Map from the Python EventEmitter's stage string to a short human label
 // shown next to the "Running 00:47" timer.  The values come from
 // python/whisperflow/events.py STAGE_* constants.
+// Console-only, deliberately untranslated: this is the developer-facing
+// log pane, and the surrounding lines are raw Python output in English.
+// The user-facing stage names live in progress.json / events.json.
 const STAGE_LABELS = {
   'preparing':       'Preparing',
   'loading-model':   'Loading model',
+  'loading-vad':     'Loading VAD',
   'transcribing':    'Transcribing',
+  'diarizing':       'Diarizing',
   'writing-subtitle': 'Writing SRT',
   'completed':       'Completed',
   'failed':          'Failed',
