@@ -468,6 +468,14 @@ def interpolate_words(segment: Mapping[str, object]) -> list[dict]:
 
     ``re.findall`` keeps the leading whitespace ON each token, mirroring
     faster-whisper's own convention, so ``"".join(...)`` round-trips.
+
+    Tokenisation is decided per whitespace-delimited chunk, not per
+    segment.  A chunk holding even one wide character is expanded per
+    character, because CJK may break between any two characters (spec
+    4.3) and the DP can only cut on token boundaries: keeping such a
+    chunk whole makes it unsplittable, and one long chunk then breaks
+    the hard width and duration conditions of spec 4.2.  A chunk with no
+    wide character stays whole, since a word must never be split (4.4).
     """
     text = str(segment.get("text", "")).rstrip()
     if not text:
@@ -476,7 +484,17 @@ def interpolate_words(segment: Mapping[str, object]) -> list[dict]:
     end = float(segment.get("end", start) or start)
     span = max(0.0, end - start)
 
-    tokens = re.findall(r"\s*\S+", text) if re.search(r"\S\s+\S", text) else list(text)
+    tokens: list[str] = []
+    for chunk in re.findall(r"\s*\S+", text):
+        body = chunk.lstrip()
+        if any(char_columns(char) == 2 for char in body):
+            # The leading whitespace rides on the first character so
+            # "".join(...) still round-trips to the original text.
+            lead = chunk[: len(chunk) - len(body)]
+            tokens.append(lead + body[0])
+            tokens.extend(body[1:])
+        else:
+            tokens.append(chunk)
     total = sum(text_columns(token) for token in tokens) or 1
 
     words: list[dict] = []

@@ -635,6 +635,49 @@ def test_interpolate_words_returns_nothing_for_blank_text():
     assert interpolate_words({"start": 0.0, "end": 1.0, "text": "   "}) == []
 
 
+def test_interpolated_times_are_proportional_to_width():
+    # Spec 4.2 says the fallback interpolates BY CHARACTER PROPORTION.
+    # Conservation alone does not pin that: equal slices would conserve
+    # the text just as well.
+    words_out = interpolate_words({"start": 10.0, "end": 20.0, "text": "ab cdefgh"})
+    assert [w["word"] for w in words_out] == ["ab", " cdefgh"]
+    # Widths 2 and 7 over a 10 s span -> the boundary sits at 10 + 10*2/9.
+    assert words_out[0]["start"] == pytest.approx(10.0)
+    assert words_out[0]["end"] == pytest.approx(10.0 + 10.0 * 2 / 9)
+    assert words_out[-1]["end"] == pytest.approx(20.0)
+    assert all(w["interpolated"] for w in words_out)
+
+
+def test_interpolation_splits_cjk_chunks_even_when_the_text_has_spaces():
+    # One embedded Latin term used to switch the WHOLE segment to
+    # whitespace tokens, making the Chinese tail a single indivisible
+    # pseudo-word: a 94-column, 35.85 s cue that broke two hard
+    # conditions of spec 4.2 on text that was freely splittable.
+    text = "我們在 2026 年的實驗裡面用了一個比較複雜的方法來估計主要效應所以成本比做真實實驗便宜很多而且結果也相當穩定"
+    source = [{"start": 0.0, "end": 40.0, "text": text, "words": []}]
+    options = SegmentationOptions()
+    limits = resolve_limits(options, "Chinese")
+    cues, stats = resegment(source, options, language="Chinese")
+    check_invariants(cues, limits)
+    assert stats.over_duration == 0
+    assert stats.over_line_width == 0
+    assert joined(cues) == text
+    # The Latin chunk stays whole; the Chinese is per character.
+    tokens = [w["word"] for w in interpolate_words(source[0])]
+    assert " 2026" in tokens
+    assert "年的實驗裡面用了一個比較複雜的方法來估計主要效應所以成本比做真實實驗便宜很多而且結果也相當穩定" not in tokens
+    assert "".join(tokens) == text
+
+
+def test_a_latin_word_is_never_split_by_interpolation():
+    # The old per-segment rule sent space-free text down list(text), so a
+    # single long English word came back as one token per LETTER, which
+    # spec 4.4 forbids.
+    assert [w["word"] for w in interpolate_words(
+        {"start": 0.0, "end": 1.0, "text": "extraordinarily"}
+    )] == ["extraordinarily"]
+
+
 def test_segments_without_words_fall_back_to_interpolation():
     options = SegmentationOptions()
     limits = resolve_limits(options, "en")
