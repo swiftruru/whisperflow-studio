@@ -220,11 +220,31 @@ function generateTxt(segments, { paragraphs = false } = {}) {
   return blocks.length === 0 ? '' : `${blocks.join('\n\n')}\n`;
 }
 
+/** A segment's start time as integer milliseconds, or null if unusable. */
+function timeKey(value) {
+  const seconds = Number(value);
+  return Number.isFinite(seconds) ? Math.round(seconds * 1000) : null;
+}
+
 /**
  * Patch the `text` field of each segment in an existing whisper JSON
- * result, preserving every other field (logprob, tokens, etc.) and
- * the top-level keys (language, duration, …).  Matches by array
- * index because the editor edits in-place — no reordering.
+ * result, preserving every other field (`words`, `speaker`,
+ * `speaker_label`, …) and the top-level keys (language, duration,
+ * `segmentation`, …).
+ *
+ * Matched by start time rather than array index.  Index matching looks
+ * safe — the editor never reorders — but `transcript-reader.js` drops
+ * empty-text segments as it reads the JSON, so the editor's array and the
+ * on-disk array diverge the moment any cue is blank, and every later edit
+ * then lands on the wrong segment with nothing to notice it: both arrays
+ * are the same shape and the old `Math.min` bound hid the length
+ * mismatch.  A user who edits one cue to empty creates that condition
+ * themselves, and re-segmentation roughly doubles the number of cues
+ * exposed to it.
+ *
+ * Start times are a sound key because timestamps are read-only in the
+ * editor.  Duplicates are consumed in order, and a segment with no usable
+ * start falls back to its index, which is the historic behaviour.
  */
 function patchJsonWithEdits(originalJsonText, editedSegments) {
   const parsed = JSON.parse(originalJsonText);
@@ -234,10 +254,25 @@ function patchJsonWithEdits(originalJsonText, editedSegments) {
     err.code = 'INVALID_JSON_SHAPE';
     throw err;
   }
-  const n = Math.min(segs.length, editedSegments.length);
-  for (let i = 0; i < n; i += 1) {
-    segs[i].text = String(editedSegments[i].text ?? '');
-  }
+
+  const byStart = new Map();
+  segs.forEach((seg, index) => {
+    const key = timeKey(seg.start);
+    if (key === null) return;
+    const bucket = byStart.get(key);
+    if (bucket) bucket.push(index);
+    else byStart.set(key, [index]);
+  });
+
+  editedSegments.forEach((edited, index) => {
+    const key = timeKey(edited.start);
+    const bucket = key === null ? null : byStart.get(key);
+    const target = bucket && bucket.length
+      ? bucket.shift()
+      : (index < segs.length ? index : -1);
+    if (target >= 0) segs[target].text = String(edited.text ?? '');
+  });
+
   return JSON.stringify(parsed, null, 2) + '\n';
 }
 

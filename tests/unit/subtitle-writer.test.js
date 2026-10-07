@@ -396,3 +396,84 @@ describe('the editor no longer flattens cue text', () => {
     expect(editor).toContain('setSelectionRange(caret, caret)');
   });
 });
+
+describe('patchJsonWithEdits matches by time', () => {
+  it('writes to the right segments when the reader dropped a blank one', () => {
+    // This is the drift: transcript-reader.js filters empty-text segments
+    // out, so the editor sees two segments where the file has three, and
+    // index matching lands every later edit on the wrong object -- with
+    // nothing to notice, since both arrays are the same shape.
+    const onDisk = JSON.stringify({
+      segments: [
+        { start: 0, end: 1, text: 'first' },
+        { start: 1, end: 2, text: '' },
+        { start: 2, end: 3, text: 'third' },
+      ],
+    });
+    const edited = [
+      { start: 0, end: 1, text: 'FIRST EDITED' },
+      { start: 2, end: 3, text: 'THIRD EDITED' },
+    ];
+    const patched = JSON.parse(patchJsonWithEdits(onDisk, edited));
+    expect(patched.segments.map((s) => s.text)).toEqual([
+      'FIRST EDITED', '', 'THIRD EDITED',
+    ]);
+  });
+
+  it('is unchanged for the ordinary aligned case', () => {
+    const original = JSON.stringify({
+      segments: [{ start: 0, end: 1, text: 'a' }, { start: 1, end: 2, text: 'b' }],
+    });
+    const patched = JSON.parse(patchJsonWithEdits(original, [
+      { start: 0, end: 1, text: 'A' },
+      { start: 1, end: 2, text: 'B' },
+    ]));
+    expect(patched.segments.map((s) => s.text)).toEqual(['A', 'B']);
+  });
+
+  it('tolerates a millisecond of float noise in the start time', () => {
+    const original = JSON.stringify({ segments: [{ start: 1.2345, end: 2, text: 'a' }] });
+    const patched = JSON.parse(patchJsonWithEdits(original, [{ start: 1.23449, text: 'A' }]));
+    expect(patched.segments[0].text).toBe('A');
+  });
+
+  it('consumes duplicate start times in order', () => {
+    // A zero-duration word can give two cues the same start.
+    const original = JSON.stringify({
+      segments: [{ start: 5, end: 5, text: 'x' }, { start: 5, end: 6, text: 'y' }],
+    });
+    const patched = JSON.parse(patchJsonWithEdits(original, [
+      { start: 5, text: 'X' }, { start: 5, text: 'Y' },
+    ]));
+    expect(patched.segments.map((s) => s.text)).toEqual(['X', 'Y']);
+  });
+
+  it('falls back to the index when a segment has no usable start', () => {
+    const original = JSON.stringify({ segments: [{ text: 'a' }, { text: 'b' }] });
+    const patched = JSON.parse(patchJsonWithEdits(original, [{ text: 'A' }, { text: 'B' }]));
+    expect(patched.segments.map((s) => s.text)).toEqual(['A', 'B']);
+  });
+
+  it('ignores an edit whose start matches nothing and has no index either', () => {
+    const original = JSON.stringify({ segments: [{ start: 0, end: 1, text: 'a' }] });
+    const patched = JSON.parse(patchJsonWithEdits(original, [
+      { start: 0, text: 'A' },
+      { start: 99, text: 'nowhere' },
+    ]));
+    expect(patched.segments.map((s) => s.text)).toEqual(['A']);
+  });
+
+  it('leaves the segmentation metadata block untouched', () => {
+    const original = JSON.stringify({
+      language: 'zh',
+      segmentation: { version: 1, max_line_chars: 16 },
+      segments: [{ start: 0, end: 1, text: 'old', speaker: 2, speaker_label: 'Speaker 3' }],
+    });
+    const patched = JSON.parse(patchJsonWithEdits(original, [{ start: 0, text: 'new' }]));
+    expect(patched.segmentation).toEqual({ version: 1, max_line_chars: 16 });
+    expect(patched.language).toBe('zh');
+    expect(patched.segments[0]).toEqual({
+      start: 0, end: 1, text: 'new', speaker: 2, speaker_label: 'Speaker 3',
+    });
+  });
+});
