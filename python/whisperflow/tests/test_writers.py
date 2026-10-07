@@ -156,12 +156,10 @@ def test_empty_text_segment_gets_no_prefix():
 def test_speaker_prefix_counts_toward_first_line_width():
     # The 12-character prefix is charged to line 1, so the same text that
     # fits on one line without a label has to wrap with one.
-    # (The missing spaces are pre-existing _wrap_text behaviour: it splits
-    # on " " and never re-inserts a separator.  Unchanged here.)
-    assert _wrap_text("Hello there friend", 20) == "Hellotherefriend"
+    assert _wrap_text("Hello there friend", 20) == "Hello there friend"
     assert (
         _wrap_text("Hello there friend", 20, prefix="[Speaker 1] ")
-        == "[Speaker 1] Hello\ntherefriend"
+        == "[Speaker 1] Hello\nthere friend"
     )
 
 
@@ -196,3 +194,80 @@ def test_words_present_does_not_change_cue_text():
     out = io.StringIO()
     write_srt(segments, out)
     assert out.getvalue() == "1\n00:00:00,000 --> 00:00:01,000\n你好世界\n\n"
+
+
+# --- wrapping keeps the words apart -------------------------------------
+
+
+def test_wrapping_preserves_the_space_between_words():
+    # Before v1.17 this returned "Hellotherefriend": the tokens were
+    # concatenated with no separator.  It went unnoticed because
+    # max_line_width ships blank, so no shipped configuration reached the
+    # wrapping path at all.
+    assert _wrap_text("Hello there friend", 42) == "Hello there friend"
+    assert _wrap_text("Hello there friend", 10) == "Hello\nthere\nfriend"
+
+
+def test_wrapping_preserves_a_double_space():
+    assert _wrap_text("alpha  bravo  charlie", 14) == "alpha  bravo\ncharlie"
+    assert _wrap_text("a  b", 10) == "a  b"
+
+
+def test_wrapping_never_leaves_a_trailing_space_on_a_line():
+    for width in range(3, 25):
+        for line in _wrap_text("alpha  bravo  charlie delta", width).split("\n"):
+            assert line == line.rstrip(), (width, repr(line))
+
+
+def test_wrapping_never_emits_a_blank_line():
+    # A blank line would end the cue block and truncate the file.
+    for width in range(1, 20):
+        wrapped = _wrap_text("alpha \t bravo \t charlie", width)
+        assert "\n\n" not in wrapped, (width, repr(wrapped))
+        assert all(line.strip() for line in wrapped.split("\n")), (width, repr(wrapped))
+
+
+def test_wrapped_lines_respect_the_width_except_for_an_oversized_word():
+    text = "alpha bravo charlie delta echo"
+    for width in range(8, 30):
+        for line in _wrap_text(text, width).split("\n"):
+            assert len(line) <= width or " " not in line, (width, repr(line))
+
+
+# --- the blank-line guard -----------------------------------------------
+
+
+def test_a_blank_line_inside_a_cue_is_collapsed_not_written_out():
+    # Left alone, the blank line terminates the SRT cue block and
+    # transcript-reader.js drops everything after it with no error.
+    # Collapsing is preferred over raising: a cosmetic defect should not
+    # throw away a whole transcription.
+    segments = [
+        {"start": 0.0, "end": 1.0, "text": "a\n\nb"},
+        {"start": 2.0, "end": 3.0, "text": "next"},
+    ]
+    out = io.StringIO()
+    write_srt(segments, out)
+    text = out.getvalue()
+    assert "a\nb" in text
+    assert "next" in text, "the cue after the offending one must survive"
+    # Exactly two cue blocks, so the structure is intact.
+    assert text.count(" --> ") == 2
+    blocks = [block for block in text.split("\n\n") if block.strip()]
+    assert len(blocks) == 2
+
+
+def test_a_legal_two_line_cue_passes_through_untouched():
+    segments = [{"start": 0.0, "end": 1.0, "text": "line one\nline two"}]
+    out = io.StringIO()
+    write_srt(segments, out)
+    assert out.getvalue() == "1\n00:00:00,000 --> 00:00:01,000\nline one\nline two\n\n"
+
+
+def test_a_two_line_cue_keeps_its_speaker_prefix_on_the_first_line():
+    segments = [
+        {"start": 0.0, "end": 1.0, "text": "line one\nline two", "speaker_label": "Speaker 1"}
+    ]
+    out = io.StringIO()
+    write_vtt(segments, out)
+    assert "[Speaker 1] line one\nline two" in out.getvalue()

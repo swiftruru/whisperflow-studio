@@ -8,9 +8,22 @@
 
 from __future__ import annotations
 
+import logging
+import re
 from typing import Iterable, Iterator, Mapping, Optional, TextIO
 
+_log = logging.getLogger(__name__)
+
 Segment = Mapping[str, object]
+
+# A blank line terminates an SRT or WebVTT cue block, so one inside a cue
+# body truncates the file: src/main/transcript-reader.js splits blocks on
+# /\n\s*\n+/ and silently drops everything after the break.  Nothing
+# upstream should produce one -- segmentation's wrapper cannot, and
+# _wrap_tokens below skips blank lines -- but the cost of being wrong is
+# losing the tail of a transcript with no error anywhere, so the writers
+# collapse them rather than trusting their callers.
+_BLANK_LINES = re.compile(r"\n[ \t]*(?:\n[ \t]*)+")
 
 # Rendered in front of the first line of a cue whose segment carries a
 # ``speaker_label``.
@@ -129,8 +142,23 @@ def _prepare_cues(
         yield {
             "start": float(segment["start"]),
             "end": float(segment["end"]),
-            "text": _wrap_text(text, max_line_width, prefix=prefix),
+            "text": _collapse_blank_lines(_wrap_text(text, max_line_width, prefix=prefix)),
         }
+
+
+def _collapse_blank_lines(text: str) -> str:
+    """Fold any run of blank lines inside a cue body down to one break.
+
+    See ``_BLANK_LINES``: a blank line ends the cue block, so leaving one
+    in costs the reader everything after it with no error raised anywhere.
+    Collapsing is deliberately preferred over raising -- a cosmetic defect
+    should not throw away a whole transcription -- but it is logged,
+    because reaching here means something upstream is wrong.
+    """
+    if not _BLANK_LINES.search(text):
+        return text
+    _log.warning("collapsing a blank line inside a subtitle cue: %r", text)
+    return _BLANK_LINES.sub("\n", text)
 
 
 def _wrap_text(text: str, max_line_width: Optional[int], *, prefix: str = "") -> str:
@@ -152,34 +180,40 @@ def _wrap_tokens(
     available for the first line's words.  A token longer than
     ``max_line_width`` overflows rather than being split mid-word.
 
-    With ``prefix=""`` this is character-for-character the pre-1.17 loop:
-    ``prefix_only`` is then ``False`` from the start and the break condition
-    collapses back to ``current_length > 0``.  No separator is re-inserted
-    between tokens — that is pre-existing ``_wrap_text`` behaviour, left
-    alone here so wrapped output is unchanged for everyone not using a
-    speaker label.
+    Tokens are rejoined with a single space.  Before v1.17 they were
+    concatenated with no separator at all, so wrapping turned
+    "Hello there friend" into "Hellotherefriend" — unnoticed only because
+    ``max_line_width`` ships blank, so no shipped configuration ever
+    reached this path.
     """
     lines: list[str] = []
     current = prefix
-    current_length = len(prefix)
     # Never emit a line holding nothing but the speaker label, however
     # small max_line_width is.
     prefix_only = bool(prefix)
 
     for token in tokens:
-        token_length = len(token)
+        # One space between tokens, except where it would be leading: at
+        # the start of a line, or straight after the prefix, which already
+        # ends in one.
+        separator = "" if (not current or prefix_only) else " "
         if (
-            current_length > 0
-            and current_length + token_length > max_line_width
+            current
             and not prefix_only
+            and len(current) + len(separator) + len(token) > max_line_width
         ):
-            lines.append(current)
-            current = ""
-            current_length = 0
-        current += token
-        current_length += token_length
+            flushed = current.rstrip()
+            # Dropping a whitespace-only line loses nothing a viewer could
+            # see; emitting one would put a blank line inside the cue and
+            # truncate the file.
+            if flushed:
+                lines.append(flushed)
+            current = token
+        else:
+            current = f"{current}{separator}{token}"
         prefix_only = False
 
-    if current:
-        lines.append(current)
+    flushed = current.rstrip()
+    if flushed:
+        lines.append(flushed)
     return "\n".join(lines)
