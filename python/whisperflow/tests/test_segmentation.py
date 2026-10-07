@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import random
 import re
+from pathlib import Path
 
 import pytest
 
@@ -786,3 +787,48 @@ def test_apply_to_result_records_cjk_parameters():
     assert meta["profile"] == "cjk"
     assert (meta["max_line_chars"], meta["line_columns"]) == (16, 32)
     assert meta["reading_speed_columns_per_second"] == 18.0
+
+
+# --- the pipeline interlock ---------------------------------------------
+#
+# transcriber.py imports faster_whisper at module level, so CI cannot
+# import it.  These read its source instead, because the two facts they
+# pin are the ones whose absence silently corrupts output files.
+
+
+def _transcriber_source() -> str:
+    return (Path(__file__).resolve().parents[1] / "transcriber.py").read_text(encoding="utf-8")
+
+
+def test_writers_are_not_asked_to_re_wrap_segmented_text():
+    # Segmentation bakes its line breaks into the cue text.  Passing
+    # max_line_width to the writers as well makes _wrap_text re-wrap text
+    # that already contains "\n" -- it counts a newline as one printable
+    # character, so it mis-measures every line after the first and can
+    # emit "\n\n", which terminates the SRT/VTT cue block and makes
+    # transcript-reader.js's parseSrt silently drop the rest of the file.
+    source = _transcriber_source()
+    assert "wrap_width = None if cfg.subtitle_segmentation else cfg.max_line_width" in source
+    assert "max_line_width=wrap_width" in source
+    # ...and nothing still hands the raw config value straight through.
+    assert "max_line_width=cfg.max_line_width" not in source
+
+
+def test_word_timestamps_stay_gated_on_the_two_features():
+    # Omitting the key entirely is what keeps the decode bit-for-bit
+    # identical with both features off: faster-whisper's own default is
+    # False, and add_word_timestamps() rewrites segment start/end.
+    source = _transcriber_source()
+    assert "if cfg.diarize or cfg.subtitle_segmentation:" in source
+    assert 'options["word_timestamps"] = True' in source
+    assert 'options["word_timestamps"] = False' not in source
+
+
+def test_segmentation_runs_after_diarization():
+    # Cues are built from runs of a single speaker, so a word has to know
+    # who said it first.  The reverse order would let assign_speakers
+    # re-split the sized cues and overwrite their word-accurate edges.
+    source = _transcriber_source()
+    assert source.index("self._run_diarization(result, input_path)") < source.index(
+        "self._run_segmentation(result)"
+    )

@@ -23,6 +23,7 @@ from .events import (
     STAGE_LOADING_MODEL,
     STAGE_LOADING_VAD,
     STAGE_PREPARING,
+    STAGE_SEGMENTING,
     STAGE_TRANSCRIBING,
     STAGE_WRITING_SUBTITLE,
     EventEmitter,
@@ -144,6 +145,15 @@ class Transcriber:
             # _write_outputs, so the writers see speaker_label.
             self._run_diarization(result, input_path)
 
+        if cfg.subtitle_segmentation:
+            # After diarization, not before: cues are built from runs of a
+            # single speaker, so a word has to know who said it before it
+            # can be sized.  The reverse order would let assign_speakers
+            # re-split the sized cues at speaker boundaries and overwrite
+            # their word-accurate edges, which is the whole point of the
+            # feature.
+            self._run_segmentation(result)
+
         self._emitter.stage(
             STAGE_WRITING_SUBTITLE,
             message="Writing subtitle files",
@@ -198,16 +208,17 @@ class Transcriber:
             "verbose": cfg.verbose,
         }
 
-        if cfg.diarize:
+        if cfg.diarize or cfg.subtitle_segmentation:
             # Word timestamps are what make per-word speaker assignment --
-            # and therefore mid-segment speaker splits -- possible.
+            # and therefore mid-segment speaker splits -- possible, and
+            # they are the whole basis of subtitle re-segmentation.
             #
-            # Gated on cfg.diarize because switching them on is NOT a pure
+            # Still gated, because switching them on is NOT a pure
             # addition: faster-whisper's add_word_timestamps() rewrites a
             # segment's start/end from its first/last word, and changes how
             # the decode window advances.  Leaving the key out entirely
             # means faster-whisper's own default (False) applies, so with
-            # diarization off the decode is bit-for-bit what it was.
+            # both features off the decode is bit-for-bit what it was.
             options["word_timestamps"] = True
 
         return options
@@ -277,6 +288,16 @@ class Transcriber:
                 segment.get("speaker"), template
             )
         result["segments"] = segments
+        # The backend builds result["text"] once from the pre-split
+        # segments and nothing recomputed it afterwards, so it has been
+        # stale for every diarized run.  "".join is the one join correct
+        # for both conventions: faster-whisper carries the separator
+        # inside each Latin word and omits it for CJK.
+        result["text"] = "".join(
+            str(word.get("word", ""))
+            for segment in segments
+            for word in (segment.get("words") or [])
+        ).strip() or result.get("text", "")
 
     def _ensure_diarization_models(
         self,
@@ -339,6 +360,59 @@ class Transcriber:
         return diarization_models.ensure_diarization_models(
             models_dir, progress=on_download
         )
+
+    # --- subtitle segmentation -----------------------------------------
+
+    def _run_segmentation(self, result: TranscribeResult) -> None:
+        """Re-cut ``result["segments"]`` into subtitle-sized cues.
+
+        Progress is a single tick at 91: diarization's band tops out at 90
+        and subtitle writing is 92, so nothing existing has to move.  The
+        pass is pure Python -- around two seconds for a continuous
+        seven-thousand-word run, less when the speech breaks into shorter
+        runs -- so it does not need a band of its own.
+
+        The import is deferred only for symmetry with _run_diarization;
+        the module is stdlib-only and costs nothing to import.
+        """
+        from .subtitles import segmentation
+
+        cfg = self._config
+        self._emitter.stage(
+            STAGE_SEGMENTING,
+            message="Splitting subtitles into short cues",
+            message_key="events:stage.segmenting",
+            progress=91,
+        )
+
+        label_for = None
+        if cfg.diarize:
+            from . import diarization
+
+            template = diarization.resolve_label_template(cfg.speaker_label_template)
+
+            def label_for(speaker):  # noqa: F811 - deliberate conditional def
+                return diarization.speaker_label(speaker, template)
+
+        options = segmentation.SegmentationOptions(
+            max_line_chars=cfg.max_line_width,
+            max_lines=cfg.subtitle_max_lines,
+            max_duration=cfg.subtitle_max_duration,
+            min_duration=cfg.subtitle_min_duration,
+            run_gap=cfg.subtitle_run_gap,
+        )
+        perf_start = time.perf_counter()
+        stats = segmentation.apply_to_result(
+            result,
+            options,
+            # The user's explicit language wins over Whisper's detection.
+            # cfg.language may be a NAME ("Chinese"); profile_for resolves
+            # either through languages.resolve_language_code.
+            language=cfg.language or result.get("language"),
+            label_for=label_for,
+        )
+        _log.info("subtitle segmentation took %.2fs", time.perf_counter() - perf_start)
+        _log.info("%s", stats.log_message())
 
     def _ensure_silero_vad(self) -> SileroVad:
         if isinstance(self._vad_model, SileroVad):
@@ -511,18 +585,29 @@ class Transcriber:
         txt_path = None
         json_path = None
 
+        # When segmentation ran it already broke every cue into at most
+        # subtitle_max_lines lines of at most max_line_width characters,
+        # and those breaks live in the cue's own text.  Handing
+        # max_line_width to the writers as well would re-wrap text that
+        # already contains "\n": _wrap_text counts a newline as one
+        # printable character, so it mis-measures every line after the
+        # first and can emit "\n\n" -- which terminates the SRT/VTT cue
+        # block and makes transcript-reader.js's parseSrt silently drop
+        # everything after it.
+        wrap_width = None if cfg.subtitle_segmentation else cfg.max_line_width
+
         if cfg.write_srt:
             target = resolve(output_dir / f"{base_name}.srt")
             if target is not None:
                 srt_path = target
                 with target.open("w", encoding="utf-8") as f:
-                    write_srt(result["segments"], f, max_line_width=cfg.max_line_width)
+                    write_srt(result["segments"], f, max_line_width=wrap_width)
         if cfg.write_vtt:
             target = resolve(output_dir / f"{base_name}.vtt")
             if target is not None:
                 vtt_path = target
                 with target.open("w", encoding="utf-8") as f:
-                    write_vtt(result["segments"], f, max_line_width=cfg.max_line_width)
+                    write_vtt(result["segments"], f, max_line_width=wrap_width)
         if cfg.write_txt:
             target = resolve(output_dir / f"{base_name}.txt")
             if target is not None:
