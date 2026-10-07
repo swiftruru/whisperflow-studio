@@ -117,6 +117,20 @@ function renderSegments(query = '') {
 
     const textEl = document.createElement('span');
     textEl.className = 'transcript-segment-text';
+
+    // The speaker chip goes INSIDE the text span, as its first child.  The
+    // row is a three-column grid with a 720px media query that reassigns
+    // all three named areas, so a fourth child of the row would have to be
+    // threaded through both layouts; an inline-block span just flows with
+    // the wrapped text.
+    if (seg.speakerLabel) {
+      const chip = document.createElement('span');
+      chip.className = 'transcript-speaker-chip';
+      chip.textContent = seg.speakerLabel;
+      chip.title = t('transcript:editor.speakerChipLabel', { label: seg.speakerLabel });
+      textEl.appendChild(chip);
+    }
+
     if (needle) {
       // Simple highlight — split on the needle (case-insensitive) and
       // wrap matches in <mark>.  Uses textContent so no HTML injection.
@@ -132,7 +146,9 @@ function renderSegments(query = '') {
       }
       if (cursor < text.length) textEl.appendChild(document.createTextNode(text.slice(cursor)));
     } else {
-      textEl.textContent = text;
+      // appendChild, not textContent: assigning textContent would wipe the
+      // chip appended above.
+      textEl.appendChild(document.createTextNode(text));
     }
     row.appendChild(textEl);
 

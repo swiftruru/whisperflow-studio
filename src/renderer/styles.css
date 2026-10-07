@@ -5011,6 +5011,25 @@ kbd {
   padding: 0 2px;
 }
 
+/* Read-only speaker label, shown in front of a segment's text when the
+   transcript was diarized.  inline-block so it flows with the wrapped
+   text instead of needing its own grid column -- the segment row is a
+   three-column grid whose areas are reassigned under 720px, and a fourth
+   child would have to be threaded through both layouts. */
+.transcript-speaker-chip {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface1);
+  color: var(--subtext0);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+  user-select: none;
+  vertical-align: 1px;
+}
+
 .transcript-segment-copy {
   appearance: none;
   border: 1px solid transparent;
@@ -5456,6 +5475,14 @@ html[data-high-contrast="true"] select {
   white-space: nowrap;
   padding-top: 12px !important;
   user-select: text;
+}
+
+/* Same chip, stacked above the textarea in the editor's text cell so the
+   label stays visible while the text is being edited. */
+.subtitle-editor-speaker-chip {
+  display: block;
+  width: fit-content;
+  margin: 0 0 4px;
 }
 
 .subtitle-editor-text-input {

@@ -292,6 +292,20 @@ function renderRows() {
     tr.appendChild(timeTd);
 
     const textTd = document.createElement('td');
+
+    // Read-only speaker chip above the textarea rather than a fourth
+    // column: the table head is fixed three-column markup in index.html
+    // with its own width rules, and a <span> is read-only by
+    // construction.  autosizeTextarea measures the textarea's own
+    // scrollHeight, so it is unaffected.
+    if (seg.speakerLabel) {
+      const chip = document.createElement('span');
+      chip.className = 'transcript-speaker-chip subtitle-editor-speaker-chip';
+      chip.textContent = seg.speakerLabel;
+      chip.title = t('transcript:editor.speakerChipLabel', { label: seg.speakerLabel });
+      textTd.appendChild(chip);
+    }
+
     const textArea = document.createElement('textarea');
     textArea.className = 'subtitle-editor-text-input';
     textArea.rows = Math.max(1, String(seg.text || '').split('\n').length);
@@ -389,6 +403,11 @@ async function handleSave() {
       start: Number(s.start) || 0,
       end:   Number(s.end) || 0,
       text:  String(s.text ?? ''),
+      // Carried through so subtitle-writer.js can re-apply the
+      // `[Speaker 1] ` prefix.  Dropping them here would silently strip
+      // every prefix out of the regenerated SRT/VTT/TXT on first save.
+      speaker: s.speaker ?? null,
+      speakerLabel: s.speakerLabel ?? null,
     }));
     const result = await window.electronAPI.transcript.save({
       mediaPath: state.mediaPath,
@@ -759,6 +778,8 @@ async function openSubtitleEditor({ mediaPath, outputDir }) {
     start: Number(s.start) || 0,
     end:   Number(s.end) || 0,
     text:  String(s.text || '').replace(/\s*\n+\s*/g, ' '),
+    speaker: s.speaker ?? null,
+    speakerLabel: s.speakerLabel ?? null,
   }));
 
   state = {

@@ -68,7 +68,8 @@
       "openFailed": "Failed to open editor: {{error}}",
       "noFormatsEnabled": "All subtitle output formats are off in Settings. Enable at least one under \"Settings → Subtitle output\" before saving.",
       "reverted": "Reverted to the version on disk"
-    }
+    },
+    "speakerChipLabel": "Speaker: {{label}}"
   },
   "stats": {
     "segments": "{{count}} segments",

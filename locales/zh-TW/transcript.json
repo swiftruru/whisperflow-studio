@@ -68,7 +68,8 @@
       "openFailed": "開啟編輯器失敗：{{error}}",
       "noFormatsEnabled": "設定裡所有字幕輸出格式都關閉了，請先至「設定 → 字幕輸出」勾選至少一種格式再儲存。",
       "reverted": "已還原為磁碟上的內容"
-    }
+    },
+    "speakerChipLabel": "講者：{{label}}"
   },
   "stats": {
     "segments": "共 {{count}} 段",
