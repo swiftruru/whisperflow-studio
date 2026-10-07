@@ -8,7 +8,7 @@ const {
   resolveBundledPython,
   resolveSystemPython,
 } = require('./path-resolver');
-const { isVenvInitialized } = require('./venv-installer');
+const { getVenvState, isVenvInitialized } = require('./venv-installer');
 const { ERROR_CODES, createPreflightCheck } = require('./error-catalog');
 
 function getPaths(electronAppRoot) {
@@ -201,10 +201,32 @@ function validateWhisperflowPackage(pythonDir) {
  * whisperflow.cli` can actually run, not about which system python was used
  * to bootstrap it.
  */
-function validateBundledVenv({ venvRoot, configMetadataPath, userSettings }) {
+function validateBundledVenv({
+  venvRoot,
+  configMetadataPath,
+  requirementsPath,
+  userSettings,
+}) {
   const venvPython = resolveBundledPython(venvRoot);
 
   if (venvPython && isVenvInitialized(venvRoot)) {
+    const { upToDate } = getVenvState({ venvRoot, requirementsPath });
+    if (!upToDate) {
+      // A warning, never an error: ipc-handlers.js blocks a run on
+      // preflight *errors*, and a venv with stale dependencies still
+      // transcribes perfectly well — diarization is off by default, so
+      // blocking here would break every existing user's first launch
+      // after the upgrade.
+      return createPreflightCheck({
+        key: 'bundled_python',
+        code: ERROR_CODES.VENV_REQUIREMENTS_STALE,
+        status: 'warning',
+        titleKey: 'preflight:checks.bundledPython.staleTitle',
+        messageKey: 'preflight:checks.bundledPython.staleMessage',
+        detail: venvRoot,
+        action: { type: 'update-venv-requirements' },
+      });
+    }
     return createPreflightCheck({
       key: 'bundled_python',
       status: 'ok',
@@ -399,7 +421,12 @@ function runPreflight({
 
   const appSettings = getLocalSettings() || {};
   checks.push(validateWhisperflowPackage(paths.pythonDir));
-  checks.push(validateBundledVenv({ venvRoot, configMetadataPath, userSettings: appSettings }));
+  checks.push(validateBundledVenv({
+    venvRoot,
+    configMetadataPath,
+    requirementsPath: paths.requirementsPath,
+    userSettings: appSettings,
+  }));
   checks.push(validateFfmpeg());
   const vcCheck = validateVCRedist();
   if (vcCheck) checks.push(vcCheck);

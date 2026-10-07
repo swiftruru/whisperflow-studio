@@ -56,6 +56,12 @@
     "parallelTranscriptionTook": "平行轉錄耗時 {{seconds}} 秒",
     "workerCuda": "Worker 使用 CUDA 裝置 {{device}}",
     "importedFromHfCache": "已從系統 HuggingFace 快取匯入 {{model}}",
-    "downloadingModel": "下載模型 {{model}} 到 {{dir}}"
+    "downloadingModel": "下載模型 {{model}} 到 {{dir}}",
+    "pipStage": {
+      "collecting": "下載中：{{package}}",
+      "downloading": "下載中：{{file}}",
+      "installing": "安裝套件：{{package}}…",
+      "done": "依賴安裝完成"
+    }
   }
 }

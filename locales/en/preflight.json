@@ -18,6 +18,8 @@
     "browseMediaRoot": "Choose folder",
     "initializeVenv": "Create environment now",
     "initializingVenv": "Creating…",
+    "updateVenvRequirements": "Update environment",
+    "updatingVenvRequirements": "Updating…",
     "installFfmpeg": "Install ffmpeg",
     "downloadVcRedist": "Download VC++ Redistributable"
   },
@@ -68,6 +70,8 @@
     "bundledPython": {
       "okTitle": "Python environment ready",
       "okMessage": "Using the app's bundled virtual environment for transcription.",
+      "staleTitle": "Python environment needs updating",
+      "staleMessage": "New Python dependencies were added after this environment was created. Transcription still works as-is; speaker diarization needs the update.",
       "notFoundTitle": "Python 3 not found",
       "notFoundMessage": "No system Python 3 is available to bootstrap the venv. Please install Python 3.10+, or specify a python path in Settings.",
       "venvMissingTitle": "Python virtualenv not yet created",

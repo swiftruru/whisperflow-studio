@@ -18,6 +18,8 @@
     "browseMediaRoot": "選擇資料夾",
     "initializeVenv": "立即建立環境",
     "initializingVenv": "建立中…",
+    "updateVenvRequirements": "更新環境",
+    "updatingVenvRequirements": "更新中…",
     "installFfmpeg": "安裝 ffmpeg",
     "downloadVcRedist": "下載 VC++ Redistributable"
   },
@@ -68,6 +70,8 @@
     "bundledPython": {
       "okTitle": "Python 環境已就緒",
       "okMessage": "使用應用程式內建的虛擬環境執行轉錄。",
+      "staleTitle": "Python 環境需要更新",
+      "staleMessage": "此環境建立後，App 新增了 Python 依賴。轉錄仍可正常使用；講者辨識需要先更新環境。",
       "notFoundTitle": "找不到 Python 3",
       "notFoundMessage": "找不到系統 Python 3 來建立虛擬環境。請安裝 Python 3.10 以上版本，或在 Settings 指定 python 可執行檔路徑。",
       "venvMissingTitle": "Python 虛擬環境尚未建立",

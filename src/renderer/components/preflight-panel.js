@@ -1,7 +1,11 @@
 'use strict';
 
 import { showToast } from './toast.js';
-import { initializeVenvWithProgress, VENV_INITIALIZED_EVENT } from '../lib/venv-bootstrap.js';
+import {
+  initializeVenvWithProgress,
+  updateVenvRequirementsWithProgress,
+  VENV_INITIALIZED_EVENT,
+} from '../lib/venv-bootstrap.js';
 import { openInstallFfmpegDialog } from './install-ffmpeg-dialog.js';
 import { t } from '../lib/i18n.js';
 
@@ -116,7 +120,19 @@ async function handleCheckAction(action) {
   }
 }
 
-async function runVenvInitializeFromButton(button, bodyEl) {
+/**
+ * Drive a long pip operation from an inline action button, rendering its
+ * stage line and swapping the button into a busy state.
+ *
+ * Shared by the "create environment" and "update environment" actions --
+ * they differ only in which helper they call and which copy they show.
+ */
+async function runVenvTaskFromButton(button, bodyEl, {
+  run,
+  busyLabelKey,
+  startToastKey,
+  successToastKey,
+}) {
   const stageLine = document.createElement('div');
   stageLine.className = 'preflight-item-stage';
   stageLine.textContent = t('preflight:venvBootstrap.starting');
@@ -124,17 +140,17 @@ async function runVenvInitializeFromButton(button, bodyEl) {
 
   button.disabled = true;
   const originalLabel = button.textContent;
-  button.textContent = t('preflight:actionButtons.initializingVenv');
-  showToast(t('toasts:venv.creating'), 'info', 5000);
+  button.textContent = t(busyLabelKey);
+  showToast(t(startToastKey), 'info', 5000);
 
   try {
-    await initializeVenvWithProgress({
+    await run({
       onStage: (stage) => {
         stageLine.textContent = t('preflight:venvBootstrap.stage', { stage });
       },
     });
     stageLine.textContent = t('preflight:venvBootstrap.completed');
-    showToast(t('toasts:venv.success'), 'success', 3000);
+    showToast(t(successToastKey), 'success', 3000);
   } catch (error) {
     button.disabled = false;
     button.textContent = originalLabel;
@@ -142,6 +158,24 @@ async function runVenvInitializeFromButton(button, bodyEl) {
     showToast(t('toasts:venv.failed', { error: error?.message || error }), 'error', 6000);
     throw error;
   }
+}
+
+function runVenvInitializeFromButton(button, bodyEl) {
+  return runVenvTaskFromButton(button, bodyEl, {
+    run: initializeVenvWithProgress,
+    busyLabelKey: 'preflight:actionButtons.initializingVenv',
+    startToastKey: 'toasts:venv.creating',
+    successToastKey: 'toasts:venv.success',
+  });
+}
+
+function runVenvUpdateFromButton(button, bodyEl) {
+  return runVenvTaskFromButton(button, bodyEl, {
+    run: updateVenvRequirementsWithProgress,
+    busyLabelKey: 'preflight:actionButtons.updatingVenvRequirements',
+    startToastKey: 'toasts:venv.updating',
+    successToastKey: 'toasts:venv.updated',
+  });
 }
 
 function createActionButton(check, rowEl) {
@@ -157,6 +191,8 @@ function createActionButton(check, rowEl) {
     button.textContent = t('preflight:actionButtons.browseMediaRoot');
   } else if (check.action.type === 'initialize-venv') {
     button.textContent = t('preflight:actionButtons.initializeVenv');
+  } else if (check.action.type === 'update-venv-requirements') {
+    button.textContent = t('preflight:actionButtons.updateVenvRequirements');
   } else if (check.action.type === 'install-ffmpeg') {
     button.textContent = t('preflight:actionButtons.installFfmpeg');
   } else if (check.action.type === 'download-vcredist') {
@@ -166,10 +202,14 @@ function createActionButton(check, rowEl) {
   }
 
   button.addEventListener('click', async () => {
-    if (check.action.type === 'initialize-venv') {
+    const venvTask = {
+      'initialize-venv': runVenvInitializeFromButton,
+      'update-venv-requirements': runVenvUpdateFromButton,
+    }[check.action.type];
+    if (venvTask) {
       const bodyEl = rowEl?.querySelector('.preflight-item-body');
       try {
-        await runVenvInitializeFromButton(button, bodyEl);
+        await venvTask(button, bodyEl);
       } catch (_) {
         return;
       }

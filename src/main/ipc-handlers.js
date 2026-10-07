@@ -25,7 +25,12 @@ const {
   resolveBundledPython,
   resolveSystemPython,
 } = require('./path-resolver');
-const { initializeBundledVenv, isVenvInitialized } = require('./venv-installer');
+const {
+  getVenvState,
+  initializeBundledVenv,
+  isVenvInitialized,
+  updateVenvRequirements,
+} = require('./venv-installer');
 const { detectAvailableManagers, installPackage, cancelActiveInstall } = require('./package-manager');
 const { refreshSystemPathFromRegistry } = require('./env-path');
 const { ERROR_CODES, createAppError, normalizeUnknownError, toAppError } = require('./error-catalog');
@@ -886,11 +891,52 @@ function registerHandlers(
   ipcMain.handle('venv:status', () => {
     const { venvRoot } = getPaths();
     const venvPython = resolveBundledPython(venvRoot);
+    // The three requirements* keys are additive; the only existing
+    // consumer (model-manager.js) reads `initialized` alone.
+    const state = getVenvState({ venvRoot, requirementsPath: REQUIREMENTS_PATH });
     return {
       initialized: Boolean(venvPython) && isVenvInitialized(venvRoot),
       pythonPath: venvPython,
       venvRoot,
+      requirementsUpToDate: state.upToDate,
+      requirementsHash: state.expectedHash,
+      installedRequirementsHash: state.installedHash,
     };
+  });
+
+  // Bring an existing venv's dependencies up to date, for when
+  // requirements.txt gained an entry after the venv was built.  Modelled
+  // on venv:initialize, including the shared 'venv-init' busy reason so
+  // the Run button stays disabled for the duration.
+  ipcMain.handle('venv:update-requirements', async () => {
+    const { venvRoot } = getPaths();
+    if (!isVenvInitialized(venvRoot)) {
+      const err = new Error('The bundled Python environment has not been created yet.');
+      err.i18nKey = 'errors:VENV_NOT_INITIALIZED.message';
+      err.code = ERROR_CODES.VENV_NOT_INITIALIZED;
+      throw err;
+    }
+
+    addBusyReason('venv-init');
+    try {
+      await updateVenvRequirements({
+        venvRoot,
+        requirementsPath: REQUIREMENTS_PATH,
+        onLog: (text) => sendLog(text),
+      });
+      return { ok: true };
+    } catch (error) {
+      sendRunError(createAppError({
+        code: ERROR_CODES.VENV_INIT_FAILED,
+        titleKey: 'errors:VENV_INIT_FAILED.title',
+        message: error.message || 'Failed to update the bundled Python environment.',
+        details: error.stack || '',
+        source: 'venv',
+      }));
+      throw error;
+    } finally {
+      removeBusyReason('venv-init');
+    }
   });
 
   ipcMain.handle('venv:initialize', async () => {

@@ -2,6 +2,8 @@
   "venv": {
     "creating": "正在建立 Python 虛擬環境並安裝依賴（可能需要數分鐘）…",
     "success": "Python 環境建立完成",
+    "updating": "正在安裝新的 Python 依賴（可能需要數分鐘）…",
+    "updated": "Python 環境已更新",
     "failed": "環境建立失敗：{{error}}"
   },
   "error": {

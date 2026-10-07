@@ -1,41 +1,46 @@
 'use strict';
 
-// Shared helper for the "create Python venv" flow.
-// Wraps window.electronAPI.initializeVenv() with a pip-output parser so UI
-// callers can render a live "目前階段" line next to their "立即建立環境"
-// button while the install runs.
+import { t } from './i18n.js';
+
+// Shared helper for the "create Python venv" and "update its
+// dependencies" flows.  Wraps the matching electronAPI call with a
+// pip-output parser so UI callers can render a live stage line next to
+// their button while the install runs.
 //
-// Used from both:
+// Used from:
 //   - components/preflight-panel.js (main-tab System Check)
 //   - components/model-manager.js (Models tab CTA)
 //
-// The parser is heuristic: pip is not promised to be stable in its output
-// format, but these three patterns have been steady for years:
+// The parser is heuristic: pip makes no promise about its output format,
+// but these four patterns have been steady for years:
 //
-//   Creating virtualenv at …                       (our own banner)
-//   Upgrading pip…                                  (our own banner)
-//   Collecting <package>                            (download phase)
+//   Collecting <package>                            (resolve phase)
+//   Downloading <url>                               (download phase)
 //   Installing collected packages: a, b, c          (install phase)
 //   Successfully installed …                        (done)
+//
+// It used to also match our own three banners ("Creating virtualenv at",
+// "Upgrading pip", "Installing dependencies from").  Those could never
+// fire: venv-installer.js emits them through t(), so under the default
+// zh-TW locale the lines never looked like the English regexes.  They are
+// gone rather than re-written, because matching translated text would
+// break again on the next copy edit.
 
 
 const STAGE_PATTERNS = [
-  { re: /Creating virtualenv at/i,                 label: () => '建立虛擬環境目錄…' },
-  { re: /Upgrading pip/i,                          label: () => '升級 pip…' },
-  { re: /Installing dependencies from/i,           label: () => '開始安裝依賴…' },
-  { re: /^Collecting\s+([^\s(<>=!~]+)/,            label: (m) => `下載中：${m[1]}` },
-  { re: /^Downloading\s+([^\s]+)/,                 label: (m) => `下載中：${m[1].split('/').pop()}` },
-  { re: /^Installing collected packages:\s*(.+)$/, label: (m) => `安裝套件：${m[1].split(',')[0].trim()}…` },
-  { re: /^Successfully installed/i,                label: () => '依賴安裝完成' },
+  { re: /^Collecting\s+([^\s(<>=!~]+)/,            key: 'collecting', params: (m) => ({ package: m[1] }) },
+  { re: /^Downloading\s+([^\s]+)/,                 key: 'downloading', params: (m) => ({ file: m[1].split('/').pop() }) },
+  { re: /^Installing collected packages:\s*(.+)$/, key: 'installing', params: (m) => ({ package: m[1].split(',')[0].trim() }) },
+  { re: /^Successfully installed/i,                key: 'done', params: () => ({}) },
 ];
 
 
 function parseStage(line) {
   const trimmed = line.trim();
   if (!trimmed) return null;
-  for (const { re, label } of STAGE_PATTERNS) {
+  for (const { re, key, params } of STAGE_PATTERNS) {
     const match = trimmed.match(re);
-    if (match) return label(match);
+    if (match) return t(`events:log.pipStage.${key}`, params(match));
   }
   return null;
 }
@@ -50,15 +55,19 @@ function parseStage(line) {
 export const VENV_INITIALIZED_EVENT = 'whisperflow:venv-initialized';
 
 /**
- * Run the venv bootstrap and stream stage-level progress updates.
+ * Run a pip-driven operation, streaming stage-level progress updates.
  *
+ * Shared by both entry points below: the only difference between them is
+ * which electronAPI call they make.
+ *
+ * @param {() => Promise<unknown>} run - the IPC call to await.
  * @param {Object} options
  * @param {(stage: string) => void} options.onStage - called whenever the
- *        pip parser detects a new stage (e.g. "下載中：torch").
- * @returns {Promise<void>} resolves when `initializeVenv` finishes,
- *        rejects with the same error it would throw.
+ *        pip parser detects a new stage (e.g. "Downloading: torch").
+ * @returns {Promise<void>} resolves when `run` finishes, rejects with the
+ *        same error it would throw.
  */
-export async function initializeVenvWithProgress({ onStage }) {
+async function runWithPipProgress(run, { onStage }) {
   const notify = typeof onStage === 'function' ? onStage : () => {};
 
   // Buffer partial chunks so we only parse complete lines.
@@ -76,7 +85,7 @@ export async function initializeVenvWithProgress({ onStage }) {
   const unsubscribe = window.electronAPI.addLogDataListener(parseChunk);
 
   try {
-    await window.electronAPI.initializeVenv();
+    await run();
     // Broadcast so every panel that cached venv state (preflight, model
     // manager, settings model dropdown) can refresh itself.  We dispatch
     // BEFORE returning so callers' own post-await refresh sees the same
@@ -90,4 +99,31 @@ export async function initializeVenvWithProgress({ onStage }) {
     }
     unsubscribe?.();
   }
+}
+
+/**
+ * Create the bundled venv and install its dependencies.
+ *
+ * @param {Object} options
+ * @param {(stage: string) => void} options.onStage
+ * @returns {Promise<void>}
+ */
+export async function initializeVenvWithProgress({ onStage }) {
+  await runWithPipProgress(() => window.electronAPI.initializeVenv(), { onStage });
+}
+
+/**
+ * Re-run `pip install -r requirements.txt` in an existing venv.
+ *
+ * Needed because the venv is built once and then never revisited: an
+ * existing user whose requirements.txt gained an entry (sherpa-onnx, for
+ * instance) would otherwise never install it.  pip is incremental, so this
+ * is fast when everything is already satisfied.
+ *
+ * @param {Object} options
+ * @param {(stage: string) => void} options.onStage
+ * @returns {Promise<void>}
+ */
+export async function updateVenvRequirementsWithProgress({ onStage }) {
+  await runWithPipProgress(() => window.electronAPI.updateVenvRequirements(), { onStage });
 }

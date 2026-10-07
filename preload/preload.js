@@ -126,6 +126,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── Bundled Python venv ──────────────────────────────────────────────────
   getVenvStatus:    ()            => ipcRenderer.invoke('venv:status'),
   initializeVenv:   ()            => ipcRenderer.invoke('venv:initialize'),
+  updateVenvRequirements: ()      => ipcRenderer.invoke('venv:update-requirements'),
 
   // ── Model Manager ────────────────────────────────────────────────────────
   listModels:       ()            => ipcRenderer.invoke('models:list'),

@@ -56,6 +56,12 @@
     "parallelTranscriptionTook": "Parallel transcription took {{seconds}}s",
     "workerCuda": "Worker using CUDA device {{device}}",
     "importedFromHfCache": "Imported {{model}} from system HuggingFace cache",
-    "downloadingModel": "Downloading model {{model}} into {{dir}}"
+    "downloadingModel": "Downloading model {{model}} into {{dir}}",
+    "pipStage": {
+      "collecting": "Downloading: {{package}}",
+      "downloading": "Downloading: {{file}}",
+      "installing": "Installing: {{package}}…",
+      "done": "Dependencies installed"
+    }
   }
 }
