@@ -112,13 +112,14 @@ xattr -cr "/Applications/WhisperFlow Studio.app"
 
 - **自給自足的轉錄核心** — [`python/whisperflow/`](python/whisperflow/) 是重寫、依賴完全隔離的 Python 套件，統籌 faster-whisper、Silero VAD、片段合併、字幕輸出器。不需外部專案。
 - **講者辨識（選用）** — 為每段字幕標上是誰在說話，並在行首加上 `[Speaker 1]` 前綴。底層採用 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)（ONNX Runtime，不需 torch），首次使用時會把 pyannote segmentation-3.0 與 3D-Speaker CAM++ 模型（約 34 MB）下載到同一個 App 管理的模型資料夾。講者人數可交給程式自動判斷，已知時也可直接指定；一段話中途換人會被拆成兩段。預設關閉，關閉時輸出與先前逐位元組相同
+- **字幕切段（選用）** — 以逐字時間碼把 Whisper 過長的段落重新切成符合字幕規範的短句：每則最多 2 行、最長 7 秒、不超過閱讀速度上限（拉丁文字每行 42 字元、每秒 20 字元；中日韓每行 16 字、每秒 9 字），盡可能切在句尾標點或停頓處，且絕不跨越兩個講者。行寬以半角欄位計算，因此中英混排不需要第二個設定。講者名稱改成每輪只印一次而非每則都印，TXT 輸出也改成一輪一個段落。預設關閉，因為它會連帶開啟逐字時間碼，而那會讓分段邊界即使在沒被重新切開的地方也略有變化
 - **批次影音掃描** — 以遞迴方式建立尚無字幕伴隨檔的影音佇列
 - **模型管理分頁** — 在 App 管理的目錄中列出 / 下載 / 刪除 faster-whisper 模型；所有權重都放在 Electron 的 `userData/models/`，不會佔用你的全域 HuggingFace 快取。下載會將即時進度（百分比、位元組數、速度、ETA）串流到 Models 分頁的常駐卡片與標題列脈動式標記中，不會再對著停滯的「Downloading…」字樣乾等 15 分鐘。可在中途取消、稍後重試；`huggingface_hub` 內建的續傳功能會從上次中斷處接續
 - **首次啟動 venv 自動建置** — App 會在首次啟動時自動建立 Python 虛擬環境（`python/.venv`）並安裝 `requirements.txt`
-- **結構化執行事件** — bridge 會發送可機器解析的階段事件（`preparing`、`loading-model`、`loading-vad`、`transcribing`、`diarizing`、`writing-subtitle`、`completed`、`failed`）來驅動進度 UI
+- **結構化執行事件** — bridge 會發送可機器解析的階段事件（`preparing`、`loading-model`、`loading-vad`、`transcribing`、`diarizing`、`segmenting`、`writing-subtitle`、`completed`、`failed`）來驅動進度 UI
 - **多 GPU 平行轉錄** — 延續自上游架構，可在 Linux / Windows 上跨 CUDA 裝置分派工作
 - **預檢（Preflight）** — 執行前驗證內建 Python 環境、`whisperflow` 套件、`ffmpeg` / `ffprobe`、以及影音根目錄；若缺少 ffmpeg，可透過偵測到的系統套件管理工具一鍵安裝
-- **設定面板** — 在 App 內直接調整模型、語言、VAD、初始提示、裝置、計算類型，並以 UI 語言提供每個欄位的內嵌說明。依語意分組為卡片（一般 / 模型 / 轉錄 / 輸出 / VAD / 講者辨識 / 進階），並於頂部提供「轉錄 ↔ App」分段切換。App 內所有 `<select>` 都改用配合主題色的自訂下拉選單，展開時會符合奶油 / 琥珀色調色盤，而非退回 OS 原生樣式
+- **設定面板** — 在 App 內直接調整模型、語言、VAD、初始提示、裝置、計算類型，並以 UI 語言提供每個欄位的內嵌說明。依語意分組為卡片（一般 / 模型 / 轉錄 / 輸出 / VAD / 講者辨識 / 字幕切段 / 進階），並於頂部提供「轉錄 ↔ App」分段切換。App 內所有 `<select>` 都改用配合主題色的自訂下拉選單，展開時會符合奶油 / 琥珀色調色盤，而非退回 OS 原生樣式
 - **輸出格式與翻譯控制** — Whisper 所有輸出格式（`.srt` / `.vtt` / `.txt` / `.json`）、輸出目錄、字幕最長行寬、覆寫策略（覆寫 / 略過 / 重新命名加後綴）、以及 Whisper 內建的 `task=translate`（翻譯為英文）均以勾選框 / 下拉選單方式在 Settings 分頁公開
 - **進階 Whisper 解碼參數** — `beam_size`、`best_of`、`temperature`、`condition_on_previous_text`、`no_speech_threshold`、`logprob_threshold`、`compression_ratio_threshold` 等皆集中於預設收合的「進階」區塊，供進階調校
 - **HuggingFace 快取匯入** — Models 分頁會掃描 `~/.cache/huggingface/hub/` 中既有的 faster-whisper 模型，並以硬連結（hard-link）一鍵匯入 App 管理資料夾（無須重新下載）
@@ -177,7 +178,7 @@ xattr -cr "/Applications/WhisperFlow Studio.app"
 
 ### 國際化（zh-TW / en）
 
-- **正式版 i18n 架構** — 建構在 [i18next](https://www.i18next.com/) 之上，具 19 個功能命名空間（`common`、`sidebar`、`preflight`、`settings`、`queue`、`progress`、`models`、`console`、`controls`、`dialogs`、`errors`、`events`、`toasts`、`about`、`help`、`updater`、`downloads`、`changelog`、`transcript`）。每種語言約 956 個鍵。
+- **正式版 i18n 架構** — 建構在 [i18next](https://www.i18next.com/) 之上，具 19 個功能命名空間（`common`、`sidebar`、`preflight`、`settings`、`queue`、`progress`、`models`、`console`、`controls`、`dialogs`、`errors`、`events`、`toasts`、`about`、`help`、`updater`、`downloads`、`changelog`、`transcript`）。每種語言 971 個鍵。
 - **標題列語言切換** — 一鍵在台灣繁體中文與英文之間切換；所有靜態 HTML、動態元件、Python 執行事件、以及 Electron 原生對話框皆可即時切換、不需重啟
 - **首次啟動自動偵測** — 以 `app.getLocale()` 為依據，中文系統預設 `zh-TW`、英文系統預設 `en`，fallback 為 `zh-TW`
 - **以鍵為基礎的主程序 → renderer 約定** — `createAppError` / `createPreflightCheck` / Python `[WhisperFlowEvent]` 皆攜帶 `messageKey` + `messageParams` 而非原始字串，renderer 在顯示時才在地化，切換語言可即時更新已顯示的錯誤橫幅 / 預檢項目
@@ -305,8 +306,11 @@ whisperflow-studio/
 │       ├── events.py              # [WhisperFlowEvent] JSON 發送器
 │       ├── languages.py           # 完整的 Whisper-99 語言表
 │       ├── progress.py            # ProgressListener 協定 + SubTaskProgressListener
+│       ├── diarization.py         # sherpa-onnx 講者辨識（選用）
 │       ├── audio/source.py        # 本機檔案的 AudioSource 封裝
-│       ├── subtitles/writers.py   # SRT / VTT / TXT writer
+│       ├── subtitles/
+│       │   ├── writers.py         # SRT / VTT / TXT writer
+│       │   └── segmentation.py    # 以逐字時間碼重新切成字幕句
 │       ├── models/
 │       │   ├── registry.py        # 內建 faster-whisper 模型目錄
 │       │   ├── manager.py         # 跨平台模型資料夾 + 下載 / 列出 / 刪除
@@ -323,7 +327,7 @@ whisperflow-studio/
 │       │   ├── base.py            # PromptStrategy 協定 + InitialPromptMode enum
 │       │   ├── prepend.py         # Prepend-all / prepend-first
 │       │   └── json_prompt.py     # 以 JSON 驅動的逐段提示
-│       └── tests/                 # pytest 單元測試（46 項，輕量化）
+│       └── tests/                 # pytest 單元測試（229 項，輕量化）
 ├── preload/
 │   └── preload.js                 # Electron contextBridge（window.electronAPI）
 ├── src/
@@ -397,6 +401,12 @@ Whisper 轉錄設定。透過 App 內的 **Settings** 分頁編輯。`python/con
 | `diarize_num_speakers` | 指定講者人數；填 `0` 表示自動判斷。 |
 | `speaker_label_template` | 標籤格式，`{n}` 為從 1 起算的講者編號（預設 `Speaker {n}`）。 |
 | `diarize_threshold` | 講者分群門檻，0-1（預設 `0.5`）。數值越低辨識出的講者越多。 |
+| `max_line_width` | 每行字數上限，單位依語言而定。留空表示「依語言決定」（拉丁 42 字元 / 中日韓 16 字）——但這只在開啟切段時成立；關閉切段時留空表示完全不折行。 |
+| `subtitle_segmentation` | 以逐字時間碼把每句字幕重新切成短句。會連帶開啟逐字時間碼，使分段邊界略有變化。預設關閉。 |
+| `subtitle_max_lines` | 每則字幕的行數（字幕業界標準為 `2`）。 |
+| `subtitle_max_duration` | 單則字幕在畫面上最長停留秒數（標準為 `7.0`）。 |
+| `subtitle_min_duration` | 單則字幕在畫面上最短停留秒數（標準為 `0.833`）。過短的字幕會往後面的靜音延長，但絕不覆蓋下一則。 |
+| `subtitle_run_gap` | 間隔多久算中斷，單位為秒。比這個間隔更靠近的字幕會先併起來再重新切，讓被 Whisper 切成兩段的句子能切在更合理的位置。 |
 | `language` | 目標語言（人類可讀名稱；留空則自動偵測）。 |
 | `initial_prompt` | 給 Whisper 的提示文字（例如輸出繁中時可填 `台灣繁體中文`）。 |
 | `initial_prompt_mode` | `prepend_all_segments`、`prepend_first_segment`、或 `json_prompt_mode`。 |
@@ -499,7 +509,7 @@ npm run build:linux  # Linux AppImage
 
 ## 開發
 
-執行 Python 單元測試（133 項，輕量——不需要 torch、faster-whisper 或 sherpa-onnx）：
+執行 Python 單元測試（229 項，輕量——不需要 torch、faster-whisper 或 sherpa-onnx）：
 
 ```bash
 cd python
@@ -510,7 +520,7 @@ python3 -m venv .venv-test
 
 每次發佈的 CI 都會跑同一套測試——見 [`.github/workflows/release.yml`](.github/workflows/release.yml)。
 
-執行 main process 模組的 JavaScript 單元測試（字幕輸出器、transcript 讀取器、venv 狀態，以及階段 / 文案的接線）：
+執行 main process 模組的 JavaScript 單元測試（207 項——字幕輸出器、transcript 讀取器、venv 狀態，以及階段 / 文案的接線）：
 
 ```bash
 npm run test:unit

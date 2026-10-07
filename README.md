@@ -112,13 +112,14 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 
 - **Self-contained transcription core** — [`python/whisperflow/`](python/whisperflow/) is a rewritten, dependency-isolated Python package that drives faster-whisper, Silero VAD, segment merging, and subtitle writers. No external project required.
 - **Speaker diarization (optional)** — labels every subtitle segment with who is speaking and prefixes the line with `[Speaker 1]`. Runs on [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) (ONNX Runtime, no torch), with the pyannote segmentation-3.0 and 3D-Speaker CAM++ models downloaded on first use (~34 MB) into the same app-managed models folder. Speaker count can be left on automatic or pinned when you know it; a segment spanning a hand-over is split in two. Off by default, and with it off the output is byte-identical to before
+- **Subtitle segmentation (optional)** — re-cuts Whisper's long segments into cues that follow subtitle norms, using word timestamps: at most 2 lines, at most 7 seconds, inside a reading-speed budget (42 characters per line and 20 per second for Latin scripts, 16 and 9 for Chinese / Japanese / Korean), broken after sentence punctuation or on a pause wherever it can, and never spanning two speakers. Line widths are measured in half-width columns, so mixed Chinese–English text needs no second setting. A speaker's name is printed once per turn rather than on every cue, and the TXT output becomes one paragraph per turn. Off by default, because it enables word timestamps and those shift segment boundaries slightly even where nothing is re-cut
 - **Batch media scan** — recursively builds a queue of media files without subtitle companions
 - **Model Manager tab** — list / download / delete faster-whisper models into an app-managed directory; all weights live under Electron's `userData/models/`, not in your global HuggingFace cache. Downloads stream real-time progress (percentage, bytes, speed, ETA) into a persistent card on the Models tab and a pulsing titlebar chip so you always know what's happening — no more staring at a frozen "Downloading…" label for 15 minutes. Cancel mid-download and retry later; `huggingface_hub`'s built-in resume picks up where it left off
 - **First-run venv bootstrap** — the app creates its own Python virtualenv (`python/.venv`) on first launch and installs `requirements.txt` for you
-- **Structured runner events** — the bridge emits machine-readable stage events (`preparing`, `loading-model`, `loading-vad`, `transcribing`, `diarizing`, `writing-subtitle`, `completed`, `failed`) that drive the progress UI
+- **Structured runner events** — the bridge emits machine-readable stage events (`preparing`, `loading-model`, `loading-vad`, `transcribing`, `diarizing`, `segmenting`, `writing-subtitle`, `completed`, `failed`) that drive the progress UI
 - **Multi-GPU parallel transcription** — preserved from the upstream architecture, fans work across CUDA devices on Linux/Windows
 - **Preflight checks** — validates the bundled Python environment, `whisperflow` package, `ffmpeg` / `ffprobe`, and media root before running; ffmpeg can be installed in one click via the detected system package manager
-- **Settings panel** — edit model, language, VAD, initial prompt, device, and compute type in-app, with per-parameter inline descriptions in your UI language. Grouped into semantic cards (General / Model / Transcription / Output / VAD / Speaker diarization / Advanced) with a Transcription ↔ App segmented control at the top. Every `<select>` in the app uses a themed custom dropdown so the open menu matches the cream/amber palette instead of falling back to the OS-native style
+- **Settings panel** — edit model, language, VAD, initial prompt, device, and compute type in-app, with per-parameter inline descriptions in your UI language. Grouped into semantic cards (General / Model / Transcription / Output / VAD / Speaker diarization / Subtitle segmentation / Advanced) with a Transcription ↔ App segmented control at the top. Every `<select>` in the app uses a themed custom dropdown so the open menu matches the cream/amber palette instead of falling back to the OS-native style
 - **Output format + translation controls** — the full set of Whisper output formats (`.srt` / `.vtt` / `.txt` / `.json`), output directory, subtitle max-line-width, overwrite policy (overwrite / skip / rename-suffix), and Whisper's built-in `task=translate` (to-English) are all exposed as checkboxes / dropdowns in the Settings tab
 - **Advanced Whisper decoder parameters** — `beam_size`, `best_of`, `temperature`, `condition_on_previous_text`, `no_speech_threshold`, `logprob_threshold`, and `compression_ratio_threshold` surface behind a collapsed-by-default Advanced group for power tuning
 - **HuggingFace cache import** — the Models tab scans `~/.cache/huggingface/hub/` for faster-whisper models already on disk and one-click imports them into the app-managed models folder via hard-link (no re-download)
@@ -177,7 +178,7 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 
 ### Internationalization (zh-TW / en)
 
-- **Production-grade i18n architecture** — built on [i18next](https://www.i18next.com/) with 19 feature namespaces (`common`, `sidebar`, `preflight`, `settings`, `queue`, `progress`, `models`, `console`, `controls`, `dialogs`, `errors`, `events`, `toasts`, `about`, `help`, `updater`, `downloads`, `changelog`, `transcript`). ~956 keys per locale.
+- **Production-grade i18n architecture** — built on [i18next](https://www.i18next.com/) with 19 feature namespaces (`common`, `sidebar`, `preflight`, `settings`, `queue`, `progress`, `models`, `console`, `controls`, `dialogs`, `errors`, `events`, `toasts`, `about`, `help`, `updater`, `downloads`, `changelog`, `transcript`). 971 keys per locale.
 - **Titlebar language toggle** — one-click flip between Traditional Chinese and English; all static HTML, dynamic components, Python runner events, and Electron native dialogs switch live without restart
 - **Auto-detect on first launch** — reads `app.getLocale()` and picks `zh-TW` for any Chinese system, `en` for English, with `zh-TW` as the fallback
 - **Key-based main→renderer contract** — `createAppError` / `createPreflightCheck` / Python `[WhisperFlowEvent]` all carry `messageKey` + `messageParams` instead of raw strings, so the renderer can localize at display time and switching language updates already-visible error banners / preflight checks
@@ -305,8 +306,11 @@ whisperflow-studio/
 │       ├── events.py              # [WhisperFlowEvent] JSON emitter
 │       ├── languages.py           # Full Whisper-99 language table
 │       ├── progress.py            # ProgressListener protocol + SubTaskProgressListener
+│       ├── diarization.py         # sherpa-onnx speaker diarization (optional)
 │       ├── audio/source.py        # Local-file AudioSource wrapper
-│       ├── subtitles/writers.py   # SRT / VTT / TXT writers
+│       ├── subtitles/
+│       │   ├── writers.py         # SRT / VTT / TXT writers
+│       │   └── segmentation.py    # Word-timestamp re-segmentation into cues
 │       ├── models/
 │       │   ├── registry.py        # Built-in faster-whisper model catalogue
 │       │   ├── manager.py         # Cross-platform models dir + download/list/delete
@@ -323,7 +327,7 @@ whisperflow-studio/
 │       │   ├── base.py            # PromptStrategy protocol + InitialPromptMode enum
 │       │   ├── prepend.py         # Prepend-all / prepend-first
 │       │   └── json_prompt.py     # Per-segment JSON-driven prompts
-│       └── tests/                 # pytest unit tests (46 tests, lightweight)
+│       └── tests/                 # pytest unit tests (229 tests, lightweight)
 ├── preload/
 │   └── preload.js                 # Electron contextBridge (window.electronAPI)
 ├── src/
@@ -397,6 +401,12 @@ Whisper transcription settings. Edited via the **Settings** tab inside the app. 
 | `diarize_num_speakers` | Exact speaker count; `0` detects it automatically. |
 | `speaker_label_template` | Label format, `{n}` being the 1-based speaker number (default `Speaker {n}`). |
 | `diarize_threshold` | Speaker-clustering threshold, 0-1 (default `0.5`). Lower finds more speakers. |
+| `max_line_width` | Characters per subtitle line, in the language's own unit. Blank means "decide by language" (42 Latin / 16 CJK) when re-segmentation is on, and "don't wrap at all" when it is off. |
+| `subtitle_segmentation` | Re-cut every subtitle into short cues by word timestamp. Also enables word timestamps, which shifts segment boundaries slightly. Off by default. |
+| `subtitle_max_lines` | Lines per cue (subtitle standard: `2`). |
+| `subtitle_max_duration` | Longest a cue may stay on screen, in seconds (standard: `7.0`). |
+| `subtitle_min_duration` | Shortest a cue may stay on screen, in seconds (standard: `0.833`). A short cue is stretched into the following silence, never over the next cue. |
+| `subtitle_run_gap` | Silence that ends a run, in seconds. Cues closer together than this are joined before being re-cut, so a sentence Whisper split across two segments can be broken in a sensible place instead. |
 | `language` | Target language (human-readable name; auto-detected if empty). |
 | `initial_prompt` | Hint text fed to Whisper (e.g. `台灣繁體中文` for Traditional Chinese output). |
 | `initial_prompt_mode` | `prepend_all_segments`, `prepend_first_segment`, or `json_prompt_mode`. |
@@ -499,7 +509,7 @@ Output goes to `dist/`.
 
 ## Development
 
-Run the Python unit tests (133 tests, lightweight — no torch, faster-whisper or sherpa-onnx required):
+Run the Python unit tests (229 tests, lightweight — no torch, faster-whisper or sherpa-onnx required):
 
 ```bash
 cd python
@@ -510,7 +520,7 @@ python3 -m venv .venv-test
 
 The same suite runs on every release in CI — see [`.github/workflows/release.yml`](.github/workflows/release.yml).
 
-Run the JavaScript unit tests for the main-process modules (subtitle writers, transcript reader, venv state, and the stage / locale wiring):
+Run the JavaScript unit tests for the main-process modules — subtitle writers, transcript reader, venv state, and the stage / locale wiring (207 tests):
 
 ```bash
 npm run test:unit
