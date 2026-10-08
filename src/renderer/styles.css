@@ -5533,6 +5533,12 @@ html[data-high-contrast="true"] select {
 
 
 /* ── Speaker names dialog ───────────────────────────────────────────────────── */
+/* NOTE on specificity: `.modal p` above sets text-align:center and
+   margin-bottom:20px and, at (0,1,1), outranks any single-class rule.
+   Every <p> below is therefore scoped under .speaker-names-dialog, which
+   at (0,2,0) wins.  Dropping that prefix centres the excerpts and
+   triples their spacing -- it looked wrong on screen while every unit
+   test and e2e assertion still passed. */
 /* Built by speaker-names-dialog.js and appended to <body>, so it stacks
    over #subtitle-editor-modal on DOM order alone -- both are z-index 200. */
 
@@ -5600,8 +5606,9 @@ html[data-high-contrast="true"] select {
 .speaker-names-input::placeholder { color: var(--subtext0); }
 .speaker-names-input:focus { border-color: var(--yellow); outline: none; }
 
-.speaker-names-total {
-  margin: 10px 0 8px;
+.speaker-names-dialog .speaker-names-total {
+  margin: 10px 0 10px;
+  text-align: left;
   font-size: 12px;
   color: var(--subtext0);
 }
@@ -5619,8 +5626,9 @@ html[data-high-contrast="true"] select {
 
 .speaker-names-excerpt-duration { opacity: 0.75; }
 
-.speaker-names-excerpt-text {
+.speaker-names-dialog .speaker-names-excerpt-text {
   margin: 3px 0 0;
+  text-align: left;
   font-size: 13px;
   line-height: 1.5;
   color: var(--text);
@@ -5632,14 +5640,15 @@ html[data-high-contrast="true"] select {
   overflow: hidden;
 }
 
-.speaker-names-more {
+.speaker-names-dialog .speaker-names-more {
   margin: 8px 0 0;
+  text-align: left;
   font-size: 11px;
   letter-spacing: 2px;
   color: var(--subtext0);
 }
 
-.speaker-names-footnote {
+.speaker-names-dialog .speaker-names-footnote {
   margin: 16px 0 0;
   padding-top: 14px;
   border-top: 1px solid var(--surface2);

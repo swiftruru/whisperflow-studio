@@ -249,3 +249,36 @@ describe('speaker names', () => {
     expect(result.speakers).toBeNull();
   });
 });
+
+describe('the transcript:read IPC handler forwards everything', () => {
+  // A source-reading contract test, in the style of stage-plumbing.test.js.
+  //
+  // The regression: the handler listed its reply fields by hand, so when
+  // `speakers` was added to readTranscriptForMedia it was silently
+  // dropped on the way to the renderer.  Nothing failed -- the names were
+  // written to disk correctly and simply never came back, which looked
+  // exactly like "the feature does not work" with every unit test green,
+  // because they all call the reader directly and never cross IPC.
+  const handlerSource = fs.readFileSync(
+    path.join(process.cwd(), 'src', 'main', 'ipc-handlers.js'),
+    'utf-8',
+  );
+
+  it('replies by spreading the reader result, not by naming fields', () => {
+    const block = handlerSource.slice(handlerSource.indexOf("ipcMain.handle('transcript:read'"));
+    const reply = block.slice(0, block.indexOf('} catch'));
+    expect(reply).toContain('...result');
+    expect(reply).not.toMatch(/segments:\s*result\.segments/);
+  });
+
+  it('forwards every field the reader actually returns', () => {
+    // Belt and braces: if the reader grows another field tomorrow, this
+    // fails unless the handler is still spreading.
+    writeSidecar('json', JSON.stringify({
+      segments: [{ start: 0, end: 1, text: 'hi', speaker: 0, speaker_label: 'Speaker 1' }],
+      speakers: { version: 1, names: { 0: 'Sandy' } },
+    }));
+    const produced = Object.keys(readTranscriptForMedia(mediaPath)).sort();
+    expect(produced).toEqual(['segments', 'source', 'speakers']);
+  });
+});

@@ -830,7 +830,13 @@ function registerHandlers(
     const { mediaPath, outputDir } = payload;
     try {
       const result = readTranscriptForMedia(mediaPath, outputDir);
-      return { ok: true, segments: result.segments, source: result.source };
+      // Spread rather than listing the fields: this handler dropped
+      // `speakers` on the floor when it was added to the reader, and
+      // nothing failed -- the editor simply showed "Speaker 1" again
+      // after a reopen, with the names sitting correctly on disk the
+      // whole time.  tests/unit/transcript-reader.test.js now pins that
+      // every field the reader returns is forwarded.
+      return { ok: true, ...result };
     } catch (error) {
       const code = error && error.code ? String(error.code) : 'READ_FAILED';
       return {
