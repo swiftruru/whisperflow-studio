@@ -392,3 +392,55 @@ def test_the_shipped_example_config_carries_the_ladder():
     )
     assert TranscribeConfig.from_dict(example["SETTING"]).temperature \
         == (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)
+
+
+# --- the translation profiles we ship ----------------------------------
+#
+# Profiles are directories under python/config/ holding their own
+# config.json, and .gitignore excludes them so a user's own profiles are
+# never committed -- these two are re-included by name because they are
+# part of the repo.  A release ships them through electron-builder's
+# `python/**/*` extraResources, so if they stop being tracked they stop
+# reaching users, silently.
+
+PROFILE_DIR = Path(__file__).resolve().parents[3] / "python" / "config"
+
+
+@pytest.mark.parametrize("name", ["EN-Translate", "TW-Translate"])
+def test_the_shipped_translation_profiles_exist(name):
+    assert (PROFILE_DIR / name / "config.json").is_file()
+
+
+@pytest.mark.parametrize(
+    "name,language,line_width",
+    [("EN-Translate", "English", 80), ("TW-Translate", "Chinese", 30)],
+)
+def test_a_translation_profile_widens_the_cue_so_a_clause_fits(name, language, line_width):
+    # The point of these: a cue wide enough to hold a whole clause, so an
+    # external translator sees a sentence rather than a fragment.  Measured
+    # on a 5-minute slice of a real lecture, 80 characters per line takes
+    # the share of cues ending at a sentence or comma from 87.5% to 100%
+    # and fragments of four words or fewer from 3.8% to zero.
+    #
+    # The Chinese width is derived rather than measured: 42 -> 80 is the
+    # same 1.9x relaxation applied to the CJK norm of 16.  There was no
+    # Chinese material long enough to measure on.
+    cfg = TranscribeConfig.load(PROFILE_DIR / name / "config.json")
+    assert cfg.language == language
+    assert cfg.subtitle_segmentation is True
+    assert cfg.max_line_width == line_width
+    assert cfg.subtitle_max_duration == 12.0
+    assert cfg.subtitle_max_lines == 2
+
+
+@pytest.mark.parametrize("name", ["EN-Translate", "TW-Translate"])
+def test_a_translation_profile_is_a_complete_config(name):
+    # Written in full rather than as a diff, so loading one does not depend
+    # on what the defaults happen to be that release.
+    shipped = json.loads(
+        (PROFILE_DIR / name / "config.json").read_text(encoding="utf-8")
+    )["SETTING"]
+    template = json.loads(
+        (PROFILE_DIR / "config.example.json").read_text(encoding="utf-8")
+    )["SETTING"]
+    assert set(shipped) == set(template)

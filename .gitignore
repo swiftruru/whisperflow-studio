@@ -8,6 +8,11 @@ python/config/config.json
 # User-created config profiles (profile-switcher.js creates each as a
 # subdirectory of python/config/ containing its own config.json).
 python/config/*/
+# ...except the two we ship, which are part of the repo rather than
+# something the user made.  A negation only works because the exclusion
+# above matches the directory itself, so these re-include it by name.
+!python/config/EN-Translate/
+!python/config/TW-Translate/
 test.mjs
 
 # Claude Code local session state (permissions, memory, plans).

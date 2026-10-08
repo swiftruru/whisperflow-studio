@@ -482,6 +482,20 @@ class Transcriber:
         )
         _log.info("subtitle segmentation took %.2fs", time.perf_counter() - perf_start)
         _log.info("%s", stats.log_message())
+        if cfg.verbose:
+            # bridge/run_cli.py forces verbose on, so the app's console has
+            # been scrolling Whisper's raw segments this whole time -- with
+            # chunk-relative timestamps that restart at 00:00:00, and
+            # lengths that re-segmentation is about to cut down.  Without
+            # this line a reader has every reason to think those were the
+            # subtitles, and reports a 27-second cue that no longer exists
+            # by the time the files are written.
+            _log.info(
+                "the [start -> end] lines above are Whisper's raw segments, "
+                "not the subtitles: the files hold %d cues, longest %.1fs",
+                stats.cues_out,
+                stats.longest_duration,
+            )
 
     def _ensure_silero_vad(self) -> SileroVad:
         from .vad.silero import SileroVad

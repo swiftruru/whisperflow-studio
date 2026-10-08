@@ -425,3 +425,60 @@ def test_an_orphaned_run_still_writes_its_subtitles(tmp_path, monkeypatch):
 
     assert stub.calls == ["vad", "write", "diarize", "write"]
     assert outputs.srt_path is not None
+
+
+# --- the console note after re-segmentation ----------------------------
+
+
+class _SegStub(_Stub):
+    """Runs the real _run_segmentation so its logging is exercised."""
+
+    def _run_segmentation(self, result):
+        self.calls.append("segment")
+        return Transcriber._run_segmentation(self, result)
+
+
+def _worded(tmp_path, **overrides):
+    stub, emitter = _make(tmp_path, subtitle_segmentation=True, **overrides)
+    seg = _SegStub(stub._config, emitter)
+    # One long segment with word timings, which is what re-segmentation needs.
+    words = [
+        {"start": i * 0.5, "end": i * 0.5 + 0.5, "word": f" word{i}"}
+        for i in range(40)
+    ]
+    seg.result = {
+        "segments": [{"start": 0.0, "end": 20.0,
+                      "text": "".join(w["word"] for w in words).strip(),
+                      "words": words}],
+        "text": "x", "language": "en",
+    }
+    return seg
+
+
+def test_the_console_says_the_raw_lines_above_were_not_the_subtitles(tmp_path, caplog):
+    # bridge/run_cli.py forces verbose on, so the app's console has been
+    # scrolling Whisper's raw segments the whole run -- with chunk-relative
+    # timestamps that restart at 00:00:00 and lengths re-segmentation is
+    # about to cut down.  A reader has every reason to take those for the
+    # subtitles and report a cue that no longer exists by the time the
+    # files are written.
+    stub = _worded(tmp_path, verbose=True)
+
+    with caplog.at_level(logging.INFO, logger="whisperflow.transcriber"):
+        stub.run()
+
+    note = [r.getMessage() for r in caplog.records if "raw segments" in r.getMessage()]
+    assert len(note) == 1
+    assert "not the subtitles" in note[0]
+    # It has to carry the real count, or it is just reassurance.
+    assert str(len(stub.written["segments"])) in note[0]
+
+
+def test_the_note_is_absent_when_the_raw_lines_were_not_printed(tmp_path, caplog):
+    # Nothing scrolled past, so there is nothing to correct.
+    stub = _worded(tmp_path, verbose=False)
+
+    with caplog.at_level(logging.INFO, logger="whisperflow.transcriber"):
+        stub.run()
+
+    assert not [r for r in caplog.records if "raw segments" in r.getMessage()]
