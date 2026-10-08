@@ -18,6 +18,7 @@
  */
 
 import { t, onLanguageChanged } from '../lib/i18n.js';
+import { applySpeakerNames } from '../lib/speaker-names.js';
 import { showToast } from './toast.js';
 import { openSubtitleEditor } from './subtitle-editor.js';
 
@@ -253,7 +254,12 @@ async function openTranscriptPreview({ mediaPath, outputDir }) {
       return;
     }
 
-    currentSegments = Array.isArray(result?.segments) ? result.segments : [];
+    // The same overlay the editor applies, so a name the user chose
+    // shows up here too rather than only in the files on disk.
+    currentSegments = applySpeakerNames(
+      Array.isArray(result?.segments) ? result.segments : [],
+      result?.speakers || null,
+    );
     currentSource = result?.source || null;
     if (currentSegments.length === 0) {
       setStatus(t('transcript:empty.noFile'));

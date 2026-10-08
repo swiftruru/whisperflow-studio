@@ -70,7 +70,20 @@
       "lineLimit": "A cue can hold at most {{count}} lines.",
       "reverted": "Reverted to the version on disk"
     },
-    "speakerChipLabel": "Speaker: {{label}}"
+    "speakerChipLabel": "Speaker: {{label}}",
+    "speakers": {
+      "toolbar": "Speaker names",
+      "toolbarTitle": "Give each speaker a name",
+      "unavailable": "This transcript has no speaker information. Turn on \"Identify speakers\" before transcribing, and keep the JSON output on.",
+      "title": "Label speaker names",
+      "nameFor": "Name for {{label}}",
+      "total": "Total {{duration}}",
+      "footnote": "Speaker names are updated throughout this file. Transcribing again clears them, because the speaker numbers are worked out afresh.",
+      "toast": {
+        "applied": "Named {{count}} speaker(s)",
+        "cleared": "Speaker names cleared"
+      }
+    }
   },
   "stats": {
     "segments": "{{count}} segments",

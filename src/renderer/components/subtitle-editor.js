@@ -19,6 +19,8 @@
 import { t, onLanguageChanged } from '../lib/i18n.js';
 import { showToast } from './toast.js';
 import { confirmDialog } from '../lib/confirm-dialog.js';
+import { openSpeakerNamesDialog } from './speaker-names-dialog.js';
+import { applySpeakerNames, namesEqual } from '../lib/speaker-names.js';
 
 let initialized = false;
 let state = {
@@ -31,6 +33,16 @@ let state = {
   maxLines: 2,
   original: [],
   draft: [],
+  // Per-speaker names, keyed by the speaker integer.  Read from the
+  // transcript's top-level `speakers` block and written back there on
+  // save; null when the file has none, which is also what a fresh
+  // transcription leaves behind.
+  speakers: null,
+  // The names as they stand on disk.  Renaming is not part of the
+  // text-only undo history, so without this baseline a rename followed
+  // by an edit and an undo would come back "clean" and the Save button
+  // would go dead -- losing the rename with no prompt on close.
+  savedSpeakers: null,
   dirty: false,
   saving: false,
   // Undo / redo history.  Each entry is a plain array of segment
@@ -97,11 +109,58 @@ const findCaseEl    = () => document.getElementById('subtitle-editor-find-case')
 const replaceOneBtn = () => document.getElementById('btn-subtitle-editor-replace-one');
 const replaceAllBtn = () => document.getElementById('btn-subtitle-editor-replace-all');
 
+// ── Speaker names ──────────────────────────────────────────────────
+const speakersBtn   = () => document.getElementById('btn-subtitle-editor-speakers');
+
 // ── Undo / Redo ────────────────────────────────────────────────────
 const undoBtn       = () => document.getElementById('btn-subtitle-editor-undo');
 const redoBtn       = () => document.getElementById('btn-subtitle-editor-redo');
 
 let findState = { matches: [], cursor: -1 };
+
+/**
+ * The draft with the user's names overlaid -- what the chips show and
+ * what the writers are given.  `applySpeakerNames` only substitutes into
+ * cues that already carry a label, so the once-per-turn rule survives.
+ */
+function namedDraft() {
+  return applySpeakerNames(state.draft, state.speakers);
+}
+
+/**
+ * Open the naming dialog and apply whatever comes back.
+ *
+ * Cancelling resolves to null and must change nothing — it is not the
+ * same as clearing every name, which resolves to an empty map.
+ */
+async function handleSpeakerNames() {
+  const chosen = await openSpeakerNamesDialog({
+    segments: state.draft,
+    names: state.speakers,
+  });
+  if (chosen === null) return;
+
+  const next = Object.keys(chosen).length ? chosen : null;
+  if (JSON.stringify(next) === JSON.stringify(state.speakers)) return;
+
+  state.speakers = next;
+  renderRows();
+  // Names are not part of the text-only undo history, so dirty has to be
+  // set directly rather than derived from a snapshot comparison.
+  markDirty();
+  updateButtons();
+  showToast(
+    next
+      ? t('transcript:editor.speakers.toast.applied', {
+        count: Object.keys(next).length,
+        defaultValue: 'Named {{count}} speaker(s)',
+      })
+      : t('transcript:editor.speakers.toast.cleared', {
+        defaultValue: 'Speaker names cleared',
+      }),
+    'success',
+  );
+}
 
 function basename(p) {
   if (!p) return '';
@@ -209,7 +268,10 @@ function updateUndoRedoButtons() {
 function syncDirtyFromHistory() {
   const saved = state.history[state.savedIndex];
   const curr  = currentTextSnapshot();
-  const clean = snapshotsEqual(saved, curr);
+  // Both halves: the history holds text only, so speaker names have to
+  // be compared against their own saved baseline.
+  const clean = snapshotsEqual(saved, curr)
+    && namesEqual(state.speakers, state.savedSpeakers);
   if (clean) {
     state.dirty = false;
     const flag = dirtyFlagEl();
@@ -261,8 +323,27 @@ function updateButtons() {
   }
   const revert = revertBtn();
   if (revert) {
-    const canRevert = !state.saving && !segmentsEqual(state.draft, state.original);
+    const canRevert = !state.saving
+      && (!segmentsEqual(state.draft, state.original)
+        || !namesEqual(state.speakers, state.savedSpeakers));
     setEnabled(revert, canRevert);
+  }
+  const speakers = speakersBtn();
+  if (speakers) {
+    // Grouping cues by speaker needs the integer, and only the JSON
+    // carries it: the SRT/VTT fallback yields {start, end, text} and
+    // leaves the label inside the cue text, where it cannot be told
+    // apart from Whisper's own "[Music]".  Say so in the tooltip rather
+    // than offering a dialog that would come up empty.
+    const nameable = state.draft.some((s) => Number.isInteger(s.speaker));
+    setEnabled(speakers, !state.saving && nameable);
+    speakers.title = nameable
+      ? t('transcript:editor.speakers.toolbarTitle', {
+        defaultValue: 'Label speaker names',
+      })
+      : t('transcript:editor.speakers.unavailable', {
+        defaultValue: 'No speaker information in this transcript.',
+      });
   }
   updateUndoRedoButtons();
 }
@@ -303,7 +384,9 @@ function renderRows() {
   if (!tbody) return;
   tbody.innerHTML = '';
 
-  state.draft.forEach((seg, idx) => {
+  // Chips show the user's names; the textarea still binds to
+  // state.draft[idx].text, which namedDraft never touches.
+  namedDraft().forEach((seg, idx) => {
     const tr = document.createElement('tr');
     tr.className = 'subtitle-editor-row';
     tr.dataset.index = String(idx);
@@ -479,7 +562,7 @@ async function handleSave() {
       showToast(t('transcript:editor.toast.noFormatsEnabled'), 'warning', 4000);
       return;
     }
-    const segments = state.draft.map((s) => ({
+    const segments = namedDraft().map((s) => ({
       start: Number(s.start) || 0,
       end:   Number(s.end) || 0,
       text:  String(s.text ?? ''),
@@ -497,6 +580,10 @@ async function handleSave() {
       // Regenerating the TXT in the other shape would silently
       // re-paragraph the whole file on the first save.
       paragraphs: await readParagraphMode(),
+      // Always sent, never omitted: this is the editor's full account of
+      // the names, so clearing the last one has to reach disk too.  The
+      // JSON block is the only copy that survives reopening.
+      speakers: state.speakers || {},
     });
     if (!result || result.ok === false) {
       const msg = result?.message || t('transcript:empty.genericError');
@@ -510,6 +597,7 @@ async function handleSave() {
     // this index as the saved one, otherwise dirty would stay true.
     commitHistoryNow();
     state.savedIndex = state.historyIndex;
+    state.savedSpeakers = state.speakers;
     syncDirtyFromHistory();
     const writtenExts = (result.written || [])
       .map((f) => (f.split('.').pop() || '').toUpperCase())
@@ -532,7 +620,8 @@ async function handleSave() {
 
 async function handleRevert() {
   if (!state.original.length) return;
-  if (segmentsEqual(state.draft, state.original)) return;
+  if (segmentsEqual(state.draft, state.original)
+    && namesEqual(state.speakers, state.savedSpeakers)) return;
   const ok = await confirmDialog({
     title: t('transcript:editor.confirm.revertTitle'),
     message: t('transcript:editor.confirm.revert'),
@@ -542,6 +631,7 @@ async function handleRevert() {
   });
   if (!ok) return;
   state.draft = state.original.map((s) => ({ ...s }));
+  state.speakers = state.savedSpeakers;
   // Push the reverted state onto history so Cmd+Z can bring back the
   // pre-revert edits if the user changes their mind.
   commitHistoryNow();
@@ -566,7 +656,8 @@ async function handleClose() {
   if (historyDebounce) { clearTimeout(historyDebounce); historyDebounce = null; }
   state = {
     mediaPath: null, outputDir: null, sourceFormat: null,
-    original: [], draft: [], dirty: false, saving: false,
+    original: [], draft: [], speakers: null, savedSpeakers: null,
+    dirty: false, saving: false,
     history: [], historyIndex: -1, savedIndex: -1,
   };
   const tbody = tbodyEl();
@@ -747,6 +838,7 @@ function initSubtitleEditor() {
   undoBtn()?.addEventListener('click', guarded(undo));
   redoBtn()?.addEventListener('click', guarded(redo));
   findToggleBtn()?.addEventListener('click', toggleFindBar);
+  speakersBtn()?.addEventListener('click', guarded(handleSpeakerNames));
   findInputEl()?.addEventListener('input', computeMatches);
   findCaseEl()?.addEventListener('change', computeMatches);
   findPrevBtn()?.addEventListener('click', guarded(() => stepMatch(-1)));
@@ -875,6 +967,12 @@ async function openSubtitleEditor({ mediaPath, outputDir }) {
     maxLines,
     original: segs,
     draft:    segs.map((s) => ({ ...s })),
+    // The draft keeps the labels diarization produced; names are overlaid
+    // where the label is consumed, never baked in.  Baking would make
+    // clearing a name impossible -- there would be nothing left to fall
+    // back to, and "Sandy" would persist after the field was emptied.
+    speakers: result.speakers || null,
+    savedSpeakers: result.speakers || null,
     dirty: false,
     saving: false,
     history: [], historyIndex: -1, savedIndex: -1,

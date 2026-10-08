@@ -70,7 +70,20 @@
       "lineLimit": "一則字幕最多 {{count}} 行。",
       "reverted": "已還原為磁碟上的內容"
     },
-    "speakerChipLabel": "講者：{{label}}"
+    "speakerChipLabel": "講者：{{label}}",
+    "speakers": {
+      "toolbar": "發言者姓名",
+      "toolbarTitle": "為每位發言者標示姓名",
+      "unavailable": "這份逐字稿沒有講者資訊。需要在轉錄時開啟「辨識講者」，並保留 JSON 輸出。",
+      "title": "標示發言者姓名",
+      "nameFor": "{{label}} 的姓名",
+      "total": "總時長 {{duration}}",
+      "footnote": "此檔案中的發言者名稱將自動更新。重新轉錄會清除這些姓名，因為講者編號會重新產生。",
+      "toast": {
+        "applied": "已標示 {{count}} 位發言者",
+        "cleared": "已清除發言者姓名"
+      }
+    }
   },
   "stats": {
     "segments": "共 {{count}} 段",
