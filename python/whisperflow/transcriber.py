@@ -14,7 +14,7 @@ import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from .config import TranscribeConfig
 from .events import (
@@ -143,7 +143,10 @@ class Transcriber:
             # After _run_vad, so the segments are already on the global
             # timeline and share one clock with the speaker turns; before
             # _write_outputs, so the writers see speaker_label.
-            self._run_diarization(result, input_path)
+            self._run_annotation(
+                lambda: self._run_diarization(result, input_path),
+                label="speaker diarization",
+            )
 
         if cfg.subtitle_segmentation:
             # After diarization, not before: cues are built from runs of a
@@ -152,7 +155,10 @@ class Transcriber:
             # re-split the sized cues at speaker boundaries and overwrite
             # their word-accurate edges, which is the whole point of the
             # feature.
-            self._run_segmentation(result)
+            self._run_annotation(
+                lambda: self._run_segmentation(result),
+                label="subtitle segmentation",
+            )
 
         self._emitter.stage(
             STAGE_WRITING_SUBTITLE,
@@ -224,6 +230,40 @@ class Transcriber:
         return options
 
     # --- speaker diarization -------------------------------------------
+
+    def _run_annotation(self, run: Callable[[], None], *, label: str) -> None:
+        """Run an annotation stage, downgrading any failure to a warning.
+
+        Whisper's output is the product; diarization and subtitle
+        segmentation only annotate it.  Without this guard an exception
+        from either propagated out of run(), so _write_outputs never
+        executed: a failure in a stage that merely adds labels discarded a
+        finished Whisper pass -- most of an hour of compute on a long
+        recording -- and left no subtitle file at all.
+
+        Falling back is safe because both stages compute their whole
+        result before assigning it back (assign_speakers copies rather
+        than mutating; apply_to_result calls resegment first), so a
+        raising stage leaves ``result`` exactly as it was.  What reaches
+        the writers is then what the user would have got with the feature
+        switched off, never a half-annotated transcript.
+
+        Exception rather than BaseException: a cancellation must still
+        cancel the run.
+        """
+        try:
+            run()
+        except Exception:
+            # _log rather than self._emitter.warning: python-runner.js
+            # parses event lines out of stdout and hands them to onEvent,
+            # which has no consumer for type "warning", so an emitted
+            # warning would reach nobody.  A plain log line does reach the
+            # console, where console-log.js colours it as a warning.
+            _log.warning(
+                "%s failed; the subtitle files were written without it",
+                label,
+                exc_info=True,
+            )
 
     def _run_diarization(self, result: TranscribeResult, input_path: Path) -> None:
         """Label every segment in ``result`` with a speaker, in place.
