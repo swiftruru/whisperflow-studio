@@ -116,6 +116,7 @@ xattr -cr "/Applications/WhisperFlow Studio.app"
 - **批次影音掃描** — 以遞迴方式建立尚無字幕伴隨檔的影音佇列
 - **模型管理分頁** — 在 App 管理的目錄中列出 / 下載 / 刪除 faster-whisper 模型；所有權重都放在 Electron 的 `userData/models/`，不會佔用你的全域 HuggingFace 快取。下載會將即時進度（百分比、位元組數、速度、ETA）串流到 Models 分頁的常駐卡片與標題列脈動式標記中，不會再對著停滯的「Downloading…」字樣乾等 15 分鐘。可在中途取消、稍後重試；`huggingface_hub` 內建的續傳功能會從上次中斷處接續
 - **首次啟動 venv 自動建置** — App 會在首次啟動時自動建立 Python 虛擬環境（`python/.venv`）並安裝 `requirements.txt`
+- **為講者命名** — 跑完講者辨識後，字幕編輯器工具列的「**發言者姓名**」會把辨識到的每個聲音列成一張卡片：姓名欄位、該講者的總發言時長，以及他最長的幾段話與時間碼，讓你在命名前先分辨誰是誰。按下確認後，整份檔案的標籤都會換成新名字，SRT、VTT、TXT、JSON 一致。姓名存在逐字稿自己的 JSON 裡，所以關掉編輯器再開仍然在；重新轉錄則會清除，因為講者編號會重新產生，而把名字留在被重新指派的編號上會錯得毫無徵兆。需要開啟 JSON 輸出——只有 SRT 或 VTT 的話，裡面沒有可供分組的講者編號
 - **結構化執行事件** — bridge 會發送可機器解析的階段事件（`preparing`、`loading-model`、`loading-vad`、`transcribing`、`diarizing`、`segmenting`、`writing-subtitle`、`completed`、`failed`）來驅動進度 UI
 - **多 GPU 平行轉錄** — 延續自上游架構，可在 Linux / Windows 上跨 CUDA 裝置分派工作
 - **預檢（Preflight）** — 執行前驗證內建 Python 環境、`whisperflow` 套件、`ffmpeg` / `ffprobe`、以及影音根目錄；若缺少 ffmpeg，可透過偵測到的系統套件管理工具一鍵安裝
