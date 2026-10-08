@@ -42,3 +42,8 @@ _faster-whisper-webui/
 e2e/test-results/
 e2e/playwright-report/
 e2e/.cache/
+
+# Vitest JSON reporter output (a run artifact; one got committed by
+# accident in 1e06e1f, recording a failing mid-development run and the
+# author's absolute home path).
+.vitest/

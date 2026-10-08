@@ -14,7 +14,7 @@ import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Optional
+from typing import TYPE_CHECKING, Callable, Optional
 
 from .config import TranscribeConfig
 from .events import (
@@ -30,7 +30,6 @@ from .events import (
     emitter_for,
 )
 from .models.cache import GLOBAL_MODEL_CACHE
-from .models.faster_whisper_backend import FasterWhisperBackend
 from .models.manager import ModelManager, is_silero_vad_cached
 from .models.whisper_container import TranscribeResult
 from .progress import NullProgressListener, ProgressListener
@@ -47,7 +46,22 @@ from .vad.base import (
 )
 from .vad.parallel import ParallelContext, ParallelVadTranscription
 from .vad.periodic import PeriodicVad
-from .vad.silero import SileroVad
+
+# Deferred, not eager: these two are the only things in this module that
+# pull in faster-whisper and torch, and CI installs neither -- it runs the
+# suite on pytest, ffmpeg-python and numpy alone, which is the promise
+# README makes and the reason diarization.py defers `import sherpa_onnx`
+# the same way.  Importing them here cost nothing until a test imported
+# this module, at which point pytest died during COLLECTION and the whole
+# suite failed, taking the release build with it.
+#
+# Safe as annotations because of `from __future__ import annotations` at
+# the top: the return types below are strings at runtime and never
+# evaluated.  _ensure_silero_vad does a real isinstance check, so it
+# imports SileroVad in its own body as well.
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from .models.faster_whisper_backend import FasterWhisperBackend
+    from .vad.silero import SileroVad
 
 _log = logging.getLogger(__name__)
 
@@ -198,6 +212,8 @@ class Transcriber:
     # --- model / VAD wiring --------------------------------------------
 
     def _build_backend(self) -> FasterWhisperBackend:
+        from .models.faster_whisper_backend import FasterWhisperBackend
+
         cfg = self._config
         model_path = self._model_manager.resolve_model_path(cfg.model)
         return FasterWhisperBackend(
@@ -468,6 +484,8 @@ class Transcriber:
         _log.info("%s", stats.log_message())
 
     def _ensure_silero_vad(self) -> SileroVad:
+        from .vad.silero import SileroVad
+
         if isinstance(self._vad_model, SileroVad):
             return self._vad_model
 

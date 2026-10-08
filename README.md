@@ -111,7 +111,7 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 ### Core
 
 - **Self-contained transcription core** — [`python/whisperflow/`](python/whisperflow/) is a rewritten, dependency-isolated Python package that drives faster-whisper, Silero VAD, segment merging, and subtitle writers. No external project required.
-- **Speaker diarization (optional)** — labels every subtitle segment with who is speaking and prefixes the line with `[Speaker 1]`. Runs on [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) (ONNX Runtime, no torch), with the pyannote segmentation-3.0 and 3D-Speaker CAM++ models downloaded on first use (~34 MB) into the same app-managed models folder. Speaker count can be left on automatic or pinned when you know it; a segment spanning a hand-over is split in two. Off by default, and with it off the output is byte-identical to before
+- **Speaker diarization (optional)** — labels every subtitle segment with who is speaking and prefixes the line with `[Speaker 1]`. Runs on [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) (ONNX Runtime, no torch), with the pyannote segmentation-3.0 and 3D-Speaker CAM++ models downloaded on first use (~34 MB) into the same app-managed models folder. Speaker count can be left on automatic or pinned when you know it; a segment spanning a hand-over is split in two. Off by default, and with it off the output is byte-identical to before, as long as `max_line_width` is left blank (which is how it ships -- the line-wrapping fix in this release deliberately changes every wrapped line)
 - **Subtitle segmentation (optional)** — re-cuts Whisper's long segments into cues that follow subtitle norms, using word timestamps: at most 2 lines, at most 7 seconds, inside a reading-speed budget (42 characters per line and 20 per second for Latin scripts, 16 and 9 for Chinese / Japanese / Korean), broken after sentence punctuation or on a pause wherever it can, and never spanning two speakers. Line widths are measured in half-width columns, so mixed Chinese–English text needs no second setting. A speaker's name is printed once per turn rather than on every cue, and the TXT output becomes one paragraph per turn. Off by default, because it enables word timestamps and those shift segment boundaries slightly even where nothing is re-cut
 - **Batch media scan** — recursively builds a queue of media files without subtitle companions
 - **Model Manager tab** — list / download / delete faster-whisper models into an app-managed directory; all weights live under Electron's `userData/models/`, not in your global HuggingFace cache. Downloads stream real-time progress (percentage, bytes, speed, ETA) into a persistent card on the Models tab and a pulsing titlebar chip so you always know what's happening — no more staring at a frozen "Downloading…" label for 15 minutes. Cancel mid-download and retry later; `huggingface_hub`'s built-in resume picks up where it left off
@@ -167,7 +167,7 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 
 - **Dedicated About tab** — hero block with app icon + live version badge (reads from `package.json` via IPC), author card with monogram avatar placeholder, tech stack card grouped by feature area, a dedicated **Software updates** card with a one-click **Check for updates** button, a **Version history** card that opens an in-app changelog viewer rendered from the bundled `changelog/v*.md` files, and credits & license card with inline links to `NOTICES.md` and GitHub Issues
 - **One-click external links** — GitHub repo, personal site, notices, and issue reporter all go through the sandboxed `shell:open-external` IPC (http(s) only)
-- **Fully bilingual** — the `about` namespace lives alongside 16 others, live-switches with the titlebar language toggle
+- **Fully bilingual** — the `about` namespace lives alongside 18 others, live-switches with the titlebar language toggle
 
 ### In-app updates
 
@@ -179,7 +179,7 @@ The real-time console panel streams Python output (stdout + stderr) directly int
 
 ### Internationalization (zh-TW / en)
 
-- **Production-grade i18n architecture** — built on [i18next](https://www.i18next.com/) with 19 feature namespaces (`common`, `sidebar`, `preflight`, `settings`, `queue`, `progress`, `models`, `console`, `controls`, `dialogs`, `errors`, `events`, `toasts`, `about`, `help`, `updater`, `downloads`, `changelog`, `transcript`). 971 keys per locale.
+- **Production-grade i18n architecture** — built on [i18next](https://www.i18next.com/) with 19 feature namespaces (`common`, `sidebar`, `preflight`, `settings`, `queue`, `progress`, `models`, `console`, `controls`, `dialogs`, `errors`, `events`, `toasts`, `about`, `help`, `updater`, `downloads`, `changelog`, `transcript`). 982 keys per locale.
 - **Titlebar language toggle** — one-click flip between Traditional Chinese and English; all static HTML, dynamic components, Python runner events, and Electron native dialogs switch live without restart
 - **Auto-detect on first launch** — reads `app.getLocale()` and picks `zh-TW` for any Chinese system, `en` for English, with `zh-TW` as the fallback
 - **Key-based main→renderer contract** — `createAppError` / `createPreflightCheck` / Python `[WhisperFlowEvent]` all carry `messageKey` + `messageParams` instead of raw strings, so the renderer can localize at display time and switching language updates already-visible error banners / preflight checks
@@ -328,7 +328,7 @@ whisperflow-studio/
 │       │   ├── base.py            # PromptStrategy protocol + InitialPromptMode enum
 │       │   ├── prepend.py         # Prepend-all / prepend-first
 │       │   └── json_prompt.py     # Per-segment JSON-driven prompts
-│       └── tests/                 # pytest unit tests (236 tests, lightweight)
+│       └── tests/                 # pytest unit tests (306 tests, lightweight)
 ├── preload/
 │   └── preload.js                 # Electron contextBridge (window.electronAPI)
 ├── src/
@@ -364,7 +364,14 @@ whisperflow-studio/
 │           ├── history.js
 │           ├── queue-state.js
 │           ├── queue-view-state.js
+│           ├── transcript-preview.js   # Read-only browse of a finished transcript
+│           ├── subtitle-editor.js      # Post-transcription cue editing
+│           ├── speaker-names-dialog.js # Give each detected speaker a name
 │           └── toast.js
+│       └── lib/
+│           ├── i18n.js
+│           ├── confirm-dialog.js
+│           └── speaker-names.js        # Grouping, excerpt picking, name overlay
 ├── NOTICES.md                     # Third-party attributions (Apache 2.0 for upstream)
 ├── settings.json                  # Local portable settings (gitignored)
 ├── settings.example.json          # Template
@@ -401,7 +408,8 @@ Whisper transcription settings. Edited via the **Settings** tab inside the app. 
 | `diarize` | Enable speaker diarization. Downloads ~34 MB of models on first use. Off by default. |
 | `diarize_num_speakers` | Exact speaker count; `0` detects it automatically. |
 | `speaker_label_template` | Label format, `{n}` being the 1-based speaker number (default `Speaker {n}`). |
-| `diarize_threshold` | Speaker-clustering threshold, 0-1 (default `0.5`). Lower finds more speakers. |
+| `diarize_refine` | Repair the engine's over-clustering after it runs: merge the clusters it split one speaker into, then absorb the fragments too short to be anybody. On by default; a 64-minute talk reports 4 speakers with it and 60 without. |
+| `diarize_threshold` | Speaker-clustering threshold, 0-1 (default `0.5`). Lower finds more speakers. Has little effect while `diarize_refine` is on, because the repair merges the extra splits back. |
 | `max_line_width` | Characters per subtitle line, in the language's own unit. Blank means "decide by language" (42 Latin / 16 CJK) when re-segmentation is on, and "don't wrap at all" when it is off. |
 | `subtitle_segmentation` | Re-cut every subtitle into short cues by word timestamp. Also enables word timestamps, which shifts segment boundaries slightly. Off by default. |
 | `subtitle_max_lines` | Lines per cue (subtitle standard: `2`). |
@@ -510,7 +518,7 @@ Output goes to `dist/`.
 
 ## Development
 
-Run the Python unit tests (236 tests, lightweight — no torch, faster-whisper or sherpa-onnx required):
+Run the Python unit tests (306 tests, lightweight — no torch, faster-whisper or sherpa-onnx required):
 
 ```bash
 cd python
@@ -521,7 +529,7 @@ python3 -m venv .venv-test
 
 The same suite runs on every release in CI — see [`.github/workflows/release.yml`](.github/workflows/release.yml).
 
-Run the JavaScript unit tests for the main-process modules — subtitle writers, transcript reader, venv state, and the stage / locale wiring (207 tests):
+Run the JavaScript unit tests for the main-process modules — subtitle writers, transcript reader, venv state, and the stage / locale wiring, the speaker-name map and the naming dialog (285 tests):
 
 ```bash
 npm run test:unit

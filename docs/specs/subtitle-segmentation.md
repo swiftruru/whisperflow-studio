@@ -196,7 +196,7 @@ word timestamps 的穩健處理：
 ### 4.10 文件
 
 - README（中英文版）補上功能說明，並說明「單行最大字元」的新語意
-- 草擬下一版的 changelog（例如 `changelog/v1.18.0.md`），格式比照既有的 changelog
+- changelog：這份規格的實作併進了尚未發佈的 `changelog/v1.17.0.md`，而非另開新版
 
 ## 5. 測試
 

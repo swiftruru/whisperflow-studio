@@ -111,7 +111,7 @@ xattr -cr "/Applications/WhisperFlow Studio.app"
 ### 核心
 
 - **自給自足的轉錄核心** — [`python/whisperflow/`](python/whisperflow/) 是重寫、依賴完全隔離的 Python 套件，統籌 faster-whisper、Silero VAD、片段合併、字幕輸出器。不需外部專案。
-- **講者辨識（選用）** — 為每段字幕標上是誰在說話，並在行首加上 `[Speaker 1]` 前綴。底層採用 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)（ONNX Runtime，不需 torch），首次使用時會把 pyannote segmentation-3.0 與 3D-Speaker CAM++ 模型（約 34 MB）下載到同一個 App 管理的模型資料夾。講者人數可交給程式自動判斷，已知時也可直接指定；一段話中途換人會被拆成兩段。預設關閉，關閉時輸出與先前逐位元組相同
+- **講者辨識（選用）** — 為每段字幕標上是誰在說話，並在行首加上 `[Speaker 1]` 前綴。底層採用 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)（ONNX Runtime，不需 torch），首次使用時會把 pyannote segmentation-3.0 與 3D-Speaker CAM++ 模型（約 34 MB）下載到同一個 App 管理的模型資料夾。講者人數可交給程式自動判斷，已知時也可直接指定；一段話中途換人會被拆成兩段。預設關閉，關閉時輸出與先前逐位元組相同——前提是 `max_line_width` 留空（出貨預設就是留空；本版的折行修正刻意改變了每一條折過的行）
 - **字幕切段（選用）** — 以逐字時間碼把 Whisper 過長的段落重新切成符合字幕規範的短句：每則最多 2 行、最長 7 秒、不超過閱讀速度上限（拉丁文字每行 42 字元、每秒 20 字元；中日韓每行 16 字、每秒 9 字），盡可能切在句尾標點或停頓處，且絕不跨越兩個講者。行寬以半角欄位計算，因此中英混排不需要第二個設定。講者名稱改成每輪只印一次而非每則都印，TXT 輸出也改成一輪一個段落。預設關閉，因為它會連帶開啟逐字時間碼，而那會讓分段邊界即使在沒被重新切開的地方也略有變化
 - **批次影音掃描** — 以遞迴方式建立尚無字幕伴隨檔的影音佇列
 - **模型管理分頁** — 在 App 管理的目錄中列出 / 下載 / 刪除 faster-whisper 模型；所有權重都放在 Electron 的 `userData/models/`，不會佔用你的全域 HuggingFace 快取。下載會將即時進度（百分比、位元組數、速度、ETA）串流到 Models 分頁的常駐卡片與標題列脈動式標記中，不會再對著停滯的「Downloading…」字樣乾等 15 分鐘。可在中途取消、稍後重試；`huggingface_hub` 內建的續傳功能會從上次中斷處接續
@@ -167,7 +167,7 @@ xattr -cr "/Applications/WhisperFlow Studio.app"
 
 - **專屬 About 分頁** — 英雄區塊含 App 圖示與版本徽章（由 `package.json` 透過 IPC 讀取）、作者卡片（含字母縮寫頭像佔位）、依功能區分的技術堆疊卡、專屬的 **軟體更新** 卡片（含一鍵「檢查更新」按鈕）、**版本歷史** 卡片（從內附的 `changelog/v*.md` 渲染的 App 內版本紀錄檢視器），以及含 `NOTICES.md` 與 GitHub Issues 連結的致謝與授權卡
 - **一鍵外部連結** — GitHub 儲存庫、個人網站、通知檔、issue 回報皆透過沙盒化的 `shell:open-external` IPC（僅限 http(s)）
-- **完整雙語** — `about` 命名空間與其他 16 個並列，可即時隨標題列的語言切換同步
+- **完整雙語** — `about` 命名空間與其他 18 個並列，可即時隨標題列的語言切換同步
 
 ### App 內更新
 
@@ -179,7 +179,7 @@ xattr -cr "/Applications/WhisperFlow Studio.app"
 
 ### 國際化（zh-TW / en）
 
-- **正式版 i18n 架構** — 建構在 [i18next](https://www.i18next.com/) 之上，具 19 個功能命名空間（`common`、`sidebar`、`preflight`、`settings`、`queue`、`progress`、`models`、`console`、`controls`、`dialogs`、`errors`、`events`、`toasts`、`about`、`help`、`updater`、`downloads`、`changelog`、`transcript`）。每種語言 971 個鍵。
+- **正式版 i18n 架構** — 建構在 [i18next](https://www.i18next.com/) 之上，具 19 個功能命名空間（`common`、`sidebar`、`preflight`、`settings`、`queue`、`progress`、`models`、`console`、`controls`、`dialogs`、`errors`、`events`、`toasts`、`about`、`help`、`updater`、`downloads`、`changelog`、`transcript`）。每種語言 982 個鍵。
 - **標題列語言切換** — 一鍵在台灣繁體中文與英文之間切換；所有靜態 HTML、動態元件、Python 執行事件、以及 Electron 原生對話框皆可即時切換、不需重啟
 - **首次啟動自動偵測** — 以 `app.getLocale()` 為依據，中文系統預設 `zh-TW`、英文系統預設 `en`，fallback 為 `zh-TW`
 - **以鍵為基礎的主程序 → renderer 約定** — `createAppError` / `createPreflightCheck` / Python `[WhisperFlowEvent]` 皆攜帶 `messageKey` + `messageParams` 而非原始字串，renderer 在顯示時才在地化，切換語言可即時更新已顯示的錯誤橫幅 / 預檢項目
@@ -328,7 +328,7 @@ whisperflow-studio/
 │       │   ├── base.py            # PromptStrategy 協定 + InitialPromptMode enum
 │       │   ├── prepend.py         # Prepend-all / prepend-first
 │       │   └── json_prompt.py     # 以 JSON 驅動的逐段提示
-│       └── tests/                 # pytest 單元測試（236 項，輕量化）
+│       └── tests/                 # pytest 單元測試（306 項，輕量化）
 ├── preload/
 │   └── preload.js                 # Electron contextBridge（window.electronAPI）
 ├── src/
@@ -364,7 +364,14 @@ whisperflow-studio/
 │           ├── history.js
 │           ├── queue-state.js
 │           ├── queue-view-state.js
+│           ├── transcript-preview.js   # Read-only browse of a finished transcript
+│           ├── subtitle-editor.js      # Post-transcription cue editing
+│           ├── speaker-names-dialog.js # Give each detected speaker a name
 │           └── toast.js
+│       └── lib/
+│           ├── i18n.js
+│           ├── confirm-dialog.js
+│           └── speaker-names.js        # Grouping, excerpt picking, name overlay
 ├── NOTICES.md                     # 第三方來源標示（上游為 Apache 2.0）
 ├── settings.json                  # 本機可攜式設定（gitignored）
 ├── settings.example.json          # 範本
@@ -401,7 +408,8 @@ Whisper 轉錄設定。透過 App 內的 **Settings** 分頁編輯。`python/con
 | `diarize` | 啟用講者辨識。首次使用會下載約 34 MB 的模型。預設關閉。 |
 | `diarize_num_speakers` | 指定講者人數；填 `0` 表示自動判斷。 |
 | `speaker_label_template` | 標籤格式，`{n}` 為從 1 起算的講者編號（預設 `Speaker {n}`）。 |
-| `diarize_threshold` | 講者分群門檻，0-1（預設 `0.5`）。數值越低辨識出的講者越多。 |
+| `diarize_refine` | 在引擎跑完後修復它的過度分群：把被拆開的同一位講者併回來，再吸收掉短到不足以構成一個人的碎片。預設開啟；一場 64 分鐘的演講開啟時回報 4 位講者，關閉時 60 位。 |
+| `diarize_threshold` | 講者分群門檻，0-1（預設 `0.5`）。數值越低辨識出的講者越多。開啟 `diarize_refine` 時它幾乎沒有作用，因為修復會把多出來的拆分併回去。 |
 | `max_line_width` | 每行字數上限，單位依語言而定。留空表示「依語言決定」（拉丁 42 字元 / 中日韓 16 字）——但這只在開啟切段時成立；關閉切段時留空表示完全不折行。 |
 | `subtitle_segmentation` | 以逐字時間碼把每句字幕重新切成短句。會連帶開啟逐字時間碼，使分段邊界略有變化。預設關閉。 |
 | `subtitle_max_lines` | 每則字幕的行數（字幕業界標準為 `2`）。 |
@@ -510,7 +518,7 @@ npm run build:linux  # Linux AppImage
 
 ## 開發
 
-執行 Python 單元測試（236 項，輕量——不需要 torch、faster-whisper 或 sherpa-onnx）：
+執行 Python 單元測試（306 項，輕量——不需要 torch、faster-whisper 或 sherpa-onnx）：
 
 ```bash
 cd python
@@ -521,7 +529,7 @@ python3 -m venv .venv-test
 
 每次發佈的 CI 都會跑同一套測試——見 [`.github/workflows/release.yml`](.github/workflows/release.yml)。
 
-執行 main process 模組的 JavaScript 單元測試（207 項——字幕輸出器、transcript 讀取器、venv 狀態，以及階段 / 文案的接線）：
+執行 main process 模組的 JavaScript 單元測試（285 項——字幕輸出器、transcript 讀取器、venv 狀態、階段 / 文案的接線，以及講者姓名對照與命名對話框）：
 
 ```bash
 npm run test:unit
