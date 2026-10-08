@@ -59,6 +59,8 @@ class _Stub(Transcriber):
         self.diarization_error: BaseException | None = None
         self.segmentation_error: BaseException | None = None
         self.written: dict | None = None
+        self.writes: list[dict] = []
+        self.targets_seen: list[object] = []
         self.result: dict = {
             "segments": [
                 {"start": 0.0, "end": 1.0, "text": "hello", "words": []},
@@ -82,9 +84,13 @@ class _Stub(Transcriber):
         self.calls.append("vad")
         return self.result
 
-    def _write_outputs(self, result, input_path):
+    def _write_outputs(self, result, input_path, *, targets=None):
         self.calls.append("write")
         self.written = copy.deepcopy(result)
+        self.writes.append(copy.deepcopy(result))
+        self.targets_seen.append(targets)
+        if targets is not None:
+            return targets
         return TranscribeOutputs(
             srt_path=Path(f"{input_path}.srt"),
             vtt_path=None,
@@ -166,7 +172,7 @@ def test_a_failing_diarization_does_not_stop_segmentation(tmp_path):
 
     stub.run()
 
-    assert stub.calls == ["vad", "diarize", "segment", "write"]
+    assert stub.calls == ["vad", "write", "diarize", "segment", "write"]
     assert stub.written is not None
     assert stub.written["segmentation"] == {"version": 1}
 
@@ -220,7 +226,11 @@ def test_a_cancellation_is_not_swallowed(tmp_path, cancellation):
     with pytest.raises(cancellation):
         stub.run()
 
-    assert "write" not in stub.calls
+    # One write, not two: the landing already happened, and cancelling
+    # during diarization skipped the final one.  So a cancelled run still
+    # leaves a usable transcript -- the Whisper pass was already paid for.
+    assert stub.calls == ["vad", "write", "diarize"]
+    assert len(stub.writes) == 1
 
 
 # --- the guard must not change the happy path --------------------------
@@ -242,6 +252,8 @@ def test_both_stages_are_skipped_when_switched_off(tmp_path):
 
     stub.run()
 
+    # No annotation stage, so nothing would have come between a landing
+    # write and the real one: there is nothing to protect and only one write.
     assert stub.calls == ["vad", "write"]
     assert stub.written is not None
     assert "speaker" not in stub.written["segments"][0]
@@ -255,3 +267,156 @@ def test_a_successful_run_logs_no_warning(tmp_path, caplog):
         stub.run()
 
     assert [r for r in caplog.records if r.levelno == logging.WARNING] == []
+
+
+# --- landing the transcript before the annotation stages ---------------
+
+
+def test_the_transcript_lands_before_the_annotation_stages(tmp_path):
+    """The whole point of the landing: it happens while there is still
+    something to lose, not after the stages it protects against."""
+    stub, _emitter = _make(tmp_path, diarize=True, subtitle_segmentation=True)
+
+    stub.run()
+
+    assert stub.calls == ["vad", "write", "diarize", "segment", "write"]
+    assert stub.calls.index("write") < stub.calls.index("diarize")
+
+
+def test_the_landed_transcript_is_the_un_annotated_one(tmp_path):
+    """It is a complete transcript, just without the annotations that had
+    not run yet -- exactly what the user gets with the features off."""
+    stub, _emitter = _make(tmp_path, diarize=True, subtitle_segmentation=True)
+
+    stub.run()
+
+    landed, final = stub.writes
+    assert landed["text"] == "hello there"
+    assert all("speaker" not in s for s in landed["segments"])
+    assert "segmentation" not in landed
+    # ... and the final write is the annotated one.
+    assert final["segments"][0]["speaker"] == 0
+    assert final["segmentation"] == {"version": 1}
+
+
+def test_the_final_write_replays_the_landed_paths(tmp_path):
+    """Resolving paths twice is what breaks the non-default policies."""
+    stub, _emitter = _make(tmp_path, diarize=True)
+
+    stub.run()
+
+    landing_targets, final_targets = stub.targets_seen
+    assert landing_targets is None            # the landing resolves
+    assert final_targets is not None          # the final write replays
+
+
+def test_nothing_lands_early_when_no_annotation_runs(tmp_path, caplog):
+    stub, _emitter = _make(tmp_path)
+
+    with caplog.at_level(logging.INFO, logger="whisperflow.transcriber"):
+        stub.run()
+
+    assert len(stub.writes) == 1
+    assert "landed the transcript" not in caplog.text
+
+
+# --- the overwrite_policy trap, against the real _write_outputs --------
+#
+# _Stub replaces _write_outputs, so these drive the real one directly.
+# Without `pick` they are the tests that fail.
+
+
+def _real(tmp_path: Path, **overrides) -> tuple[Transcriber, Path]:
+    media = tmp_path / "talk.mkv"
+    media.write_bytes(b"not really a video")
+    cfg = TranscribeConfig(
+        input_path=str(media),
+        models_dir=str(tmp_path / "models"),
+        output_dir=str(tmp_path / "out"),
+        write_srt=True,
+        write_vtt=False,
+        write_txt=False,
+        write_json=False,
+        **overrides,
+    )
+    return Transcriber(cfg, emitter=_RecordingEmitter()), media
+
+
+def _result(text: str) -> dict:
+    return {
+        "segments": [{"start": 0.0, "end": 1.0, "text": text, "words": []}],
+        "text": text,
+        "language": "en",
+    }
+
+
+@pytest.mark.parametrize("policy", ["overwrite", "skip", "rename-suffix"])
+def test_the_annotated_rewrite_always_reaches_the_landed_file(tmp_path, policy):
+    """Under "skip" a re-resolved path would make the final write look
+    redundant against the landing's own file, and the user would keep the
+    un-annotated copy forever -- the durability measure destroying the
+    thing it exists to protect.  Under "rename-suffix" the annotated copy
+    would land under a name nobody is looking for."""
+    transcriber, media = _real(tmp_path, overwrite_policy=policy)
+
+    landed = transcriber._write_outputs(_result("before"), media)
+    final = transcriber._write_outputs(_result("after"), media, targets=landed)
+
+    assert final.srt_path == landed.srt_path
+    assert landed.srt_path is not None
+    assert "after" in landed.srt_path.read_text(encoding="utf-8")
+    # Exactly one subtitle file for one run, whatever the policy.
+    assert sorted(p.name for p in (tmp_path / "out").iterdir()) == ["talk.srt"]
+
+
+def test_the_policy_still_applies_to_a_file_that_was_already_there(tmp_path):
+    """Asking once per run is not the same as never asking: a pre-existing
+    file from an earlier run must still be honoured."""
+    transcriber, media = _real(tmp_path, overwrite_policy="skip")
+    stale = tmp_path / "out"
+    stale.mkdir(parents=True)
+    (stale / "talk.srt").write_text("from an earlier run", encoding="utf-8")
+
+    landed = transcriber._write_outputs(_result("before"), media)
+    transcriber._write_outputs(_result("after"), media, targets=landed)
+
+    assert landed.srt_path is None
+    assert (stale / "talk.srt").read_text(encoding="utf-8") == "from an earlier run"
+
+
+# --- the two durability measures, together -----------------------------
+
+
+class _DeadPipe:
+    """stdout after the parent app has gone away."""
+
+    def write(self, _text):
+        raise BrokenPipeError(32, "Broken pipe")
+
+    def flush(self):
+        raise BrokenPipeError(32, "Broken pipe")
+
+
+def test_an_orphaned_run_still_writes_its_subtitles(tmp_path, monkeypatch):
+    """The failure this pair exists for, end to end.
+
+    The app is closed mid-run; the spawned Python child is not killed and
+    keeps going, but every progress tick now writes to a pipe with no
+    reader.  The run must finish and the files must reach disk.
+    """
+    monkeypatch.setattr("sys.stdout", _DeadPipe())
+    media = tmp_path / "talk.mkv"
+    media.write_bytes(b"not really a video")
+    cfg = TranscribeConfig(
+        input_path=str(media),
+        models_dir=str(tmp_path / "models"),
+        diarize=True,
+    )
+    # A real EventEmitter, so the real guard runs -- _RecordingEmitter
+    # overrides emit() and would never reach the write.
+    stub = _Stub(cfg, EventEmitter(file_path=str(media), file_name=media.name))
+
+    outputs = stub.run()
+
+    assert stub.calls == ["vad", "write", "diarize", "write"]
+    assert outputs.srt_path is not None

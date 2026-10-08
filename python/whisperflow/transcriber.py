@@ -139,6 +139,22 @@ class Transcriber:
         elapsed = time.perf_counter() - perf_start
         _log.info("whisper + VAD took %.2fs", elapsed)
 
+        # Land the transcript before the annotation stages.  Whisper is
+        # the expensive part -- most of an hour on a long recording --
+        # and until something writes it, it exists only in this process's
+        # memory.  Anything that ends the process before the final write
+        # therefore costs the entire run: a kill, an OOM, or the parent
+        # going away and a later event write hitting a dead pipe.  The
+        # annotation stages only decorate what is written here, so a copy
+        # taken now is a complete, usable transcript.
+        #
+        # Only when something comes after it: with both stages off the
+        # final write is already the next statement.
+        landed: Optional[TranscribeOutputs] = None
+        if cfg.diarize or cfg.subtitle_segmentation:
+            landed = self._write_outputs(result, input_path)
+            _log.info("landed the transcript before annotating it")
+
         if cfg.diarize:
             # After _run_vad, so the segments are already on the global
             # timeline and share one clock with the speaker turns; before
@@ -166,7 +182,7 @@ class Transcriber:
             message_key="events:stage.writingSubtitle",
             progress=92,
         )
-        outputs = self._write_outputs(result, input_path)
+        outputs = self._write_outputs(result, input_path, targets=landed)
 
         _log.info(
             "\033[1;32m✔ Transcription completed in %.2fs\033[0m",
@@ -590,7 +606,18 @@ class Transcriber:
 
     # --- output writing ------------------------------------------------
 
-    def _write_outputs(self, result: TranscribeResult, source: Path) -> TranscribeOutputs:
+    def _write_outputs(
+        self,
+        result: TranscribeResult,
+        source: Path,
+        *,
+        targets: Optional[TranscribeOutputs] = None,
+    ) -> TranscribeOutputs:
+        """Write the enabled formats and return where they went.
+
+        ``targets`` replays the paths an earlier call in the same run
+        chose, which is what makes writing twice safe -- see ``pick``.
+        """
         cfg = self._config
         output_dir = Path(cfg.output_dir) if cfg.output_dir else source.parent
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -617,6 +644,25 @@ class Transcriber:
             # "overwrite" or any unknown value
             return path
 
+        def pick(attr: str, default: Path) -> Optional[Path]:
+            """Resolve a target path, asking overwrite_policy once per run.
+
+            overwrite_policy is a question about the files that were on
+            disk when the run started, so the first write asks it and
+            every later write in the same run reuses the answer.
+
+            Re-asking would break both non-default policies, and break
+            them silently.  Under "skip" the early landing creates the
+            file, so the final write would skip it as already-present and
+            the user would keep the un-annotated copy forever -- the
+            durability measure would have destroyed the thing it exists
+            to protect.  Under "rename-suffix" the run would leave two
+            files, the annotated one under a name nobody is looking for.
+            """
+            if targets is not None:
+                return getattr(targets, attr)
+            return resolve(default)
+
         srt_path = None
         vtt_path = None
         txt_path = None
@@ -634,19 +680,19 @@ class Transcriber:
         wrap_width = None if cfg.subtitle_segmentation else cfg.max_line_width
 
         if cfg.write_srt:
-            target = resolve(output_dir / f"{base_name}.srt")
+            target = pick("srt_path", output_dir / f"{base_name}.srt")
             if target is not None:
                 srt_path = target
                 with target.open("w", encoding="utf-8") as f:
                     write_srt(result["segments"], f, max_line_width=wrap_width)
         if cfg.write_vtt:
-            target = resolve(output_dir / f"{base_name}.vtt")
+            target = pick("vtt_path", output_dir / f"{base_name}.vtt")
             if target is not None:
                 vtt_path = target
                 with target.open("w", encoding="utf-8") as f:
                     write_vtt(result["segments"], f, max_line_width=wrap_width)
         if cfg.write_txt:
-            target = resolve(output_dir / f"{base_name}.txt")
+            target = pick("txt_path", output_dir / f"{base_name}.txt")
             if target is not None:
                 txt_path = target
                 with target.open("w", encoding="utf-8") as f:
@@ -657,7 +703,7 @@ class Transcriber:
                         result["segments"], f, paragraphs=cfg.subtitle_segmentation
                     )
         if cfg.write_json:
-            target = resolve(output_dir / f"{base_name}.json")
+            target = pick("json_path", output_dir / f"{base_name}.json")
             if target is not None:
                 json_path = target
                 target.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")

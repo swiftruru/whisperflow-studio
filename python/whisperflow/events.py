@@ -50,6 +50,10 @@ class EventEmitter:
     file_name: str = ""
     source: str = "whisperflow"
     start_time: float = field(default_factory=time.monotonic)
+    # Set once the far end of stdout has gone away.  Read by nothing in
+    # production -- it exists so a test can assert the run kept going
+    # rather than that it merely did not raise.
+    _stdout_broken: bool = False
 
     def emit(
         self,
@@ -91,8 +95,26 @@ class EventEmitter:
         if extra:
             payload["meta"] = extra
 
-        sys.stdout.write(f"{EVENT_PREFIX} {json.dumps(payload, ensure_ascii=False)}\n")
-        sys.stdout.flush()
+        line = f"{EVENT_PREFIX} {json.dumps(payload, ensure_ascii=False)}\n"
+        try:
+            sys.stdout.write(line)
+            sys.stdout.flush()
+        except (BrokenPipeError, ValueError, OSError):
+            # Nobody is listening any more, which is not a reason to stop
+            # working.  Electron spawns this process and reads these events
+            # off its stdout; when the app is closed or killed the child is
+            # not, so it keeps transcribing into a pipe whose other end is
+            # gone.  Letting the write raise would abort the run at the next
+            # progress tick and throw away a Whisper pass that may be most
+            # of an hour old -- and the transcript still has to be written
+            # to disk, which does not need a reader.
+            #
+            # ValueError covers a closed file object, OSError the EBADF /
+            # ENXIO cases; BrokenPipeError is an OSError but is named for
+            # the one that actually happens.  Deliberately silent: there is
+            # no channel left to report on, and the logging handler writes
+            # to this same stdout.
+            self._stdout_broken = True
 
     # --- convenience helpers --------------------------------------------
 
