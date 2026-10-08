@@ -282,3 +282,74 @@ describe('the transcript:read IPC handler forwards everything', () => {
     expect(produced).toEqual(['segments', 'source', 'speakers']);
   });
 });
+
+describe('parseSrt — WebVTT timestamps without an hours block', () => {
+  // The regression, found by a user: the preview showed all 715 cues of a
+  // real transcript with every timestamp reading 00:00:00 and a total
+  // length of 00:00.  WebVTT makes the hours block optional and our own
+  // writer omits it (writers.py:96 adds `HH:` only past the hour, or when
+  // always_include_hours is set, which only SRT sets), so a recording
+  // whose speech ends before the hour mark produces a VTT in which EVERY
+  // cue is short-form.  parseSrtTime required the block and returned 0 on
+  // a miss, which is indistinguishable from a cue that really does start
+  // at zero -- so nothing failed, it just silently lied.
+
+  it('parses a short-form cue', () => {
+    expect(parseSrt('WEBVTT\n\n04:09.018 --> 04:11.738\nMicrophone\n'))
+      .toEqual([{ start: 249.018, end: 251.738, text: 'Microphone' }]);
+  });
+
+  it('still parses the long form, with either separator', () => {
+    expect(parseSrt('1\n00:01:23,456 --> 00:01:24,000\nSRT style\n'))
+      .toEqual([{ start: 83.456, end: 84, text: 'SRT style' }]);
+    expect(parseSrt('WEBVTT\n\n01:04:16.100 --> 01:04:17.000\nPast the hour\n'))
+      .toEqual([{ start: 3856.1, end: 3857, text: 'Past the hour' }]);
+  });
+
+  it('handles a file that switches form at the hour mark', () => {
+    // Which is what our writer produces for anything over an hour.
+    const cues = parseSrt(
+      'WEBVTT\n\n59:59.000 --> 01:00:01.000\nacross\n\n'
+      + '01:00:01.000 --> 01:00:02.000\nafter\n',
+    );
+    expect(cues.map((c) => [c.start, c.end]))
+      .toEqual([[3599, 3601], [3601, 3602]]);
+  });
+
+  it('reads milliseconds positionally', () => {
+    // ".5" is 500 ms. Treating the digits as a plain number made a cue
+    // land 495 ms early.
+    expect(parseSrt('WEBVTT\n\n00:01.5 --> 00:02.25\nshort fraction\n')[0])
+      .toEqual({ start: 1.5, end: 2.25, text: 'short fraction' });
+  });
+
+  it('accepts an hours field longer than two digits', () => {
+    expect(parseSrt('WEBVTT\n\n100:00:00.000 --> 100:00:01.000\nlong haul\n')[0].start)
+      .toBe(360000);
+  });
+
+  it('drops a cue whose timing cannot be parsed, rather than placing it at zero', () => {
+    // Keeping it would put a cue at the start of the timeline that belongs
+    // somewhere else — and the editor would write that back over the file.
+    const cues = parseSrt(
+      'WEBVTT\n\nnonsense --> garbage\nbad\n\n00:05.000 --> 00:06.000\ngood\n',
+    );
+    expect(cues).toEqual([{ start: 5, end: 6, text: 'good' }]);
+  });
+
+  it('keeps a cue that genuinely starts at zero', () => {
+    // The other half: dropping unparseable cues must not drop real ones.
+    expect(parseSrt('WEBVTT\n\n00:00.000 --> 00:01.000\nfrom the top\n'))
+      .toEqual([{ start: 0, end: 1, text: 'from the top' }]);
+  });
+
+  it('parses a whole short-form VTT the way the preview would read it', () => {
+    writeSidecar('vtt', 'WEBVTT\n\n'
+      + '04:09.018 --> 04:11.738\n[Speaker 1] Microphone\n\n'
+      + '58:42.510 --> 58:44.510\n[Speaker 3] the end\n');
+    const { segments } = readTranscriptForMedia(mediaPath);
+    expect(segments).toHaveLength(2);
+    expect(segments[0].start).toBeCloseTo(249.018, 3);
+    expect(segments[1].end).toBeCloseTo(3524.51, 3);
+  });
+});

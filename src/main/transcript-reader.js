@@ -18,11 +18,24 @@ const fs = require('fs');
 const path = require('path');
 
 function parseSrtTime(stamp) {
-  // "00:01:23,456"  →  83.456  seconds
-  const match = /^(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})$/.exec(stamp.trim());
-  if (!match) return 0;
+  // "00:01:23,456" -> 83.456, and "01:23.456" -> 83.456.
+  //
+  // The hours block is optional because WebVTT makes it optional and our
+  // own writer omits it: writers.py:96 emits `HH:` only when the cue is
+  // an hour in, or when always_include_hours is set, which only SRT sets.
+  // So a recording whose speech ends before the hour mark produces a VTT
+  // in which EVERY cue is short-form.  Requiring the hours block parsed
+  // all of them to 0, and because a failed parse returned 0 rather than
+  // signalling, the preview showed a full transcript with every timestamp
+  // reading 00:00:00 and nothing anywhere said why.
+  const match = /^(?:(\d{1,3}):)?(\d{1,2}):(\d{2})[,.](\d{1,3})$/.exec(stamp.trim());
+  if (!match) return null;
   const [, hh, mm, ss, ms] = match;
-  return Number(hh) * 3600 + Number(mm) * 60 + Number(ss) + Number(ms) / 1000;
+  // Milliseconds are positional: ".5" is 500 ms, not 5 ms.
+  return Number(hh || 0) * 3600
+    + Number(mm) * 60
+    + Number(ss)
+    + Number(ms.padEnd(3, '0')) / 1000;
 }
 
 function parseSrt(source) {
@@ -40,6 +53,11 @@ function parseSrt(source) {
     if (arrow === -1) continue;
     const start = parseSrtTime(timing.slice(0, arrow));
     const end = parseSrtTime(timing.slice(arrow + 3));
+    // A cue whose timing does not parse is dropped rather than handed
+    // over as 0 -> 0.  Keeping it would put a cue at the start of the
+    // timeline that belongs somewhere else, and saving from the editor
+    // would then write that back over the file.
+    if (start === null || end === null) continue;
     const text = lines.slice(idx + 1).join('\n');
     if (!text) continue;
     segments.push({ start, end, text });
