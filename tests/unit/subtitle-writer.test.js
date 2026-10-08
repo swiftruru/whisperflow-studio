@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 import subtitleWriter from '../../src/main/subtitle-writer.js';
+import transcriptReader from '../../src/main/transcript-reader.js';
 
 const {
   SPEAKER_PREFIX_FORMAT,
@@ -475,5 +477,91 @@ describe('patchJsonWithEdits matches by time', () => {
     expect(patched.segments[0]).toEqual({
       start: 0, end: 1, text: 'new', speaker: 2, speaker_label: 'Speaker 3',
     });
+  });
+});
+
+describe('patchJsonWithEdits — speaker names', () => {
+  const doc = () => JSON.stringify({
+    segments: [
+      { start: 0, end: 1, text: 'hello', speaker: 0, speaker_label: 'Speaker 1', words: [] },
+      { start: 1, end: 2, text: 'there', speaker: 1, speaker_label: 'Speaker 2', words: [] },
+    ],
+    text: 'hello there',
+    language: 'en',
+    segmentation: { version: 1 },
+  }, null, 2) + '\n';
+
+  const edits = [{ start: 0, text: 'hello' }, { start: 1, text: 'there' }];
+
+  it('writes the names into a versioned top-level block', () => {
+    const patched = JSON.parse(patchJsonWithEdits(doc(), edits, { 0: 'Sandy', 1: 'LINE BANK' }));
+    expect(patched.speakers).toEqual({ version: 1, names: { 0: 'Sandy', 1: 'LINE BANK' } });
+  });
+
+  it('leaves every other top-level key alone', () => {
+    const patched = JSON.parse(patchJsonWithEdits(doc(), edits, { 0: 'Sandy' }));
+    expect(patched.language).toBe('en');
+    expect(patched.segmentation).toEqual({ version: 1 });
+    expect(patched.text).toBe('hello there');
+  });
+
+  it('leaves the baked speaker_label on the segments untouched', () => {
+    // Renaming must not break the sparse-labelling rule: which segments
+    // carry a label is diarization's answer, and the name is only ever
+    // substituted into the ones that already have one.
+    const patched = JSON.parse(patchJsonWithEdits(doc(), edits, { 0: 'Sandy' }));
+    expect(patched.segments[0].speaker_label).toBe('Speaker 1');
+    expect(patched.segments[0].speaker).toBe(0);
+  });
+
+  it('keeps the existing block when no names argument is passed', () => {
+    const once = patchJsonWithEdits(doc(), edits, { 0: 'Sandy' });
+    const twice = JSON.parse(patchJsonWithEdits(once, [{ start: 0, text: 'changed' }]));
+    expect(twice.speakers).toEqual({ version: 1, names: { 0: 'Sandy' } });
+    expect(twice.segments[0].text).toBe('changed');
+  });
+
+  it.each([
+    ['null', null],
+    ['an empty map', {}],
+    ['a map of only blanks', { 0: '   ' }],
+  ])('removes the block entirely when given %s', (_label, names) => {
+    // Clearing the last name should leave no husk behind, so that reading
+    // it back is indistinguishable from a transcript that never had one.
+    const once = patchJsonWithEdits(doc(), edits, { 0: 'Sandy' });
+    const twice = JSON.parse(patchJsonWithEdits(once, edits, names));
+    expect('speakers' in twice).toBe(false);
+  });
+
+  it('refuses entries that are not a speaker index mapped to a name', () => {
+    const patched = JSON.parse(patchJsonWithEdits(doc(), edits, {
+      0: 'Sandy', 'x': 'not an index', 1: 42, 2: '  ', 3: 'Kept',
+    }));
+    expect(patched.speakers.names).toEqual({ 0: 'Sandy', 3: 'Kept' });
+  });
+
+  it('is byte-identical to the two-argument call when nobody is named', () => {
+    // The project-wide invariant: a feature nobody uses changes no bytes.
+    expect(patchJsonWithEdits(doc(), edits, null))
+      .toBe(patchJsonWithEdits(doc(), edits));
+  });
+
+  it('round-trips through the reader', () => {
+    // The regression the whole feature turns on: before this, a rename
+    // reached SRT/VTT/TXT but not the JSON, and the editor reads the JSON
+    // first — so the name was gone the next time it was opened.
+    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wf-speakers-'));
+    try {
+      const mediaPath = path.join(workDir, 'clip.mp4');
+      fs.writeFileSync(mediaPath, 'not really a video');
+      fs.writeFileSync(
+        path.join(workDir, 'clip.json'),
+        patchJsonWithEdits(doc(), edits, { 0: 'Sandy', 1: 'LINE BANK' }),
+      );
+      expect(transcriptReader.readTranscriptForMedia(mediaPath).speakers)
+        .toEqual({ 0: 'Sandy', 1: 'LINE BANK' });
+    } finally {
+      fs.rmSync(workDir, { recursive: true, force: true });
+    }
   });
 });

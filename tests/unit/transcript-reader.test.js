@@ -184,3 +184,68 @@ describe('speaker labels', () => {
     expect(segments[0].speakerLabel).toBeUndefined();
   });
 });
+
+describe('speaker names', () => {
+  // Per-speaker names live in a top-level `speakers` block rather than on
+  // the segments, because segmentation's cue builder is an explicit
+  // whitelist that drops unknown per-segment keys, while this function
+  // and patchJsonWithEdits both carry unknown top-level keys through.
+  const withSpeakers = (speakers) => JSON.stringify({
+    segments: [
+      { start: 0, end: 1, text: 'hello', speaker: 0, speaker_label: 'Speaker 1' },
+      { start: 1, end: 2, text: 'there', speaker: 1, speaker_label: 'Speaker 2' },
+    ],
+    ...(speakers === undefined ? {} : { speakers }),
+  });
+
+  it('reads the name map out of the top-level block', () => {
+    writeSidecar('json', withSpeakers({ version: 1, names: { 0: 'Sandy', 1: 'LINE BANK' } }));
+    expect(readTranscriptForMedia(mediaPath).speakers)
+      .toEqual({ 0: 'Sandy', 1: 'LINE BANK' });
+  });
+
+  it('is null when the transcript has no block', () => {
+    writeSidecar('json', withSpeakers(undefined));
+    expect(readTranscriptForMedia(mediaPath).speakers).toBeNull();
+  });
+
+  it('treats an empty name map as no names at all', () => {
+    // So callers can test one thing. It is also what re-transcribing
+    // produces, since Python rewrites the document without the key.
+    writeSidecar('json', withSpeakers({ version: 1, names: {} }));
+    expect(readTranscriptForMedia(mediaPath).speakers).toBeNull();
+  });
+
+  it('drops entries that are not a speaker index mapped to a name', () => {
+    // This file is on the user's disk and they can edit it.
+    writeSidecar('json', withSpeakers({
+      version: 1,
+      names: { 0: 'Sandy', '-1': 'negative', 'x': 'not an index', 2: 42, 3: '   ', 4: 'Kept' },
+    }));
+    expect(readTranscriptForMedia(mediaPath).speakers).toEqual({ 0: 'Sandy', 4: 'Kept' });
+  });
+
+  it('trims the names it keeps', () => {
+    writeSidecar('json', withSpeakers({ version: 1, names: { 0: '  Sandy  ' } }));
+    expect(readTranscriptForMedia(mediaPath).speakers).toEqual({ 0: 'Sandy' });
+  });
+
+  it.each([
+    ['an array', []],
+    ['a string', 'Sandy'],
+    ['a number', 7],
+    ['null', null],
+  ])('survives a block that is %s', (_label, block) => {
+    writeSidecar('json', withSpeakers(block));
+    expect(readTranscriptForMedia(mediaPath).speakers).toBeNull();
+  });
+
+  it('is null for the SRT fallback, which cannot carry one', () => {
+    // parseSrt yields {start, end, text} and leaves "[Speaker 1] " inside
+    // the cue text, so there is nothing to group by.
+    writeSidecar('srt', '1\n00:00:00,000 --> 00:00:01,000\n[Speaker 1] hello\n');
+    const result = readTranscriptForMedia(mediaPath);
+    expect(result.source.endsWith('.srt')).toBe(true);
+    expect(result.speakers).toBeNull();
+  });
+});

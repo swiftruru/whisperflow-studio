@@ -47,11 +47,50 @@ function parseSrt(source) {
   return segments;
 }
 
+/**
+ * Pull the per-speaker names out of a transcript's top-level `speakers`
+ * block, sanitising as we go.
+ *
+ * The block is written by the editor, not by Python, and it lives at the
+ * top level for two reasons: `patchJsonWithEdits` re-serialises the whole
+ * document so an unknown top-level key survives every save untouched,
+ * and segmentation's cue builder is an explicit whitelist that would
+ * silently drop a new per-segment key.  It mirrors the shape of
+ * `segmentation`, including the `version` marker.
+ *
+ * Keys are the speaker integers as JSON stringifies them.  Anything that
+ * is not a run of digits mapped to a non-blank string is dropped rather
+ * than trusted: this file is on the user's disk and they can edit it.
+ *
+ * Returns null when there is nothing usable, so callers can treat
+ * "absent" and "empty" identically — which is what makes re-transcribing
+ * discard the names for free, since Python rewrites the whole JSON from a
+ * result dict that has no `speakers` key.
+ */
+function normalizeSpeakerNames(names) {
+  if (!names || typeof names !== 'object' || Array.isArray(names)) return null;
+  const out = {};
+  for (const [key, value] of Object.entries(names)) {
+    if (!/^\d+$/.test(key)) continue;
+    if (typeof value !== 'string') continue;
+    const trimmed = value.trim();
+    if (trimmed) out[key] = trimmed;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+function readSpeakerNames(parsed) {
+  if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') return null;
+  const block = parsed.speakers;
+  if (!block || typeof block !== 'object' || Array.isArray(block)) return null;
+  return normalizeSpeakerNames(block.names);
+}
+
 function readFromJson(filePath) {
   const raw = fs.readFileSync(filePath, 'utf-8');
   const parsed = JSON.parse(raw);
   const segments = Array.isArray(parsed) ? parsed : (parsed.segments || []);
-  return segments
+  const mapped = segments
     .map((s) => ({
       start: Number(s.start) || 0,
       end: Number(s.end) || 0,
@@ -67,6 +106,7 @@ function readFromJson(filePath) {
         : null,
     }))
     .filter((s) => s.text);
+  return { segments: mapped, speakers: readSpeakerNames(parsed) };
 }
 
 function readFromSrt(filePath) {
@@ -89,8 +129,10 @@ function readFromVtt(filePath) {
  * Read transcript segments from the file produced for `mediaPath`.
  *
  * `outputDir` overrides the directory (when the user sets output_dir);
- * otherwise we look next to the media file.  Returns `{ segments, source }`
- * where `source` is the absolute path that was read.
+ * otherwise we look next to the media file.  Returns
+ * `{ segments, source, speakers }` where `source` is the absolute path
+ * that was read and `speakers` is the per-speaker name map, or null when
+ * the file has none (or is an SRT/VTT, which cannot carry one).
  */
 function readTranscriptForMedia(mediaPath, outputDir) {
   if (!mediaPath) throw new Error('mediaPath required');
@@ -108,14 +150,18 @@ function readTranscriptForMedia(mediaPath, outputDir) {
   // point there really is nothing to preview.
   if (fs.existsSync(jsonPath)) {
     try {
-      return { segments: readFromJson(jsonPath), source: jsonPath };
+      const { segments, speakers } = readFromJson(jsonPath);
+      return { segments, source: jsonPath, speakers };
     } catch (_) { /* fall through */ }
   }
+  // The SRT/VTT fallbacks carry no speaker data at all -- parseSrt yields
+  // {start, end, text} and the label stays embedded in the cue text -- so
+  // `speakers` is null and the naming UI has nothing to group by.
   if (fs.existsSync(srtPath)) {
-    return { segments: readFromSrt(srtPath), source: srtPath };
+    return { segments: readFromSrt(srtPath), source: srtPath, speakers: null };
   }
   if (fs.existsSync(vttPath)) {
-    return { segments: readFromVtt(vttPath), source: vttPath };
+    return { segments: readFromVtt(vttPath), source: vttPath, speakers: null };
   }
   const err = new Error(`No transcript found beside ${mediaPath}`);
   err.code = 'TRANSCRIPT_NOT_FOUND';
@@ -141,6 +187,8 @@ function hasTranscriptForMedia(mediaPath, outputDir) {
 
 module.exports = {
   parseSrt,
+  normalizeSpeakerNames,
+  readSpeakerNames,
   readTranscriptForMedia,
   hasTranscriptForMedia,
 };

@@ -17,6 +17,10 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+// transcript-reader owns the shape of the transcript JSON, so the rule
+// for what counts as a usable name map is defined once there and applied
+// at both boundaries: when it is read off disk and before it goes back.
+const { normalizeSpeakerNames } = require('./transcript-reader');
 
 /**
  * Rendered in front of the first line of a cue whose segment carries a
@@ -246,7 +250,7 @@ function timeKey(value) {
  * editor.  Duplicates are consumed in order, and a segment with no usable
  * start falls back to its index, which is the historic behaviour.
  */
-function patchJsonWithEdits(originalJsonText, editedSegments) {
+function patchJsonWithEdits(originalJsonText, editedSegments, speakers) {
   const parsed = JSON.parse(originalJsonText);
   const segs = Array.isArray(parsed) ? parsed : parsed.segments;
   if (!Array.isArray(segs)) {
@@ -272,6 +276,25 @@ function patchJsonWithEdits(originalJsonText, editedSegments) {
       : (index < segs.length ? index : -1);
     if (target >= 0) segs[target].text = String(edited.text ?? '');
   });
+
+  // Per-speaker names live in a top-level block, not on the segments.
+  // Two reasons, both load-bearing: this function preserves unknown
+  // top-level keys by construction (it re-serialises `parsed`) whereas
+  // segmentation's cue builder is an explicit whitelist that would drop a
+  // new per-segment key; and Python rewrites the whole document on every
+  // run from a result dict that has no `speakers` key, so re-transcribing
+  // discards the names by itself rather than leaving them attached to
+  // cluster indices that have been reassigned.
+  //
+  // `undefined` means the caller does not manage names and the block is
+  // left exactly as it was.  Anything else is the caller's full account
+  // of them, so clearing the last name removes the block rather than
+  // leaving an empty husk behind.
+  if (speakers !== undefined && !Array.isArray(parsed)) {
+    const names = normalizeSpeakerNames(speakers);
+    if (names) parsed.speakers = { version: 1, names };
+    else delete parsed.speakers;
+  }
 
   return JSON.stringify(parsed, null, 2) + '\n';
 }
@@ -326,7 +349,9 @@ function atomicWrite(filePath, contents) {
  *
  * Returns a summary the renderer can show in a toast.
  */
-function writeEditedSubtitles({ mediaPath, outputDir, segments, formats, paragraphs = false }) {
+function writeEditedSubtitles({
+  mediaPath, outputDir, segments, formats, paragraphs = false, speakers,
+}) {
   if (!mediaPath) {
     const err = new Error('mediaPath required');
     err.code = 'NO_MEDIA_PATH';
@@ -385,7 +410,7 @@ function writeEditedSubtitles({ mediaPath, outputDir, segments, formats, paragra
   handleFormat(want.txt,  txtPath,  () => generateTxt(segments, { paragraphs }));
   handleFormat(want.json, jsonPath, (fp) => {
     const raw = fs.readFileSync(fp, 'utf-8');
-    return patchJsonWithEdits(raw, segments);
+    return patchJsonWithEdits(raw, segments, speakers);
   });
 
   return { written, skipped, backupDir, backups, bytes: totalBytes };

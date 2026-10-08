@@ -847,7 +847,9 @@ function registerHandlers(
   // keeps edits from ever creating a new file at the wrong place
   // if output_dir shifted between read and save.
   ipcMain.handle('subtitle:save', (_event, payload = {}) => {
-    const { mediaPath, outputDir, segments, formats, paragraphs } = payload;
+    const {
+      mediaPath, outputDir, segments, formats, paragraphs, speakers,
+    } = payload;
     try {
       const result = writeEditedSubtitles({
         mediaPath,
@@ -855,6 +857,9 @@ function registerHandlers(
         segments,
         formats,
         paragraphs,
+        // Left undefined by callers that do not manage speaker names, in
+        // which case the block on disk is kept as it is.
+        speakers,
       });
       return { ok: true, ...result };
     } catch (error) {
