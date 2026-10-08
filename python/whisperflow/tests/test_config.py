@@ -18,16 +18,18 @@ def test_defaults_are_sane():
     assert cfg.task == "transcribe"
     assert cfg.write_srt is True
     assert cfg.write_vtt is True
-    # Diarization must stay off by default: it downloads ~34 MB on first
-    # use and changes the Whisper decode options.
-    assert cfg.diarize is False
+    # On by default since v1.17.3.  Both of its costs are visible rather
+    # than silent: the ~34 MB download gets its own progress stage, and
+    # the extra pass is about 7% of a run.
+    assert cfg.diarize is True
     assert cfg.diarize_num_speakers == 0
     assert cfg.diarize_threshold == 0.5
     assert cfg.speaker_label_template == "Speaker {n}"
-    # Subtitle segmentation is off by default for the same reason
-    # diarization is: it turns on word timestamps, which moves segment
-    # boundaries even where it does not re-cut anything.
-    assert cfg.subtitle_segmentation is False
+    # On by default since v1.17.3.  Whisper's own segments are not
+    # subtitles -- on a measured 64-minute talk, 7% ran past the 7-second
+    # norm and the longest was 29.9s.  It costs word timestamps, which
+    # diarization (also on) already pays for.
+    assert cfg.subtitle_segmentation is True
     assert cfg.subtitle_max_lines == 2
     assert cfg.subtitle_max_duration == 7.0
     assert cfg.subtitle_min_duration == 5 / 6
@@ -186,8 +188,8 @@ def test_example_config_template_carries_the_diarization_keys():
     for key in ("diarize", "diarize_num_speakers", "speaker_label_template", "diarize_threshold"):
         assert key in setting, key
     # The widget the Settings UI infers depends on these exact literals.
-    assert setting["diarize"] == "False"
-    assert TranscribeConfig.from_dict(setting).diarize is False
+    assert setting["diarize"] == "True"
+    assert TranscribeConfig.from_dict(setting).diarize is True
 
 
 # --- subtitle segmentation fields ----------------------------------------
@@ -275,12 +277,12 @@ def test_example_config_template_carries_the_segmentation_keys():
         assert key in setting, key
     # The Settings UI infers the widget from the value, so these exact
     # string forms are what make a checkbox a checkbox.
-    assert setting["subtitle_segmentation"] == "False"
+    assert setting["subtitle_segmentation"] == "True"
     assert setting["subtitle_max_lines"] == "2"
     # Blank keeps "decide by language" reachable; a numeric seed would
     # turn the control into a number input and make it unreachable.
     assert setting["max_line_width"] == ""
-    assert TranscribeConfig.from_dict(setting).subtitle_segmentation is False
+    assert TranscribeConfig.from_dict(setting).subtitle_segmentation is True
 
 
 def test_diarize_refine_defaults_to_on():

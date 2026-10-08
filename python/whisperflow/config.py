@@ -140,10 +140,17 @@ class TranscribeConfig:
     vad_periodic_duration: float = 30.0
 
     # --- speaker diarization -------------------------------------------
-    # Off by default: enabling it downloads ~34 MB of models on first use
-    # and turns on faster-whisper's word timestamps, which shifts segment
-    # boundaries slightly.  See docs/specs/speaker-diarization.md.
-    diarize: bool = False
+    # On by default since v1.17.3.  It shipped off while it was new and
+    # unverified; a 64-minute talk has since been through it end to end,
+    # and knowing who is speaking is worth more than the two costs, both
+    # of which are visible rather than silent: ~34 MB of models downloaded
+    # on first use, announced as its own progress stage, and about 7% added
+    # to a run (255 s on that 64-minute file).
+    #
+    # It also turns on faster-whisper's word timestamps, which moves
+    # segment boundaries slightly -- see the note on subtitle_segmentation
+    # below, which pays the same cost.  See docs/specs/speaker-diarization.md.
+    diarize: bool = True
     # 0 means "let the clustering threshold decide".  Mapped to sherpa-onnx's
     # num_clusters=-1 at the call site -- 0 is not a valid cluster count.
     diarize_num_speakers: int = 0
@@ -160,12 +167,18 @@ class TranscribeConfig:
     speaker_label_template: str = "Speaker {n}"
 
     # --- subtitle segmentation -----------------------------------------
-    # Off by default, for the same reason diarization is: enabling it
-    # turns on faster-whisper's word timestamps, and add_word_timestamps()
-    # rewrites a segment's start/end from its first and last word.  So an
-    # upgraded user's timestamps would move even where re-segmentation
-    # never touched them.  See docs/specs/subtitle-segmentation.md.
-    subtitle_segmentation: bool = False
+    # On by default since v1.17.3.  Without it, Whisper's own segments are
+    # not subtitles: measured on a 64-minute talk, 7% of cues ran past the
+    # 7-second norm, 15% needed three lines or more, and the longest was
+    # 29.9 seconds and 447 characters -- a wall of text on screen.  With it
+    # those become 3, 0 and 10.6 seconds.
+    #
+    # The cost is word timestamps, since add_word_timestamps() rewrites a
+    # segment's start/end from its first and last word, so timestamps move
+    # slightly even where nothing is re-cut.  Diarization is on by default
+    # too and already pays that, so for a default install it is not an
+    # additional cost.  See docs/specs/subtitle-segmentation.md.
+    subtitle_segmentation: bool = True
     subtitle_max_lines: int = 2
     subtitle_max_duration: float = 7.0
     subtitle_min_duration: float = 5 / 6

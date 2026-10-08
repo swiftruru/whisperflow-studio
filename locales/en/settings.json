@@ -162,7 +162,7 @@
       "description": "Advanced; normally leave as-is. Between 0 and 1, default 0.5. Lower values make the engine separate voices more eagerly. With “Repair over-clustering” on its effect is much reduced — the repair merges most of the extra splitting back — but not removed: a large change still reaches the result, because the repair can only merge what the engine put in separate clusters. Turn the repair off if you want this knob to act directly."
     },
     "subtitle_segmentation": {
-      "description": "Re-cut every subtitle by word timestamp into short cues: at most two lines, at most seven seconds, within a reading-speed budget, never spanning two speakers. Changes how many cues you get (roughly 1.8x) and, because it turns on word timestamps, shifts segment boundaries slightly even where it does not re-cut. Off by default.",
+      "description": "Re-cut every subtitle by word timestamp into short cues: at most two lines, at most seven seconds, within a reading-speed budget, never spanning two speakers. Changes how many cues you get (roughly 1.8x) and, because it turns on word timestamps, shifts segment boundaries slightly even where it does not re-cut. On by default.",
       "label": "Re-segment subtitles"
     },
     "subtitle_max_lines": {

@@ -112,7 +112,9 @@ describe('diarization settings', () => {
   it('seeds values in the string form the widget inference needs', () => {
     // inferFieldType: enumOptions -> select, exactly 'True'/'False' ->
     // checkbox, numeric-and-non-empty -> number, else text.
-    expect(template.diarize).toBe('False');
+    // 'True' infers a checkbox exactly as 'False' did; the default flipped
+    // in v1.17.3 but the widget inference is unchanged.
+    expect(template.diarize).toBe('True');
     expect(template.diarize_num_speakers).toBe('0');
     expect(template.diarize_threshold).toBe('0.5');
     expect(Number.isNaN(Number(template.speaker_label_template))).toBe(true);
@@ -164,7 +166,8 @@ describe('subtitle segmentation settings', () => {
   });
 
   it('seeds values in the string form the widget inference needs', () => {
-    expect(template.subtitle_segmentation).toBe('False');
+    // Flipped on in v1.17.3; 'True' infers the same checkbox widget.
+    expect(template.subtitle_segmentation).toBe('True');
     expect(template.subtitle_max_lines).toBe('2');
     expect(template.subtitle_max_duration).toBe('7.0');
     expect(template.subtitle_min_duration).toBe('0.833');

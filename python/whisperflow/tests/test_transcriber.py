@@ -118,10 +118,14 @@ class _Stub(Transcriber):
 def _make(tmp_path: Path, **overrides) -> tuple[_Stub, _RecordingEmitter]:
     media = tmp_path / "talk.mkv"
     media.write_bytes(b"not really a video")
+    # Pinned rather than inherited: these tests are about the shape of
+    # run(), so each one says which stages it wants.  Both ship on as of
+    # v1.17.3, which would otherwise silently change what they exercise.
+    settings = {"diarize": False, "subtitle_segmentation": False, **overrides}
     cfg = TranscribeConfig(
         input_path=str(media),
         models_dir=str(tmp_path / "models"),
-        **overrides,
+        **settings,
     )
     emitter = _RecordingEmitter()
     return _Stub(cfg, emitter), emitter
@@ -411,6 +415,7 @@ def test_an_orphaned_run_still_writes_its_subtitles(tmp_path, monkeypatch):
         input_path=str(media),
         models_dir=str(tmp_path / "models"),
         diarize=True,
+        subtitle_segmentation=False,
     )
     # A real EventEmitter, so the real guard runs -- _RecordingEmitter
     # overrides emit() and would never reach the write.
