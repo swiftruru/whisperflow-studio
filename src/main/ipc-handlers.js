@@ -21,6 +21,7 @@ const { runPreflight, validateSettingField } = require('./preflight-checker');
 const { createQueueManager } = require('./queue-manager');
 const { runScript, stopProcess, pauseProcess, resumeProcess } = require('./python-runner');
 const {
+  getPythonConfigDir,
   getVenvRoot,
   resolveBundledPython,
   resolveSystemPython,
@@ -55,6 +56,14 @@ function registerHandlers(
     : () => {};
   const PYTHON_DIR = path.join(ELECTRON_APP_ROOT, 'python');
   const CONFIG_METADATA_PATH = path.join(PYTHON_DIR, 'config', 'config.metadata.json');
+  // The WRITABLE half of python/config, resolved exactly once: config.json
+  // and the profile sub-directories.  Eleven call sites in this file used to
+  // re-derive it independently -- including `config:write` and every profile
+  // operation -- so redirecting getPaths() alone would have left the real
+  // file exposed to the e2e harness.  CONFIG_METADATA_PATH above is
+  // deliberately NOT resolved this way: that file is tracked and read-only.
+  const CONFIG_DIR = getPythonConfigDir({ pythonDir: PYTHON_DIR });
+  const CONFIG_PATH = path.join(CONFIG_DIR, 'config.json');
   const USER_DATA_DIR = app.getPath('userData');
   const QUEUE_STATE_PATH = path.join(USER_DATA_DIR, 'queue-state.json');
 
@@ -76,8 +85,8 @@ function registerHandlers(
   // Python project dependency anymore.
   function getPaths() {
     return {
-      configPath:      path.join(PYTHON_DIR, 'config', 'config.json'),
-      configDir:       path.join(PYTHON_DIR, 'config'),
+      configPath:      CONFIG_PATH,
+      configDir:       CONFIG_DIR,
       pythonDir:       PYTHON_DIR,
       venvRoot:        VENV_ROOT,
       scripts: {
@@ -129,7 +138,7 @@ function registerHandlers(
   }
 
   const queueManager = createQueueManager({
-    configPath: path.join(PYTHON_DIR, 'config', 'config.json'),
+    configPath: CONFIG_PATH,
     configMetadataPath: CONFIG_METADATA_PATH,
     queueStatePath: QUEUE_STATE_PATH,
     onStateChange: sendQueueState,
@@ -157,7 +166,7 @@ function registerHandlers(
   // ── Config ────────────────────────────────────────────────────────────────
 
   ipcMain.handle('config:read', () => {
-    return readConfig(path.join(PYTHON_DIR, 'config', 'config.json'));
+    return readConfig(CONFIG_PATH);
   });
 
   ipcMain.handle('config:metadata:read', () => {
@@ -165,16 +174,16 @@ function registerHandlers(
   });
 
   ipcMain.handle('config:write', (_event, configObj) => {
-    writeConfig(path.join(PYTHON_DIR, 'config', 'config.json'), configObj);
+    writeConfig(CONFIG_PATH, configObj);
     return true;
   });
 
   ipcMain.handle('config:profiles:list', () => {
-    return getProfileList(path.join(PYTHON_DIR, 'config'));
+    return getProfileList(CONFIG_DIR);
   });
 
   ipcMain.handle('config:profiles:load', (_event, profileConfigPath) => {
-    const configPath = path.join(PYTHON_DIR, 'config', 'config.json');
+    const configPath = CONFIG_PATH;
     copyProfileToActive(profileConfigPath, configPath);
     return readConfig(configPath);
   });
@@ -184,18 +193,18 @@ function registerHandlers(
     // send { name, seed } so the renderer can seed the new profile
     // directly from the current form state (captures unsaved edits).
     if (typeof payload === 'string') {
-      return createProfileFs(path.join(PYTHON_DIR, 'config'), payload);
+      return createProfileFs(CONFIG_DIR, payload);
     }
     const { name, seed } = payload || {};
-    return createProfileFs(path.join(PYTHON_DIR, 'config'), name, seed);
+    return createProfileFs(CONFIG_DIR, name, seed);
   });
 
   ipcMain.handle('config:profiles:rename', (_event, payload = {}) => {
-    return renameProfileFs(path.join(PYTHON_DIR, 'config'), payload.oldName, payload.newName);
+    return renameProfileFs(CONFIG_DIR, payload.oldName, payload.newName);
   });
 
   ipcMain.handle('config:profiles:delete', (_event, name) => {
-    return deleteProfileFs(path.join(PYTHON_DIR, 'config'), name);
+    return deleteProfileFs(CONFIG_DIR, name);
   });
 
   // ── File System Dialogs ───────────────────────────────────────────────────
@@ -428,7 +437,7 @@ function registerHandlers(
     // because it reads config.json + the actual models directory
     // directly, not the DOM form or an IPC result that might fail.
     try {
-      const config = readConfig(path.join(pythonDir, 'config', 'config.json'));
+      const config = readConfig(CONFIG_PATH);
       const modelName = config?.SETTING?.model?.trim();
       if (modelName) {
         const { ModelManager } = (() => {
@@ -1043,7 +1052,7 @@ function registerHandlers(
 
     let modelsDir = '';
     try {
-      const config = readConfig(path.join(pythonDir, 'config', 'config.json'));
+      const config = readConfig(CONFIG_PATH);
       modelsDir = config?.SETTING?.models_dir || '';
     } catch (_) { /* fall through to Python default */ }
 

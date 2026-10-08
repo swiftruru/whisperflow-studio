@@ -5,6 +5,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const { readConfig } = require('./config-manager');
 const {
+  getPythonConfigDir,
   resolveBundledPython,
   resolveSystemPython,
 } = require('./path-resolver');
@@ -15,7 +16,11 @@ function getPaths(electronAppRoot) {
   const pythonDir = path.join(electronAppRoot, 'python');
   return {
     pythonDir,
-    configPath: path.join(pythonDir, 'config', 'config.json'),
+    // Redirectable under WHISPERFLOW_E2E=1 -- see getPythonConfigDir.  The
+    // media-root check below reads this file, so a preflight run against the
+    // developer's own config is what used to make the e2e status-badge
+    // assertion depend on machine state.
+    configPath: path.join(getPythonConfigDir({ pythonDir }), 'config.json'),
     scanScriptPath: path.join(pythonDir, 'config_setting.py'),
     cliScriptPath: path.join(electronAppRoot, 'bridge', 'run_cli.py'),
     whisperflowPackagePath: path.join(pythonDir, 'whisperflow', '__init__.py'),

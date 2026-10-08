@@ -32,13 +32,14 @@ npm run test:e2e
 預期輸出：
 
 ```
-Running 5 tests using 1 worker
+Running 8 tests using 1 worker
   ✓  e2e/specs/i18n.spec.js …
+  ✓  e2e/specs/isolation.spec.js …（3 項）
   ✓  e2e/specs/navigation.spec.js …
   ✓  e2e/specs/shortcuts-modal.spec.js …
   ✓  e2e/specs/smoke.spec.js …
   ✓  e2e/specs/theme.spec.js …
-  5 passed (~10s)
+  8 passed (~17s)
 ```
 
 ### 互動式 UI 模式（demo 用 ⭐）
@@ -70,7 +71,7 @@ npm run test:e2e:report
 
 ---
 
-## 5 個測試案例做什麼？
+## 8 個測試案例做什麼？
 
 | 檔案 | 測什麼 | 為什麼重要 |
 |------|--------|-----------|
@@ -79,6 +80,7 @@ npm run test:e2e:report
 | [i18n.spec.js](specs/i18n.spec.js) | 點 `中/EN` 按鈕，驗證 tab 文字從 `Main` ⇄ `主要` 翻轉 | 雙語切換是這個 app 的核心，最容易出 i18next bug |
 | [theme.spec.js](specs/theme.spec.js) | 點月亮/太陽按鈕，驗證 `<html data-theme>` 在 `light` 與 移除狀態之間切換 | CSS 變數主題系統的回歸測試 |
 | [shortcuts-modal.spec.js](specs/shortcuts-modal.spec.js) | 按 `?` 鍵開啟快捷鍵 modal，按 `Esc` 關閉 | 鍵盤可用性 + modal lifecycle 的代表 |
+| [isolation.spec.js](specs/isolation.spec.js) | App 讀到的是 fixture 的 config、`models_dir` 的寫入落在隔離目錄、專案樹的 `config.json` 不含暫存路徑 | 這套測試曾經會讀寫開發者本機的 `config.json`，這三項把修好的隔離釘住 |
 
 5 個案例**都不需要 mock IPC** — 涵蓋的全是純前端互動。Python venv、模型下載、實際轉錄這些重後端流程**故意不納入 E2E**，因為會跑 5–10 分鐘且需要外部資源（網路、真實音訊）。
 
@@ -109,10 +111,36 @@ e2e/
 
 1. fixture 在 `os.tmpdir()` 建立一個臨時 userData 資料夾
 2. 把 `fixtures/test-settings.json` 複製進去當作 `settings.json`
-3. 用 `WHISPERFLOW_E2E=1` + `WHISPERFLOW_E2E_USERDATA=<tmp>` 啟動 Electron
-4. 測試結束後關閉 app、刪除臨時資料夾
+3. 在同一個臨時目錄下建 `python-config/`，從 `config.example.json` seed 一份
+   `config.json`，並把 `media_root_path` 指向一個同樣在臨時目錄裡、確實存在的資料夾
+4. 用 `WHISPERFLOW_E2E=1` + `WHISPERFLOW_E2E_USERDATA=<tmp>` +
+   `WHISPERFLOW_E2E_CONFIG_DIR=<tmp>/python-config` 啟動 Electron
+5. 測試結束後關閉 app、刪除臨時資料夾
 
-→ **不會污染你日常開發用的 `settings.json`、`history.json`、`localStorage`**。
+→ **不會污染你日常開發用的 `settings.json`、`history.json`、`localStorage`，
+也不會動到 `python/config/config.json`**。
+
+第 3 步不是可有可無的。在它存在之前，這套測試會讀、而且會**建立**開發者本機的
+`python/config/config.json`：`readConfig` 在檔案不存在時會建立它，接著
+`ensureModelsDirInConfig` 會把 fixture 的臨時 userData 路徑寫進 `models_dir`
+——而那個目錄在測試結束時就被刪掉。全新 clone 如果在第一次啟動 App 之前先跑
+e2e，`config.json` 的 `models_dir` 就會指向一個已不存在的目錄。同時 `smoke` 的
+狀態徽章斷言也因此取決於本機的 `media_root_path` 設成什麼，在多數機器上是紅的。
+
+`config.metadata.json` **刻意不隨之搬移**：那是追蹤中的唯讀檔，永遠從 App 自己的
+樹讀取。覆寫只作用在可寫的那一半（`config.json` 與 profile 子目錄），而且只在
+`WHISPERFLOW_E2E=1` 時生效，所以誤設的環境變數不可能改到正常啟動的路徑。
+
+路徑只有一個解析點：`src/main/path-resolver.js` 的 `getPythonConfigDir()`。這很
+重要——`preflight-checker.js` 與 `ipc-handlers.js` 都要組出 config 路徑，而
+`ipc-handlers.js` 裡原本有 11 處各自組（包含 `config:write` 與每一個 profile
+操作），只修其中一處會讓其餘繼續讀寫真實檔案。
+
+**已知邊界：隔離只到 Electron 這一側。** `bridge/run_cli.py` 在 Python 端自己組
+`PYTHON_DIR / "config" / "config.json"`，不認得 `WHISPERFLOW_E2E_CONFIG_DIR`。
+目前沒有任何 spec 會真的轉錄，所以這不是活的問題；但如果你要新增一個會啟動
+轉錄的 spec，Python 會讀真實的 config 而 UI 讀隔離的那份——屆時要把 config 路徑
+一併傳給 bridge。
 
 ### `WHISPERFLOW_E2E` 環境變數做什麼？
 
