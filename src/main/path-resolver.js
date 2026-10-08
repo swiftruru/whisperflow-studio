@@ -438,8 +438,37 @@ function parsePythonSelfPathOutput(stdout) {
   return null;
 }
 
+// ── Writable Python config directory ──────────────────────────────────────────
+// `python/config/` holds two very different things: `config.metadata.json`,
+// which is tracked, read-only and must always come from the app's own tree,
+// and `config.json` plus any profile sub-directories, which the app WRITES.
+//
+// Only the writable half is redirectable, and only under WHISPERFLOW_E2E=1.
+// The e2e harness needs it because the suite otherwise reads — and creates —
+// the developer's own `config.json`: `readConfig` seeds the file when it is
+// missing and `ensureModelsDirInConfig` then writes the fixture's throwaway
+// userData path into `models_dir`, a directory the fixture deletes on
+// teardown.  A fresh clone that ran the suite before first launch was left
+// with a config pointing at a directory that no longer existed.
+//
+// Resolving it HERE rather than in each caller is the point: both
+// `preflight-checker.js` and `ipc-handlers.js` build a config path, and a fix
+// applied to one of them only would leave the other reading the real file.
+function getPythonConfigDir({ pythonDir, env = process.env } = {}) {
+  const override = env.WHISPERFLOW_E2E === '1' ? env.WHISPERFLOW_E2E_CONFIG_DIR : '';
+  if (override && String(override).trim()) return String(override).trim();
+  if (!pythonDir) throw new Error('pythonDir required');
+  return path.join(pythonDir, 'config');
+}
+
+function getPythonConfigPath(options) {
+  return path.join(getPythonConfigDir(options), 'config.json');
+}
+
 module.exports = {
   getBundledPythonSettings,
+  getPythonConfigDir,
+  getPythonConfigPath,
   getVenvPipPath,
   getVenvPythonPath,
   getVenvRoot,
