@@ -270,6 +270,7 @@ class Transcriber:
             embedding_model,
             num_speakers=cfg.diarize_num_speakers,
             threshold=cfg.diarize_threshold,
+            refine=cfg.diarize_refine,
         )
         perf_start = time.perf_counter()
         turns = diarizer.diarize_file(

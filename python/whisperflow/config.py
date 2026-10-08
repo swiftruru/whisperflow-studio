@@ -85,6 +85,13 @@ class TranscribeConfig:
     # num_clusters=-1 at the call site -- 0 is not a valid cluster count.
     diarize_num_speakers: int = 0
     diarize_threshold: float = 0.5
+    # Repair sherpa-onnx's over-clustering after it runs.  On by default: at
+    # 0.5 a 64-minute talk comes back as 60 "speakers" without it and 4 with
+    # it.  Exposed as a switch because refinement masks diarize_threshold --
+    # with it on, every threshold at or below the default gives the same
+    # answer -- so a recording whose real speakers refinement merges needs a
+    # way to get the raw clustering back.
+    diarize_refine: bool = True
     # ``{n}`` is 1-based.  A template that fails to format falls back to the
     # default and logs a warning; see diarization.speaker_label().
     speaker_label_template: str = "Speaker {n}"
@@ -151,6 +158,18 @@ class TranscribeConfig:
         for raw_key, value in data.items():
             key = cls._KEY_ALIASES.get(raw_key, raw_key)
             if key not in allowed:
+                continue
+            if key == "diarize_refine" and (
+                value is None or (isinstance(value, str) and not value.strip())
+            ):
+                # Blank or null means "unspecified", so let the dataclass
+                # default (True) stand.  Every other bool here defaults to
+                # False, where the generic coercion of blank -> False happens
+                # to agree; this one is the exception, and getting it wrong
+                # would silently disable speaker refinement and hand the user
+                # 60 "speakers" on a long recording with no indication why.
+                # Not hypothetical: configs written by this app have carried
+                # `"diarize": null`.
                 continue
             if key == "initial_prompt_mode" and value is not None:
                 kwargs[key] = InitialPromptMode.parse(str(value))

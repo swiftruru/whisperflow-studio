@@ -150,16 +150,16 @@
       "label": "Identify speakers"
     },
     "diarize_num_speakers": {
-      "description": "Exact number of speakers. Leave at 0 to work it out automatically, but expect automatic counting to over-split a long recording: a 64-minute talk measured here came out as 60 speakers. When you know the number, setting it is the single biggest accuracy gain — pinning that same recording to 3 gave exactly 3.",
-      "label": "Number of speakers"
+      "label": "Number of speakers",
+      "description": "Exact number of speakers. Leave at 0 to work it out automatically, which is now the better default. If you do set it, it is honoured as a minimum: repair will not merge below it."
     },
     "speaker_label_template": {
       "description": "Label written in front of each line. {n} is the speaker number, starting at 1. For Chinese subtitles try 講者 {n}. An invalid format falls back to Speaker {n}.",
       "label": "Speaker label format"
     },
     "diarize_threshold": {
-      "description": "Advanced; normally leave as-is. Between 0 and 1, default 0.5. Lower values separate voices more eagerly, so automatic detection reports more speakers. On the 64-minute recording measured here, 0.5 gave 60 speakers and 0.8 gave 17 — setting the speaker count is the more reliable fix.",
-      "label": "Clustering threshold"
+      "label": "Clustering threshold",
+      "description": "Advanced; normally leave as-is. Between 0 and 1, default 0.5. Lower values make the engine separate voices more eagerly. With “Repair over-clustering” on its effect is much reduced — the repair merges most of the extra splitting back — but not removed: a large change still reaches the result, because the repair can only merge what the engine put in separate clusters. Turn the repair off if you want this knob to act directly."
     },
     "subtitle_segmentation": {
       "description": "Re-cut every subtitle by word timestamp into short cues: at most two lines, at most seven seconds, within a reading-speed budget, never spanning two speakers. Changes how many cues you get (roughly 1.8x) and, because it turns on word timestamps, shifts segment boundaries slightly even where it does not re-cut. Off by default.",
@@ -264,6 +264,10 @@
     },
     "missing_count": {
       "description": "Files remaining from the last scan. Automatically updated by the queue."
+    },
+    "diarize_refine": {
+      "label": "Repair over-clustering",
+      "description": "Merge the clusters the engine splits off one speaker, and fold away fragments too short to be anybody. Measured on a 64-minute talk: 60 \"speakers\" without it, 4 with it. Leave on unless the engine's raw clusters are what you want — with this on, the clustering threshold below has little effect."
     }
   }
 }

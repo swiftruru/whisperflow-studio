@@ -124,6 +124,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="Exact number of speakers. Omit or pass 0 to detect automatically.",
     )
     parser.add_argument(
+        "--diarize-refine",
+        dest="diarize_refine",
+        action="store_true",
+        default=None,
+        help="Repair sherpa-onnx's speaker over-clustering after diarization (default).",
+    )
+    parser.add_argument(
+        "--no-diarize-refine",
+        dest="diarize_refine",
+        action="store_false",
+        default=None,
+        help="Use sherpa-onnx's raw clusters, without the over-clustering repair.",
+    )
+    parser.add_argument(
         "--diarize-threshold",
         type=float,
         default=None,
@@ -440,6 +454,8 @@ def _build_transcribe_config(args: argparse.Namespace) -> TranscribeConfig:
         base.diarize_num_speakers = args.num_speakers
     if args.diarize_threshold is not None:
         base.diarize_threshold = args.diarize_threshold
+    if args.diarize_refine is not None:
+        base.diarize_refine = args.diarize_refine
     if args.speaker_label_template is not None:
         base.speaker_label_template = args.speaker_label_template
 

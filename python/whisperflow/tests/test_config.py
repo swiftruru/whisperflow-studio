@@ -276,3 +276,21 @@ def test_example_config_template_carries_the_segmentation_keys():
     # turn the control into a number input and make it unreachable.
     assert setting["max_line_width"] == ""
     assert TranscribeConfig.from_dict(setting).subtitle_segmentation is False
+
+
+def test_diarize_refine_defaults_to_on():
+    assert TranscribeConfig().diarize_refine is True
+
+
+def test_diarize_refine_keeps_its_default_when_blank_or_null():
+    # Every other bool field defaults to False, so the generic blank -> False
+    # coercion agrees with its default.  This one defaults to True, and a
+    # config written with a null -- which this app has done for `diarize` --
+    # must not silently disable refinement.
+    for value in ("", "   ", None):
+        assert TranscribeConfig.from_dict({"diarize_refine": value}).diarize_refine is True
+
+
+def test_diarize_refine_can_still_be_turned_off_explicitly():
+    for value in ("False", "false", "0", "no", False):
+        assert TranscribeConfig.from_dict({"diarize_refine": value}).diarize_refine is False

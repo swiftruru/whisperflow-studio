@@ -78,7 +78,13 @@ describe('settings metadata', () => {
 });
 
 describe('diarization settings', () => {
-  const KEYS = ['diarize', 'diarize_num_speakers', 'speaker_label_template', 'diarize_threshold'];
+  const KEYS = [
+    'diarize',
+    'diarize_num_speakers',
+    'speaker_label_template',
+    'diarize_refine',
+    'diarize_threshold',
+  ];
 
   it('are all in the diarization group, in the transcription segment', () => {
     const group = metadata.fieldGroups.find((entry) => entry.id === 'diarization');

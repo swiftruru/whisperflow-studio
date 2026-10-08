@@ -63,7 +63,7 @@
       {
         "id": "diarization",
         "segment": "transcription",
-        "keys": ["diarize", "diarize_num_speakers", "speaker_label_template", "diarize_threshold"]
+        "keys": ["diarize", "diarize_num_speakers", "speaker_label_template", "diarize_refine", "diarize_threshold"]
       },
       {
         "id": "segmentation",
