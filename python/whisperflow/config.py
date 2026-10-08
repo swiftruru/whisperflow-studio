@@ -16,6 +16,69 @@ from typing import Any, ClassVar, Optional, get_type_hints
 
 from .prompts.base import InitialPromptMode
 
+# Whisper's defence against decoder repetition loops is a temperature
+# LADDER, not a single value.  faster_whisper's generate_with_fallback
+# iterates `options.temperatures`; when compression_ratio_threshold says a
+# window came back too repetitive it tries the next rung, and if every
+# rung fails it picks from `below_cr_threshold_results or all_results` --
+# preferring any attempt that was not repetitive.
+#
+# A single value gives that selection exactly ONE candidate, so when that
+# one decode loops, the loop is what gets returned: the detector fires and
+# has nothing to choose instead.  Measured on a real 64-minute talk, one
+# cue came back at a compression ratio of 7.78 against the 2.4 threshold,
+# 1003 characters of the same sentence repeated.
+#
+# These are faster-whisper's own defaults.  Normal audio breaks out of the
+# ladder on the first rung, so the extra rungs cost nothing until a window
+# actually needs them.
+DEFAULT_TEMPERATURE: tuple[float, ...] = (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)
+
+
+def parse_temperature(value: Any) -> tuple[float, ...]:
+    """Normalise a temperature setting into a fallback ladder.
+
+    Accepts what the three sources actually produce: a float from the CLI,
+    a string from config.json (``"0.0"`` or ``"0.0, 0.2, 0.4"``), or an
+    already-parsed sequence.  A bare value stays a one-rung ladder, so a
+    config written before this existed keeps behaving exactly as it did.
+
+    Anything unusable -- blank, non-numeric, out of Whisper's 0..1 range --
+    is dropped, and a value that leaves nothing behind falls back to the
+    default rather than handing faster-whisper an empty sequence, which
+    would make generate_with_fallback skip its loop entirely and raise.
+    """
+    if value is None:
+        return DEFAULT_TEMPERATURE
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        items: list[Any] = [value]
+    elif isinstance(value, str):
+        items = [part for part in value.replace(";", ",").split(",")]
+    elif isinstance(value, (list, tuple)):
+        items = list(value)
+    else:
+        return DEFAULT_TEMPERATURE
+
+    out: list[float] = []
+    for item in items:
+        try:
+            number = float(str(item).strip())
+        except (TypeError, ValueError):
+            continue
+        if 0.0 <= number <= 1.0 and number not in out:
+            out.append(number)
+    if not out:
+        return DEFAULT_TEMPERATURE
+    # A lone 0.0 is the value every install carried before the ladder
+    # existed, and it is not a meaningful setting in its own right: one
+    # rung at 0.0 means "decode greedily and disable Whisper's repetition
+    # defence", which is the defect, not a choice anyone made.  Greedy
+    # decoding is still what happens first -- 0.0 remains rung one -- so
+    # nothing is taken away by giving it somewhere to fall back to.
+    if tuple(out) == (0.0,):
+        return DEFAULT_TEMPERATURE
+    return tuple(out)
+
 
 # VAD strategy names accepted on the CLI and in config.json.  The two
 # silero-vad variants differ only in how they treat non-speech regions
@@ -116,7 +179,7 @@ class TranscribeConfig:
     task: str = "transcribe"  # or "translate"
     initial_prompt: Optional[str] = None
     initial_prompt_mode: InitialPromptMode = InitialPromptMode.PREPEND_FIRST_SEGMENT
-    temperature: float = 0.0
+    temperature: tuple[float, ...] = DEFAULT_TEMPERATURE
     beam_size: int = 5
     best_of: int = 5
     patience: Optional[float] = None
@@ -188,9 +251,18 @@ class TranscribeConfig:
             raw = raw["SETTING"]
         return cls.from_dict(raw)
 
+    def __post_init__(self) -> None:
+        # _coerce_value leaves tuples alone, so a string straight out of
+        # config.json arrives here unparsed.  This is the single point
+        # where every source -- config file, CLI flag, direct construction
+        # -- is normalised into a ladder.
+        self.temperature = parse_temperature(self.temperature)
+
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
         data["initial_prompt_mode"] = self.initial_prompt_mode.value
+        # Round-trips through config.json, which is a flat string map.
+        data["temperature"] = ", ".join(str(value) for value in self.temperature)
         return data
 
 

@@ -92,7 +92,13 @@ def build_parser() -> argparse.ArgumentParser:
         choices=[m.value for m in InitialPromptMode],
     )
     parser.add_argument("--beam-size", type=int, default=5)
-    parser.add_argument("--temperature", type=float, default=0.0)
+    parser.add_argument(
+        "--temperature",
+        default=None,
+        help="Temperature fallback ladder, comma-separated "
+             "(default 0.0,0.2,0.4,0.6,0.8,1.0). A single value disables "
+             "the repetition fallback.",
+    )
     parser.add_argument("--verbose", action="store_true")
 
     # --- speaker diarization -------------------------------------------
@@ -445,7 +451,8 @@ def _build_transcribe_config(args: argparse.Namespace) -> TranscribeConfig:
         base.initial_prompt = args.initial_prompt
     base.initial_prompt_mode = InitialPromptMode.parse(args.initial_prompt_mode)
     base.beam_size = args.beam_size
-    base.temperature = args.temperature
+    if args.temperature is not None:
+        base.temperature = args.temperature
     base.verbose = args.verbose
 
     if args.diarize is not None:

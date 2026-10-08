@@ -234,8 +234,8 @@
       "description": "temperature > 0 時，每段會取樣 N 次取最佳解，預設 5。temperature 為 0 時此值無作用。"
     },
     "temperature": {
-      "label": "取樣溫度",
-      "description": "取樣溫度。0 = 決定性輸出；>0 會引入隨機性，Whisper 在偵測到重複或品質低落時會自動逐步升溫重試，預設 0。"
+      "label": "取樣溫度階梯",
+      "description": "以逗號分隔的溫度階梯。Whisper 先用第一階解碼；當它偵測到輸出過度重複（壓縮比超過門檻）時，會改用下一階重試，最後挑一個不重複的結果。**只填一個數值等於關掉這道防護**——偵測得到卻無從替換，重複的輸出會原樣送出。預設 0.0, 0.2, 0.4, 0.6, 0.8, 1.0（即 Whisper 自己的預設）。"
     },
     "condition_on_previous_text": {
       "label": "用前段文字當 prompt",

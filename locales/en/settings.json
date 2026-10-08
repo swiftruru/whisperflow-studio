@@ -234,8 +234,8 @@
       "label": "Best of"
     },
     "temperature": {
-      "description": "Sampling temperature. 0 = deterministic. Whisper auto-ramps this up on fallback retries when it detects repetition/low quality. Default 0.",
-      "label": "Sampling temperature"
+      "description": "A comma-separated ladder. Whisper decodes at the first rung, and when it detects output that is too repetitive (compression ratio over the threshold) it retries at the next one, finally picking a result that is not repetitive. **A single value turns that defence off** -- the detector still fires, but with nothing to pick instead the repetitive decode is what you get. Default 0.0, 0.2, 0.4, 0.6, 0.8, 1.0, which is Whisper's own.",
+      "label": "Sampling temperature ladder"
     },
     "condition_on_previous_text": {
       "description": "Feed the previous segment's text as the next segment's prompt. Keeps terminology consistent but can get stuck in loops; turn off if you see runaway repetition.",

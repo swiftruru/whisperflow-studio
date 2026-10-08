@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from whisperflow.config import TranscribeConfig
 from whisperflow.prompts.base import InitialPromptMode
 
@@ -80,7 +82,10 @@ def test_string_numerics_are_coerced_to_numbers():
     assert cfg.vad_prompt_window == 3.0
     assert cfg.beam_size == 5
     assert isinstance(cfg.beam_size, int)
-    assert cfg.temperature == 0.0
+    # temperature is no longer a plain number: it is a fallback ladder, and
+    # a lone 0.0 -- the pre-ladder default -- is read as "unset".  See the
+    # ladder tests at the bottom of this file.
+    assert cfg.temperature == (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)
 
 
 def test_blank_string_coerces_to_none_on_optional_fields():
@@ -294,3 +299,94 @@ def test_diarize_refine_keeps_its_default_when_blank_or_null():
 def test_diarize_refine_can_still_be_turned_off_explicitly():
     for value in ("False", "false", "0", "no", False):
         assert TranscribeConfig.from_dict({"diarize_refine": value}).diarize_refine is False
+
+
+# --- the temperature fallback ladder -----------------------------------
+#
+# Whisper's defence against decoder repetition loops is a ladder, not a
+# single value: faster_whisper's generate_with_fallback iterates
+# `options.temperatures` and, when every rung fails, selects from
+# `below_cr_threshold_results or all_results`.  One rung gives that
+# selection one candidate, so a repetitive decode is returned because
+# there is nothing else to return.  Measured on a real 64-minute talk:
+# one cue at compression ratio 7.78 against the 2.4 threshold.
+
+
+def test_the_default_is_a_ladder_not_a_single_value():
+    assert TranscribeConfig().temperature == (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)
+
+
+def test_a_ladder_string_from_the_config_file_is_parsed():
+    assert TranscribeConfig.from_dict(
+        {"temperature": "0.0, 0.3, 0.7"}
+    ).temperature == (0.0, 0.3, 0.7)
+
+
+@pytest.mark.parametrize("raw", ["0.0,0.3", "0.0 , 0.3", "0.0; 0.3"])
+def test_separators_and_spacing_are_tolerated(raw):
+    assert TranscribeConfig.from_dict({"temperature": raw}).temperature == (0.0, 0.3)
+
+
+def test_a_deliberate_single_value_is_respected():
+    # One rung really does mean "no fallback".  That is a legitimate, if
+    # unwise, choice and the parser must not override it.
+    assert TranscribeConfig.from_dict({"temperature": "0.3"}).temperature == (0.3,)
+
+
+def test_a_lone_zero_is_upgraded_to_the_ladder():
+    # 0.0 alone is the value every install carried before the ladder
+    # existed.  It is not a setting anyone chose, it is the defect, and
+    # leaving it alone would mean the fix reaches new installs only.
+    # Greedy decoding is still what happens first, so nothing is lost.
+    assert TranscribeConfig.from_dict(
+        {"temperature": "0.0"}
+    ).temperature == (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)
+
+
+@pytest.mark.parametrize("raw", ["", None, "abc", "   ", [], "5.0", "-1"])
+def test_unusable_values_fall_back_to_the_ladder(raw):
+    # Never an empty sequence: generate_with_fallback would skip its loop
+    # and leave decode_result unbound.
+    assert TranscribeConfig.from_dict(
+        {"temperature": raw}
+    ).temperature == (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)
+
+
+def test_out_of_range_rungs_are_dropped_and_the_rest_kept():
+    assert TranscribeConfig.from_dict(
+        {"temperature": "0.0, 5.0, -1, 0.4"}
+    ).temperature == (0.0, 0.4)
+
+
+def test_duplicate_rungs_collapse():
+    assert TranscribeConfig.from_dict(
+        {"temperature": "0.2, 0.2, 0.4"}
+    ).temperature == (0.2, 0.4)
+
+
+def test_a_float_from_the_cli_becomes_a_one_rung_ladder():
+    assert TranscribeConfig(temperature=0.3).temperature == (0.3,)
+
+
+def test_a_sequence_passed_directly_is_kept():
+    assert TranscribeConfig(temperature=[0.0, 0.5]).temperature == (0.0, 0.5)
+
+
+def test_the_ladder_round_trips_through_to_dict():
+    # config.json is a flat string map, so to_dict has to render it back.
+    rendered = TranscribeConfig().to_dict()["temperature"]
+    assert rendered == "0.0, 0.2, 0.4, 0.6, 0.8, 1.0"
+    assert TranscribeConfig.from_dict({"temperature": rendered}).temperature \
+        == TranscribeConfig().temperature
+
+
+def test_the_shipped_example_config_carries_the_ladder():
+    # config.json is gitignored, so the example is what reaches a release.
+    import json
+    from pathlib import Path
+    example = json.loads(
+        (Path(__file__).resolve().parents[3] / "python/config/config.example.json")
+        .read_text(encoding="utf-8")
+    )
+    assert TranscribeConfig.from_dict(example["SETTING"]).temperature \
+        == (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)
